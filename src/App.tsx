@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeftRight, ImageUp, X } from 'lucide-react';
+import { ArrowLeftRight, Focus, ImageUp, X } from 'lucide-react';
 import { useStore } from './store';
 import { importBackup, isBackupFile, loadSample, setPhotoFromFile, startOver } from './lib/actions';
+import { branchOf } from './lib/branches';
 import { relationBetween } from './lib/kinship';
 import { deletePerson, displayName, pathBetween, shortName } from './lib/tree';
 import { Avatar } from './components/Avatar';
@@ -32,6 +33,7 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
     rows: [
       [['Enter'], 'Edit — or double-click their card'],
       [['Del'], 'Delete'],
+      [['B'], 'Show only their branch — press again for the whole tree'],
       [['Shift', 'click'], 'See how someone else is related to them'],
     ],
   },
@@ -67,7 +69,9 @@ function ShortcutsDialog({ onClose }: { onClose: () => void }) {
           </section>
         ))}
         <p className="shortcuts-note">
-          You can also drop a photo onto anyone's card, or a backup file anywhere to import it.
+          In a big tree, the small <strong>−</strong> buttons on the connecting lines fold a branch away; the{' '}
+          <strong>+</strong> badge left behind brings it back. You can also drop a photo onto anyone's card, or a backup
+          file anywhere to import it.
         </p>
       </div>
     </Modal>
@@ -167,45 +171,86 @@ function CompareBanner() {
   const connected = label || pathBetween(tree, base.id, other.id);
 
   return (
-    <div className="compare-wrap">
-      <div className="compare" role="status">
-        <Avatar person={other} size={28} />
-        <span className="compare-text">
-          {label ? (
-            <>
-              <strong>{shortName(other)}</strong> is <strong>{shortName(base)}</strong>'s{' '}
-              <em>{label.charAt(0).toLowerCase() + label.slice(1)}</em>
-            </>
-          ) : connected ? (
-            <>
-              <strong>{shortName(other)}</strong> and <strong>{shortName(base)}</strong> are connected by marriage — follow
-              the highlighted line
-            </>
-          ) : (
-            <>
-              <strong>{shortName(other)}</strong> and <strong>{shortName(base)}</strong> aren't connected in this tree
-            </>
-          )}
+    <div className="compare" role="status">
+      <Avatar person={other} size={28} />
+      <span className="compare-text">
+        {label ? (
+          <>
+            <strong>{shortName(other)}</strong> is <strong>{shortName(base)}</strong>'s{' '}
+            <em>{label.charAt(0).toLowerCase() + label.slice(1)}</em>
+          </>
+        ) : connected ? (
+          <>
+            <strong>{shortName(other)}</strong> and <strong>{shortName(base)}</strong> are connected by marriage — follow
+            the highlighted line
+          </>
+        ) : (
+          <>
+            <strong>{shortName(other)}</strong> and <strong>{shortName(base)}</strong> aren't connected in this tree
+          </>
+        )}
+      </span>
+      <button
+        type="button"
+        className="icon-btn"
+        aria-label="Swap the two people"
+        data-tip="Swap"
+        onClick={() => useStore.setState({ selectedId: other.id, compareId: base.id })}
+      >
+        <ArrowLeftRight size={15} />
+      </button>
+      <button
+        type="button"
+        className="icon-btn"
+        aria-label="Stop comparing"
+        data-tip="Close (Esc)"
+        onClick={() => compare(null)}
+      >
+        <X size={16} />
+      </button>
+    </div>
+  );
+}
+
+/** "Showing only Arthur's branch" — while the rest of the tree is hidden. */
+function FocusBanner() {
+  const tree = useStore((s) => s.tree);
+  const focusId = useStore((s) => s.focusId);
+  const { select, clearFocus } = useStore.getState();
+
+  const person = focusId ? tree.people[focusId] : undefined;
+  if (!person) return null;
+  const shown = branchOf(tree, person.id).size;
+  const total = Object.keys(tree.people).length;
+
+  return (
+    <div className="compare focus-banner" role="status">
+      <span className="focus-icon">
+        <Focus size={15} />
+      </span>
+      <span className="compare-text">
+        Showing only{' '}
+        <button type="button" className="focus-name" onClick={() => select(person.id, true)} data-tip="Go to them">
+          {shortName(person)}'s branch
+        </button>{' '}
+        <span className="focus-count">
+          {shown} of {total} people
         </span>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Swap the two people"
-          data-tip="Swap"
-          onClick={() => useStore.setState({ selectedId: other.id, compareId: base.id })}
-        >
-          <ArrowLeftRight size={15} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Stop comparing"
-          data-tip="Close (Esc)"
-          onClick={() => compare(null)}
-        >
-          <X size={16} />
-        </button>
-      </div>
+      </span>
+      <button type="button" className="btn focus-exit" onClick={clearFocus} data-tip="Back to the whole tree (B)">
+        Show everyone
+      </button>
+    </div>
+  );
+}
+
+/** Stacked under the top bar, centred in the space the details panel leaves free. */
+function Banners() {
+  const panelOpen = useStore((s) => Boolean(s.selectedId && s.tree.people[s.selectedId]));
+  return (
+    <div className={`compare-wrap${panelOpen ? '' : ' is-wide'}`}>
+      <FocusBanner />
+      <CompareBanner />
     </div>
   );
 }
@@ -291,7 +336,8 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const { dialog, undo, redo, select, compare, selectedId, compareId, openDialog } = useStore.getState();
+      const { dialog, undo, redo, select, compare, selectedId, compareId, openDialog, focusId, focusOn, clearFocus } =
+        useStore.getState();
       const el = e.target as HTMLElement;
       const typing = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT';
       const mod = e.ctrlKey || e.metaKey;
@@ -314,8 +360,13 @@ export default function App() {
       if (e.key === 'Escape') {
         if (compareId) compare(null);
         else if (selectedId) select(null);
+        else if (focusId) clearFocus();
       } else if (e.key === '?') {
         openDialog({ type: 'shortcuts' });
+      } else if (e.key.toLowerCase() === 'b') {
+        // B on the focused person (or with nobody selected) goes back to the whole tree.
+        if (selectedId && selectedId !== focusId) focusOn(selectedId);
+        else clearFocus();
       } else if (selectedId) {
         // Enter on a focused button or menu item belongs to that control, not to the selection.
         const onControl = Boolean(el.closest('button, a, [role="menu"]'));
@@ -337,7 +388,7 @@ export default function App() {
       <Canvas />
       <TopBar />
       {empty && <Welcome />}
-      <CompareBanner />
+      <Banners />
       <PersonPanel />
       <Dialogs />
       <Toasts />
