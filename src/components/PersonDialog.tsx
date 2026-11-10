@@ -1,0 +1,407 @@
+import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { Camera, ChevronDown, Info } from 'lucide-react';
+import type { Gender, Person, PersonInput, Relation, Tree, UnionStatus } from '../types';
+import { useStore, type Dialog } from '../store';
+import { lifespan } from '../lib/dates';
+import { readPhoto } from '../lib/files';
+import {
+  blankInput,
+  childCandidates,
+  createPerson,
+  displayName,
+  linkChild,
+  linkParent,
+  linkPartner,
+  linkSibling,
+  parentCandidates,
+  parentsOf,
+  partnerCandidates,
+  partnersOf,
+  shortName,
+  siblingCandidates,
+  updatePerson,
+} from '../lib/tree';
+import { Avatar } from './Avatar';
+import { DateInput } from './DateInput';
+import { Modal } from './Modal';
+
+type PersonDialogSpec = Extract<Dialog, { type: 'first' | 'add' | 'edit' }>;
+
+const RELATION_WORD: Record<Relation, string> = {
+  parent: 'parent',
+  partner: 'partner',
+  child: 'child',
+  sibling: 'sibling',
+};
+
+const GENDERS: { value: Gender; label: string }[] = [
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'other', label: 'Other' },
+];
+
+const opposite = (g: Gender): Gender => (g === 'male' ? 'female' : g === 'female' ? 'male' : 'other');
+
+/** Sensible starting values so adding a relative takes as little typing as possible. */
+function initialDraft(tree: Tree, spec: PersonDialogSpec): PersonInput {
+  if (spec.type === 'edit') {
+    const { id: _id, parentIds: _parents, ...rest } = tree.people[spec.personId];
+    return rest;
+  }
+  if (spec.type === 'first') return blankInput();
+  const anchor = tree.people[spec.anchorId];
+  switch (spec.relation) {
+    case 'parent': {
+      const existing = parentsOf(tree, anchor.id)[0];
+      return blankInput({
+        gender: existing ? opposite(existing.gender) : 'other',
+        lastName: existing?.gender === 'male' ? '' : anchor.lastName,
+      });
+    }
+    case 'partner':
+      return blankInput({ gender: opposite(anchor.gender) });
+    case 'child': {
+      const partner = partnersOf(tree, anchor.id)[0]?.person;
+      const father = anchor.gender === 'male' ? anchor : partner?.gender === 'male' ? partner : anchor;
+      return blankInput({ lastName: father.lastName });
+    }
+    case 'sibling':
+      return blankInput({ lastName: anchor.lastName });
+  }
+}
+
+function candidatesFor(tree: Tree, spec: PersonDialogSpec): Person[] {
+  if (spec.type !== 'add') return [];
+  const list =
+    spec.relation === 'parent'
+      ? parentCandidates(tree, spec.anchorId)
+      : spec.relation === 'partner'
+        ? partnerCandidates(tree, spec.anchorId)
+        : spec.relation === 'child'
+          ? childCandidates(tree, spec.anchorId)
+          : siblingCandidates(tree, spec.anchorId);
+  return list.sort((a, b) => displayName(a).localeCompare(displayName(b)));
+}
+
+export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
+  const tree = useStore((s) => s.tree);
+  const { commit, closeDialog, select, toast } = useStore.getState();
+
+  const anchor = spec.type === 'add' ? tree.people[spec.anchorId] : undefined;
+  const relation = spec.type === 'add' ? spec.relation : undefined;
+
+  const [draft, setDraft] = useState<PersonInput>(() => initialDraft(tree, spec));
+  const [mode, setMode] = useState<'new' | 'existing'>('new');
+  const [showMore, setShowMore] = useState(spec.type === 'edit');
+  const [status, setStatus] = useState<UnionStatus>('married');
+  const [photoError, setPhotoError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const candidates = useMemo(() => candidatesFor(tree, spec), [tree, spec]);
+  const [existingId, setExistingId] = useState('');
+
+  const anchorPartners = anchor ? partnersOf(tree, anchor.id) : [];
+  const [otherParentId, setOtherParentId] = useState(() => {
+    const current = anchorPartners.find((p) => p.union.status !== 'divorced') ?? anchorPartners[0];
+    return current?.person.id ?? '';
+  });
+
+  const set = (patch: Partial<PersonInput>) => setDraft((d) => ({ ...d, ...patch }));
+
+  const needsPlaceholders =
+    relation === 'sibling' &&
+    anchor !== undefined &&
+    anchor.parentIds.length === 0 &&
+    (mode === 'new' || (tree.people[existingId]?.parentIds.length ?? 0) === 0);
+
+  const title =
+    spec.type === 'first'
+      ? 'Start with yourself'
+      : spec.type === 'edit'
+        ? 'Edit details'
+        : `Add ${shortName(anchor)}'s ${RELATION_WORD[spec.relation]}`;
+  const subtitle =
+    spec.type === 'first' ? 'You can add parents, siblings, a partner and children from here.' : undefined;
+
+  const onPhoto = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      set({ photo: await readPhoto(file) });
+      setPhotoError('');
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : "That image couldn't be read");
+    }
+  };
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const clean: PersonInput = {
+      ...draft,
+      firstName: draft.firstName.trim(),
+      lastName: draft.lastName.trim(),
+      birthPlace: draft.birthPlace.trim(),
+      notes: draft.notes.trim(),
+      deathDate: draft.deceased ? draft.deathDate : '',
+    };
+
+    if (spec.type === 'edit') {
+      commit(updatePerson(tree, spec.personId, clean));
+      closeDialog();
+      return;
+    }
+
+    if (spec.type === 'first') {
+      const created = createPerson(tree, clean);
+      commit(created.tree);
+      closeDialog();
+      select(created.id, true);
+      return;
+    }
+
+    let next = tree;
+    let targetId = existingId;
+    if (mode === 'new') {
+      const created = createPerson(tree, clean);
+      next = created.tree;
+      targetId = created.id;
+    }
+    if (!next.people[targetId]) return;
+
+    switch (spec.relation) {
+      case 'parent':
+        next = linkParent(next, spec.anchorId, targetId);
+        break;
+      case 'partner':
+        next = linkPartner(next, spec.anchorId, targetId, status);
+        break;
+      case 'child':
+        next = linkChild(next, spec.anchorId, otherParentId || null, targetId);
+        break;
+      case 'sibling': {
+        const res = linkSibling(next, spec.anchorId, targetId);
+        next = res.tree;
+        if (res.placeholders) toast('Added placeholder parents — select them to fill in their details');
+        break;
+      }
+    }
+    commit(next);
+    closeDialog();
+    select(targetId);
+  };
+
+  return (
+    <Modal title={title} subtitle={subtitle} onClose={closeDialog}>
+      <form onSubmit={submit} className="form">
+        {spec.type === 'add' && candidates.length > 0 && (
+          <div className="segmented" role="tablist" aria-label="Who to add">
+            <button type="button" role="tab" aria-selected={mode === 'new'} onClick={() => setMode('new')}>
+              New person
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'existing'}
+              onClick={() => {
+                setMode('existing');
+                if (!existingId) setExistingId(candidates[0].id);
+              }}
+            >
+              Already in the tree
+            </button>
+          </div>
+        )}
+
+        {mode === 'existing' ? (
+          <label className="field">
+            <span className="field-label">Person</span>
+            <select
+              className="input"
+              value={existingId}
+              autoFocus
+              onChange={(e) => setExistingId(e.target.value)}
+            >
+              {candidates.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {displayName(p)}
+                  {lifespan(p) ? ` (${lifespan(p)})` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <>
+            <div className="name-row">
+              <button
+                type="button"
+                className="photo-btn"
+                onClick={() => fileRef.current?.click()}
+                aria-label={draft.photo ? 'Change photo' : 'Add photo'}
+                data-tip={draft.photo ? 'Change photo' : 'Add photo'}
+              >
+                <Avatar person={draft} size={72} />
+                <span className="photo-badge">
+                  <Camera size={13} />
+                </span>
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  void onPhoto(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
+              />
+              <div className="name-fields">
+                <label className="field">
+                  <span className="field-label">First name</span>
+                  <input
+                    className="input"
+                    value={draft.firstName}
+                    autoFocus
+                    autoComplete="off"
+                    onChange={(e) => set({ firstName: e.target.value })}
+                  />
+                </label>
+                <label className="field">
+                  <span className="field-label">Last name</span>
+                  <input
+                    className="input"
+                    value={draft.lastName}
+                    autoComplete="off"
+                    onChange={(e) => set({ lastName: e.target.value })}
+                  />
+                </label>
+              </div>
+            </div>
+            {(draft.photo || photoError) && (
+              <div className="photo-meta">
+                {photoError && <span className="error-text">{photoError}</span>}
+                {draft.photo && (
+                  <button type="button" className="link-btn" onClick={() => set({ photo: '' })}>
+                    Remove photo
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="field">
+              <span className="field-label">Gender</span>
+              <div className="segmented" role="radiogroup" aria-label="Gender">
+                {GENDERS.map((g) => (
+                  <button
+                    key={g.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={draft.gender === g.value}
+                    onClick={() => set({ gender: g.value })}
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="field">
+              <span className="field-label">
+                Born <small>— just the year is fine</small>
+              </span>
+              <DateInput label="Born" value={draft.birthDate} onChange={(v) => set({ birthDate: v })} />
+            </div>
+
+            {!showMore && (
+              <button type="button" className="link-btn more-btn" onClick={() => setShowMore(true)}>
+                <ChevronDown size={15} /> More details
+              </button>
+            )}
+
+            {showMore && (
+              <>
+                <label className="field">
+                  <span className="field-label">Birthplace</span>
+                  <input
+                    className="input"
+                    value={draft.birthPlace}
+                    autoComplete="off"
+                    onChange={(e) => set({ birthPlace: e.target.value })}
+                  />
+                </label>
+
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={draft.deceased}
+                    onChange={(e) => set({ deceased: e.target.checked })}
+                  />
+                  <span>Has passed away</span>
+                </label>
+                {draft.deceased && (
+                  <div className="field">
+                    <span className="field-label">Died</span>
+                    <DateInput label="Died" value={draft.deathDate} onChange={(v) => set({ deathDate: v })} />
+                  </div>
+                )}
+
+                <label className="field">
+                  <span className="field-label">Notes</span>
+                  <textarea
+                    className="input"
+                    rows={3}
+                    value={draft.notes}
+                    placeholder="Stories, occupation, anything worth remembering"
+                    onChange={(e) => set({ notes: e.target.value })}
+                  />
+                </label>
+              </>
+            )}
+          </>
+        )}
+
+        {relation === 'partner' && (
+          <label className="field">
+            <span className="field-label">Relationship</span>
+            <select className="input" value={status} onChange={(e) => setStatus(e.target.value as UnionStatus)}>
+              <option value="married">Married</option>
+              <option value="partner">Partner</option>
+              <option value="divorced">Divorced</option>
+            </select>
+          </label>
+        )}
+
+        {relation === 'child' && anchorPartners.length > 0 && (
+          <label className="field">
+            <span className="field-label">Other parent</span>
+            <select className="input" value={otherParentId} onChange={(e) => setOtherParentId(e.target.value)}>
+              {anchorPartners.map(({ person }) => (
+                <option key={person.id} value={person.id}>
+                  {displayName(person)}
+                </option>
+              ))}
+              <option value="">Not in the tree</option>
+            </select>
+          </label>
+        )}
+
+        {needsPlaceholders && (
+          <p className="hint">
+            <Info size={15} />
+            <span>
+              Siblings are linked through their parents. {shortName(anchor)} has none yet, so two placeholder parents
+              will be added — you can fill them in later.
+            </span>
+          </p>
+        )}
+
+        <footer className="modal-foot">
+          <button type="button" className="btn" onClick={closeDialog}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary">
+            {spec.type === 'edit' ? 'Save' : spec.type === 'first' ? 'Start my tree' : 'Add to tree'}
+          </button>
+        </footer>
+      </form>
+    </Modal>
+  );
+}
