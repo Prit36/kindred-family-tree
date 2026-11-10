@@ -276,8 +276,10 @@ export function Canvas() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      const { dialog, selectedId: current, tree: t, select: go, fitView } = useStore.getState();
+      const { dialog, selectedId: current, tree: t, select: go, fitView, mode } = useStore.getState();
       const el = e.target as HTMLElement;
+      // The timeline view has keys of its own.
+      if (mode !== 'tree') return;
       if (dialog || el.closest('input, textarea, select, [role="menu"]')) return;
 
       const key = e.key.toLowerCase();

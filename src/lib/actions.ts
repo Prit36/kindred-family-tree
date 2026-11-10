@@ -23,7 +23,12 @@ export async function exportBackup() {
 }
 
 export async function exportImage() {
-  const { toast } = useStore.getState();
+  const { toast, mode, setMode } = useStore.getState();
+  // The image is of the tree, which is hidden behind the timeline: show it first.
+  if (mode !== 'tree') {
+    setMode('tree');
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }
   if (!canvasHandle.exportPng) return;
   try {
     await canvasHandle.exportPng();

@@ -26,6 +26,7 @@ import { PersonDialog } from './components/PersonDialog';
 import { PersonPanel } from './components/PersonPanel';
 import { PhotoCropper } from './components/PhotoCropper';
 import { PhotoViewer } from './components/PhotoViewer';
+import { Timeline } from './components/Timeline';
 import { Toasts } from './components/Toasts';
 import { TopBar } from './components/TopBar';
 import { Welcome } from './components/Welcome';
@@ -37,6 +38,7 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
       [['↑', '↓'], 'Go to a parent or child'],
       [['←', '→'], 'Go to the next person in the same generation'],
       [['/'], 'Search by name, place, year or relationship'],
+      [['T'], 'Switch between the tree and the timeline'],
       [['H'], 'Jump back to yourself'],
       [['F'], 'Fit the whole tree on screen'],
       [['+', '−'], 'Zoom in and out'],
@@ -399,6 +401,7 @@ function useFileDrop(): boolean {
 export default function App() {
   const empty = useStore((s) => Object.keys(s.tree.people).length === 0);
   const dialogOpen = useStore((s) => s.dialog !== null);
+  const timeline = useStore((s) => s.mode === 'timeline') && !empty;
   const dragging = useFileDrop();
 
   useEffect(() => {
@@ -430,6 +433,9 @@ export default function App() {
         else if (focusId) clearFocus();
       } else if (e.key === '?') {
         openDialog({ type: 'shortcuts' });
+      } else if (e.key.toLowerCase() === 't') {
+        const { mode, setMode, tree } = useStore.getState();
+        if (Object.keys(tree.people).length > 0) setMode(mode === 'tree' ? 'timeline' : 'tree');
       } else if (e.key.toLowerCase() === 'b') {
         // B on the focused person (or with nobody selected) goes back to the whole tree.
         if (selectedId && selectedId !== focusId) focusOn(selectedId);
@@ -453,8 +459,10 @@ export default function App() {
   }, []);
 
   return (
-    <div className="app">
+    <div className={`app${timeline ? ' is-timeline' : ''}`}>
+      {/* The tree stays mounted under the timeline so it keeps its place. */}
       <Canvas />
+      {timeline && <Timeline />}
       <TopBar />
       {empty && <Welcome />}
       <Banners />

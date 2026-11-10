@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   CalendarHeart,
+  ChartGantt,
   Download,
   Ellipsis,
   FileText,
   Image,
   Keyboard,
   Moon,
+  Network,
   Redo2,
   RotateCcw,
   Search,
@@ -16,7 +18,7 @@ import {
   Upload,
 } from 'lucide-react';
 import type { Person } from '../types';
-import { useStore } from '../store';
+import { useStore, type ViewMode } from '../store';
 import { exportBackup, exportGedcom, exportImage, pickBackupFile } from '../lib/actions';
 import { lifespan, yearOf } from '../lib/dates';
 import { upcomingDates } from '../lib/insights';
@@ -285,6 +287,31 @@ function MainMenu() {
   );
 }
 
+/** Tree or timeline. */
+function ViewSwitch() {
+  const mode = useStore((s) => s.mode);
+  const setMode = useStore((s) => s.setMode);
+  const option = (value: ViewMode, label: string, icon: ReactNode) => (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={mode === value}
+      aria-label={label}
+      data-tip={mode === value ? undefined : `${label} (T)`}
+      onClick={() => setMode(value)}
+    >
+      {icon}
+      <span className="view-switch-label">{label}</span>
+    </button>
+  );
+  return (
+    <div className="segmented view-switch" role="radiogroup" aria-label="View">
+      {option('tree', 'Tree', <Network size={15} />)}
+      {option('timeline', 'Timeline', <ChartGantt size={15} />)}
+    </div>
+  );
+}
+
 /** Opens the calendar & checks dialog. A dot means someone has a birthday (or anniversary) today. */
 function InsightsButton() {
   const tree = useStore((s) => s.tree);
@@ -333,6 +360,8 @@ export function TopBar() {
           <Redo2 size={17} />
         </button>
         <span className="divider" />
+        {!empty && <ViewSwitch />}
+        {!empty && <span className="divider" />}
         {!empty && <InsightsButton />}
         <button
           type="button"

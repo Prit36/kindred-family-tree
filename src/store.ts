@@ -11,6 +11,18 @@ const THEME_KEY = 'kindred.theme';
 const HISTORY_LIMIT = 100;
 
 export type Theme = 'light' | 'dark';
+/** The family as a tree, or everyone's lifetimes on a time axis. */
+export type ViewMode = 'tree' | 'timeline';
+
+const MODE_KEY = 'kindred.mode';
+
+function loadMode(): ViewMode {
+  try {
+    return localStorage.getItem(MODE_KEY) === 'timeline' ? 'timeline' : 'tree';
+  } catch {
+    return 'tree';
+  }
+}
 
 export type Dialog =
   | { type: 'first' }
@@ -57,6 +69,7 @@ interface State {
   toasts: Toast[];
   view: ViewRequest;
   theme: Theme;
+  mode: ViewMode;
 
   /** Apply a change to the tree and record it for undo. */
   commit: (tree: Tree) => void;
@@ -82,6 +95,7 @@ interface State {
   dismissToast: (id: number) => void;
   fitView: () => void;
   toggleTheme: () => void;
+  setMode: (mode: ViewMode) => void;
 }
 
 /** Folds are remembered between visits, as long as they still belong to this tree. */
@@ -147,6 +161,7 @@ export const useStore = create<State>((set, get) => ({
   toasts: [],
   view: { kind: 'fit', nonce: 0 },
   theme: loadTheme(),
+  mode: loadMode(),
 
   commit: (tree) => {
     const { tree: current, past } = get();
@@ -262,6 +277,18 @@ export const useStore = create<State>((set, get) => ({
       /* theme just won't persist */
     }
     set({ theme });
+  },
+
+  setMode: (mode) => {
+    if (mode === get().mode) return;
+    try {
+      localStorage.setItem(MODE_KEY, mode);
+    } catch {
+      /* the view just won't persist */
+    }
+    // Whoever is selected stays in sight in the view being switched to.
+    const { selectedId } = get();
+    set({ mode, view: selectedId ? { kind: 'reveal', id: selectedId, nonce: nonce++ } : get().view });
   },
 }));
 

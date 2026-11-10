@@ -2793,3 +2793,1203 @@ kbd {
     padding: 10px 16px 18px;
   }
 }
+
+/* ==========================================================================
+   View switch (tree / timeline)
+   ========================================================================== */
+
+.view-switch {
+  flex: none;
+  padding: 3px;
+  margin: 0 2px;
+}
+
+.view-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+}
+
+.view-switch button svg {
+  flex: none;
+}
+
+/* The tree is kept (hidden) under the timeline so it doesn't lose its place. */
+.app.is-timeline .viewport {
+  visibility: hidden;
+}
+
+/* Banners float at the bottom over the timeline, clear of its toolbar. */
+.app.is-timeline .compare-wrap {
+  top: auto;
+  bottom: 26px;
+  flex-direction: column-reverse;
+}
+
+/* ==========================================================================
+   Timeline
+   ========================================================================== */
+
+.timeline {
+  position: absolute;
+  top: 72px;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  animation: fade-in 0.2s var(--ease) both;
+}
+
+/* Leave room for the details panel docked on the right. */
+.timeline.is-panel-open {
+  right: 392px;
+}
+
+/* Toolbar ------------------------------------------------------------------ */
+
+.tl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 54px;
+  padding: 8px 10px 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tl-order {
+  flex: none;
+}
+
+.tl-order button {
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.tl-status {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.tl-hint {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Who's selected (or being compared), with a way to let go. */
+.tl-focus {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 34px;
+  padding: 0 4px 0 5px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  animation: fade-in 0.15s var(--ease) both;
+}
+
+.tl-focus-avatars {
+  flex: none;
+  display: flex;
+}
+
+.tl-focus-avatars .avatar + .avatar {
+  margin-left: -7px;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.tl-focus-text {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-2);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tl-focus-text strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.tl-focus-text > strong + .tl-focus-detail {
+  margin-left: 6px;
+}
+
+.tl-focus-clear {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-3);
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.tl-focus-clear:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--text);
+}
+
+.tl-zoom {
+  flex: none;
+  padding: 3px;
+  box-shadow: none;
+  border-radius: 12px;
+}
+
+.tl-zoom .icon-btn {
+  width: 32px;
+  height: 32px;
+}
+
+/* Tooltips at the right edge open leftwards so they aren't clipped. */
+.tl-zoom [data-tip]::after {
+  left: auto;
+  right: 0;
+  transform: translate(0, -3px);
+}
+
+.tl-zoom [data-tip]:hover::after,
+.tl-zoom [data-tip]:focus-visible::after {
+  transform: translate(0, 0);
+}
+
+/* Scroll area -------------------------------------------------------------- */
+
+.tl-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.tl-grid {
+  position: relative;
+  min-width: 100%;
+}
+
+.tl-axis {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--border);
+}
+
+.tl-corner {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.tl-axis-track {
+  position: relative;
+  flex: none;
+}
+
+.tl-tick {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tl-tick.is-major {
+  color: var(--text-2);
+  font-weight: 650;
+}
+
+.tl-tick.is-hidden {
+  visibility: hidden;
+}
+
+.tl-now-label {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  padding: 0 7px;
+  border-radius: 99px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 18px;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+
+.tl-now-label.is-hidden {
+  opacity: 0;
+}
+
+.tl-cursor-label {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  transform: translate(-50%, -50%);
+  padding: 0 8px;
+  border-radius: 7px;
+  background: var(--tip-bg);
+  color: var(--tip-text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 22px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.tl-cursor-label span {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+/* Rows --------------------------------------------------------------------- */
+
+.tl-body {
+  position: relative;
+  isolation: isolate;
+}
+
+.tl-layer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.tl-layer.is-front {
+  z-index: 2;
+}
+
+.tl-grid-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+  opacity: 0.4;
+}
+
+.tl-grid-line.is-major {
+  opacity: 0.9;
+}
+
+.tl-now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1.5px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+/* The selected person's lifetime, carried down every row. */
+.tl-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  box-shadow:
+    inset 1px 0 0 color-mix(in srgb, var(--accent) 35%, transparent),
+    inset -1px 0 0 color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.tl-row {
+  position: relative;
+  display: flex;
+  height: 44px;
+  cursor: pointer;
+}
+
+.tl-row:hover {
+  background: color-mix(in srgb, var(--surface-3) 40%, transparent);
+}
+
+.tl-row.is-compared {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.tl-row.is-selected,
+.tl-row.is-selected:hover {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+.tl-name {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 0 10px 0 14px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  text-align: left;
+}
+
+/* The sticky name cell is opaque; repeat the row's tint on it. */
+.tl-row:hover .tl-name {
+  background: color-mix(in srgb, var(--surface-3) 40%, var(--surface));
+}
+
+.tl-row.is-compared .tl-name {
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.tl-row.is-selected .tl-name {
+  background: color-mix(in srgb, var(--accent) 11%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.tl-name:focus-visible {
+  outline-offset: -3px;
+}
+
+.tl-name .avatar {
+  flex: none;
+}
+
+.tl-row.is-muted .tl-name .avatar {
+  opacity: 0.75;
+}
+
+.tl-name-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.tl-name-main {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tl-name-full {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tl-home {
+  flex: none;
+  color: var(--accent);
+}
+
+.tl-name-sub {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 11.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tl-track {
+  position: relative;
+  flex: none;
+}
+
+/* Bars --------------------------------------------------------------------- */
+
+.tl-bar {
+  --tone: var(--other);
+  position: absolute;
+  top: 10px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.tl-bar.g-male {
+  --tone: var(--male);
+}
+
+.tl-bar.g-female {
+  --tone: var(--female);
+}
+
+.tl-bar-fill {
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--tone) 55%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tone) 20%, var(--surface));
+  transition:
+    opacity 0.2s,
+    background 0.2s;
+}
+
+.tl-bar:hover > .tl-bar-fill {
+  background: color-mix(in srgb, var(--tone) 28%, var(--surface));
+}
+
+/* Still alive: the bar runs on into today. */
+.tl-bar-fill.is-living {
+  border-top-right-radius: 2px;
+  border-bottom-right-radius: 2px;
+  border-right-width: 2px;
+  border-right-color: var(--tone);
+}
+
+/* A guessed date fades out rather than ending on a firm edge. */
+.tl-bar-fill.is-fade-start {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 44px);
+  mask-image: linear-gradient(to right, transparent, #000 44px);
+}
+
+.tl-bar-fill.is-fade-end {
+  -webkit-mask-image: linear-gradient(to left, transparent, #000 44px);
+  mask-image: linear-gradient(to left, transparent, #000 44px);
+}
+
+.tl-bar-fill.is-fade-start.is-fade-end {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 44px, #000 calc(100% - 44px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 44px, #000 calc(100% - 44px), transparent);
+}
+
+.tl-row.is-selected .tl-bar-fill {
+  border: 1.5px solid var(--tone);
+  background: color-mix(in srgb, var(--tone) 34%, var(--surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 16%, transparent);
+}
+
+/* Someone else is selected: what didn't overlap them steps back. */
+.tl-row.is-muted .tl-bar > .tl-bar-fill {
+  opacity: 0.32;
+}
+
+/* The stretch that did overlap: a full-strength copy of the bar, cut to size. */
+.tl-bar-lit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.tl-bar-lit > .tl-bar-fill {
+  right: auto;
+  background: color-mix(in srgb, var(--tone) 26%, var(--surface));
+}
+
+.tl-bar-label {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+  padding-right: 10px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.tl-bar-age {
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.tl-bar-age::before {
+  content: '·';
+  margin-right: 7px;
+  opacity: 0.6;
+}
+
+.tl-bar-label.is-outside {
+  position: absolute;
+  top: 50%;
+  padding: 0;
+  transform: translateY(-50%);
+  color: var(--text-2);
+}
+
+.tl-row.is-muted .tl-bar-label {
+  color: var(--text-2);
+}
+
+.tl-row.is-muted .tl-bar-age {
+  color: var(--text-3);
+}
+
+/* A child's birth: a dot on the bar's lower edge, in the child's colour. */
+.tl-pin {
+  --pin: var(--other);
+  position: absolute;
+  top: 100%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--pin);
+  box-shadow: 0 0 0 2px var(--surface);
+  color: var(--surface);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    transform 0.15s var(--ease),
+    box-shadow 0.15s;
+}
+
+/* A bigger target than it looks. */
+.tl-pin::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+}
+
+.tl-pin.g-male {
+  --pin: var(--male);
+}
+
+.tl-pin.g-female {
+  --pin: var(--female);
+}
+
+/* Several births close together (twins, or a zoomed-out view). */
+.tl-pin.is-group {
+  --pin: var(--text-2);
+  width: 15px;
+  height: 15px;
+  margin: -7.5px 0 0 -7.5px;
+}
+
+.tl-pin:hover {
+  transform: scale(1.35);
+}
+
+.tl-pin.is-linked {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--accent);
+}
+
+.tl-row.is-muted .tl-pin:not(.is-linked) {
+  opacity: 0.5;
+}
+
+/* Lines from the selected person's parents to them, and from them to their children */
+.tl-links {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  color: var(--accent);
+}
+
+.tl-links line {
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+  stroke-linecap: round;
+}
+
+.tl-links path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tl-link-age {
+  position: absolute;
+  padding: 0 7px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--accent-strong);
+  font-size: 10.5px;
+  font-weight: 650;
+  line-height: 15px;
+  white-space: nowrap;
+}
+
+.tl-legend {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.tl-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.tl-key-pin {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text-3);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.tl-key-fade {
+  width: 24px;
+  height: 10px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text-3) 45%, transparent);
+  -webkit-mask-image: linear-gradient(to right, #000 25%, transparent);
+  mask-image: linear-gradient(to right, #000 25%, transparent);
+}
+
+@media (max-width: 1240px) {
+  .tl-legend {
+    display: none;
+  }
+}
+
+/* The selected person's life events, hanging under their bar */
+.tl-row.is-selected .tl-name {
+  align-items: flex-start;
+  padding-top: 8px;
+}
+
+.tl-events {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+/* Where on the bar it happened */
+.tl-event-mark {
+  position: absolute;
+  z-index: 0;
+  opacity: 0.85;
+  top: 10px;
+  width: 2px;
+  height: 24px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.tl-event-stem {
+  position: absolute;
+  z-index: 0;
+  top: 34px;
+  width: 0;
+  margin-left: -0.5px;
+  border-left: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.tl-event {
+  position: absolute;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px 0 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: 99px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: auto;
+  animation: fade-in 0.2s var(--ease) both;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    opacity 0.15s;
+}
+
+/* While one chip is hovered, the others step back. */
+.tl-events:has(.tl-event:hover) .tl-event:not(:hover) {
+  opacity: 0.4;
+}
+
+.tl-event:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.tl-event .avatar {
+  flex: none;
+}
+
+.tl-event-year {
+  color: var(--text-3);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hover readout: a line through time and everyone's age at that moment */
+.tl-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--text-2);
+  opacity: 0.45;
+}
+
+.tl-age {
+  position: absolute;
+  transform: translateY(-50%);
+  padding: 0 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 10.5px;
+  font-weight: 650;
+  line-height: 15px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.tl-age.is-current {
+  border-color: var(--tip-bg);
+  background: var(--tip-bg);
+  color: var(--tip-text);
+}
+
+/* Hover card --------------------------------------------------------------- */
+
+.tl-card {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  width: max-content;
+  min-width: 232px;
+  max-width: 300px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.tl-card.is-placed {
+  animation: tl-card-in 0.14s var(--ease) both;
+}
+
+@keyframes tl-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Who: avatar, who they are to someone, and their name */
+.tl-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tl-card-head > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.tl-card-head strong {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.tl-card-eyebrow {
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tl-card-eyebrow::first-letter {
+  text-transform: uppercase;
+}
+
+.tl-card-avatar {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+}
+
+/* Born or died, as a small badge on the avatar */
+.tl-card-badge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.tl-card-badge.is-born {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.tl-card-badge.is-died {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+
+/* Standing in for an avatar when several people share the card */
+.tl-card-badge.is-solo {
+  position: static;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  box-shadow: none;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+/* When, and how old: label on the left, value on the right */
+.tl-card-facts {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.tl-card-facts > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tl-card-facts dt {
+  color: var(--text-2);
+}
+
+.tl-card-facts dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tl-card-facts em {
+  color: var(--text-3);
+  font-style: normal;
+  font-weight: 500;
+}
+
+.tl-card-muted {
+  color: var(--text-2);
+  font-weight: 450;
+}
+
+/* How their life lined up with the selected person's */
+.tl-card-foot {
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--accent-strong);
+  font-weight: 550;
+}
+
+.tl-card-foot strong {
+  font-weight: 700;
+}
+
+.tl-card-note {
+  margin: 8px 0 0;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.tl-card-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+}
+
+.tl-card-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tl-card-list li > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.tl-card-list strong {
+  font-weight: 650;
+}
+
+.tl-card-list li > div span {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.tl-card-list-age {
+  flex: none;
+  color: var(--text-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Empty state & people without dates ------------------------------------- */
+
+.tl-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 340px;
+  margin: 12vh auto 0;
+  padding: 0 20px;
+  text-align: center;
+  color: var(--text-2);
+}
+
+.tl-empty svg {
+  color: var(--accent);
+}
+
+.tl-empty h2 {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.tl-undated {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.tl-undated-title {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.tl-undated-title small {
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.tl-undated-list {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 2px;
+  scrollbar-width: thin;
+}
+
+.tl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: var(--surface);
+  font-size: 12.5px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+.tl-chip:hover {
+  border-color: var(--border-strong);
+}
+
+.tl-chip.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-ring);
+}
+
+@media (max-width: 1100px) {
+  .tl-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 859px) {
+  .timeline,
+  .timeline.is-panel-open {
+    top: 68px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+  }
+
+  .tl-toolbar {
+    gap: 10px;
+  }
+
+  .tl-focus-detail {
+    display: none;
+  }
+
+  .view-switch-label {
+    display: none;
+  }
+
+  .view-switch button {
+    padding: 0 8px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Room is tight: the switch becomes one button that goes to the other view. */
+  .view-switch {
+    padding: 0;
+    margin: 0;
+    background: none;
+  }
+
+  .view-switch button[aria-checked='true'] {
+    display: none;
+  }
+
+  .view-switch button {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 10px;
+    color: var(--text-2);
+  }
+
+  .view-switch button:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .tl-name {
+    gap: 7px;
+    padding: 0 6px 0 8px;
+  }
+
+  .tl-name-sub {
+    font-size: 11px;
+  }
+
+  .tl-order button {
+    padding: 0 9px;
+  }
+
+  .tl-corner {
+    padding: 0 8px;
+  }
+
+  /* The details sheet already says who's selected. */
+  .tl-status {
+    display: none;
+  }
+
+  .tl-toolbar {
+    justify-content: space-between;
+  }
+}
