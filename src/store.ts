@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Relation, Tree } from './types';
+import type { PhotoSource } from './lib/files';
 import { NOTHING_COLLAPSED, branchOf, pruneCollapsed, unfoldTo, visibleIds, type Collapsed } from './lib/branches';
 import { emptyTree, sanitizeTree, shortName } from './lib/tree';
 
@@ -17,7 +18,9 @@ export type Dialog =
   | { type: 'delete'; personId: string }
   | { type: 'reset' }
   | { type: 'sample' }
-  | { type: 'shortcuts' };
+  | { type: 'shortcuts' }
+  /** Cropping a newly picked photo for someone, outside the edit dialog. */
+  | { type: 'photo'; personId: string; source: PhotoSource };
 
 export interface Toast {
   id: number;

@@ -1,44 +1,58 @@
 import { toPng } from 'html-to-image';
 import type { Tree } from '../types';
+import { cropRect, type CropView } from './crop';
 
-/** Reads an image file and returns a small, centre-cropped square JPEG data URL. */
-export function readPhoto(file: File, size = 192): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith('image/')) {
-      reject(new Error('Please choose an image file'));
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const side = Math.min(img.naturalWidth, img.naturalHeight);
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d')!;
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, size, size);
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(
-        img,
-        (img.naturalWidth - side) / 2,
-        (img.naturalHeight - side) / 2,
-        side,
-        side,
-        0,
-        0,
-        size,
-        size,
-      );
-      URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL('image/jpeg', 0.84));
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("That image couldn't be read"));
-    };
-    img.src = url;
-  });
+/** A photo picked by the user, loaded and ready to crop. */
+export interface PhotoSource {
+  /** Object URL of the original file; free it with `releasePhoto`. */
+  url: string;
+  img: HTMLImageElement;
+  width: number;
+  height: number;
+}
+
+/** Loads an image file for cropping. Rejects with a message fit to show the user. */
+export async function loadPhoto(file: File): Promise<PhotoSource> {
+  const heic = /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
+  if (!file.type.startsWith('image/') && !heic) throw new Error('Please choose an image file');
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  try {
+    // `load` rather than `img.decode()`, which can stall until the page next paints.
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('unreadable'));
+      img.src = url;
+    });
+  } catch {
+    URL.revokeObjectURL(url);
+    throw new Error(
+      heic ? "This browser can't open HEIC photos — try a JPEG or PNG" : "That image couldn't be read",
+    );
+  }
+  if (!img.naturalWidth || !img.naturalHeight) {
+    URL.revokeObjectURL(url);
+    throw new Error("That image couldn't be read");
+  }
+  return { url, img, width: img.naturalWidth, height: img.naturalHeight };
+}
+
+export function releasePhoto(source: PhotoSource) {
+  URL.revokeObjectURL(source.url);
+}
+
+/** Cuts the chosen square out of a photo as a small JPEG data URL, the form photos are stored in. */
+export function cropPhoto(source: PhotoSource, view: CropView, size = 192): string {
+  const { x, y, size: side } = cropRect(source, view);
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#fff'; // behind transparent PNGs
+  ctx.fillRect(0, 0, size, size);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(source.img, x, y, side, side, 0, 0, size, size);
+  return canvas.toDataURL('image/jpeg', 0.86);
 }
 
 function download(href: string, filename: string) {

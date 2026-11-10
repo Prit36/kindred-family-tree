@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeftRight, Focus, ImageUp, X } from 'lucide-react';
 import { useStore } from './store';
-import { importBackup, isBackupFile, loadSample, setPhotoFromFile, startOver } from './lib/actions';
+import { importBackup, isBackupFile, loadSample, savePhoto, setPhotoFromFile, startOver } from './lib/actions';
+import { releasePhoto, type PhotoSource } from './lib/files';
 import { branchOf } from './lib/branches';
 import { relationBetween } from './lib/kinship';
 import { deletePerson, displayName, pathBetween, shortName } from './lib/tree';
@@ -11,6 +12,7 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 import { Modal } from './components/Modal';
 import { PersonDialog } from './components/PersonDialog';
 import { PersonPanel } from './components/PersonPanel';
+import { PhotoCropper } from './components/PhotoCropper';
 import { Toasts } from './components/Toasts';
 import { TopBar } from './components/TopBar';
 import { Welcome } from './components/Welcome';
@@ -75,6 +77,31 @@ function ShortcutsDialog({ onClose }: { onClose: () => void }) {
         </p>
       </div>
     </Modal>
+  );
+}
+
+/** The cropper for a photo picked from the details panel or dropped on a card. */
+function PhotoDialog({ personId, source }: { personId: string; source: PhotoSource }) {
+  const person = useStore((s) => s.tree.people[personId]);
+  const { closeDialog } = useStore.getState();
+  // Freed when the dialog is closed rather than in an effect cleanup, which StrictMode
+  // would run straight after mounting.
+  const close = () => {
+    closeDialog();
+    releasePhoto(source);
+  };
+  return (
+    <PhotoCropper
+      source={source}
+      title={person ? `Photo of ${shortName(person)}` : undefined}
+      onCancel={close}
+      onSave={(photo, saved) => {
+        savePhoto(personId, photo);
+        close();
+        // A different photo picked inside the cropper is no longer needed either.
+        if (saved !== source) releasePhoto(saved);
+      }}
+    />
   );
 }
 
@@ -153,6 +180,10 @@ function Dialogs() {
     }
     case 'shortcuts':
       return <ShortcutsDialog onClose={closeDialog} />;
+    case 'photo':
+      // The person can vanish (undo) while the cropper is open.
+      if (!tree.people[dialog.personId]) return null;
+      return <PhotoDialog key={dialog.source.url} personId={dialog.personId} source={dialog.source} />;
   }
 }
 

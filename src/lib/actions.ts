@@ -1,7 +1,7 @@
 import type { Relation } from '../types';
 import { useStore } from '../store';
 import { canvasHandle } from './canvasHandle';
-import { downloadTreeJson, readPhoto } from './files';
+import { downloadTreeJson, loadPhoto, releasePhoto } from './files';
 import { sampleTree } from './sample';
 import { emptyTree, isPlaceholder, parentsOf, sanitizeTree, shortName, updatePerson } from './tree';
 
@@ -71,20 +71,30 @@ export function pickBackupFile() {
   pickFile('application/json,.json', (file) => void importBackup(file));
 }
 
-/** Sets someone's photo straight from a file, without going through the edit dialog. */
+/** Opens the cropper for a photo file, without going through the edit dialog. */
 export async function setPhotoFromFile(personId: string, file: File) {
   const { toast } = useStore.getState();
   try {
-    const photo = await readPhoto(file);
-    // Read the tree again: it may have changed while the image was loading.
-    const { tree, commit } = useStore.getState();
-    const person = tree.people[personId];
-    if (!person) return;
-    commit(updatePerson(tree, personId, { photo }));
-    toast(`Photo updated for ${shortName(person)}`, { action: undoAction() });
+    const source = await loadPhoto(file);
+    // Check again: the person may be gone, or another dialog opened, while the image was loading.
+    const { tree, dialog, openDialog } = useStore.getState();
+    if (!tree.people[personId] || dialog) {
+      releasePhoto(source);
+      return;
+    }
+    openDialog({ type: 'photo', personId, source });
   } catch (err) {
     toast(err instanceof Error ? err.message : "That image couldn't be read", { tone: 'error' });
   }
+}
+
+/** Saves a cropped photo chosen in the cropper. */
+export function savePhoto(personId: string, photo: string) {
+  const { tree, commit, toast } = useStore.getState();
+  const person = tree.people[personId];
+  if (!person) return;
+  commit(updatePerson(tree, personId, { photo }));
+  toast(`Photo updated for ${shortName(person)}`, { action: undoAction() });
 }
 
 export function pickPhotoFor(personId: string) {

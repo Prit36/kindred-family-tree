@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
 interface Props {
@@ -11,16 +11,20 @@ interface Props {
 
 export function Modal({ title, subtitle, onClose, children, width = 460 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  // Read during the first render, before an autoFocus inside the dialog moves focus.
+  const [previouslyFocused] = useState(() => document.activeElement as HTMLElement | null);
+  // Callers often pass an inline function; read it through a ref so the effect runs once.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   // Keep keyboard focus inside the dialog and restore it afterwards.
   useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null;
     const node = ref.current!;
     if (!node.contains(document.activeElement)) node.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        closeRef.current();
         return;
       }
       if (e.key !== 'Tab') return;
@@ -41,9 +45,10 @@ export function Modal({ title, subtitle, onClose, children, width = 460 }: Props
     node.addEventListener('keydown', onKey);
     return () => {
       node.removeEventListener('keydown', onKey);
-      previouslyFocused?.focus?.();
+      // Only when the dialog is really gone, not when StrictMode re-runs this effect.
+      if (!node.isConnected) previouslyFocused?.focus?.();
     };
-  }, [onClose]);
+  }, [previouslyFocused]);
 
   return (
     <div
