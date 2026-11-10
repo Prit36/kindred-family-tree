@@ -14,7 +14,8 @@ export type Dialog =
   | { type: 'edit'; personId: string }
   | { type: 'delete'; personId: string }
   | { type: 'reset' }
-  | { type: 'sample' };
+  | { type: 'sample' }
+  | { type: 'shortcuts' };
 
 export interface Toast {
   id: number;
@@ -34,6 +35,8 @@ interface State {
   past: Tree[];
   future: Tree[];
   selectedId: string | null;
+  /** A second person picked (Shift+click) to see how they're related to the selected one. */
+  compareId: string | null;
   dialog: Dialog | null;
   toasts: Toast[];
   view: ViewRequest;
@@ -45,6 +48,8 @@ interface State {
   redo: () => void;
   /** Select a person. `focus` centres them; otherwise they're only scrolled into view if hidden. */
   select: (id: string | null, focus?: boolean) => void;
+  /** Pick (or clear) the person to compare the selected one with. */
+  compare: (id: string | null) => void;
   openDialog: (dialog: Dialog) => void;
   closeDialog: () => void;
   toast: (message: string, opts?: { tone?: Toast['tone']; action?: Toast['action'] }) => void;
@@ -74,56 +79,71 @@ let toastId = 1;
 /** True when two trees share nobody — the view needs re-fitting after swapping between them. */
 const unrelated = (a: Tree, b: Tree) => !Object.keys(a.people).some((id) => b.people[id]);
 
+/** Selection that still makes sense in `tree` (people can vanish on delete or undo). */
+const surviving = (tree: Tree, s: Pick<State, 'selectedId' | 'compareId'>) => {
+  const selectedId = s.selectedId && tree.people[s.selectedId] ? s.selectedId : null;
+  return { selectedId, compareId: selectedId && s.compareId && tree.people[s.compareId] ? s.compareId : null };
+};
+
 export const useStore = create<State>((set, get) => ({
   tree: loadTree(),
   past: [],
   future: [],
   selectedId: null,
+  compareId: null,
   dialog: null,
   toasts: [],
   view: { kind: 'fit', nonce: 0 },
   theme: loadTheme(),
 
   commit: (tree) => {
-    const { tree: current, past, selectedId } = get();
+    const { tree: current, past } = get();
     if (tree === current) return;
     set({
       tree,
       past: [...past.slice(-HISTORY_LIMIT + 1), current],
       future: [],
-      selectedId: selectedId && tree.people[selectedId] ? selectedId : null,
+      ...surviving(tree, get()),
     });
   },
 
   undo: () => {
-    const { tree, past, future, selectedId } = get();
+    const { tree, past, future } = get();
     if (past.length === 0) return;
     const prev = past[past.length - 1];
     set({
       tree: prev,
       past: past.slice(0, -1),
       future: [tree, ...future],
-      selectedId: selectedId && prev.people[selectedId] ? selectedId : null,
+      ...surviving(prev, get()),
     });
     if (unrelated(tree, prev)) get().fitView();
   },
 
   redo: () => {
-    const { tree, past, future, selectedId } = get();
+    const { tree, past, future } = get();
     if (future.length === 0) return;
     const next = future[0];
     set({
       tree: next,
       past: [...past, tree],
       future: future.slice(1),
-      selectedId: selectedId && next.people[selectedId] ? selectedId : null,
+      ...surviving(next, get()),
     });
     if (unrelated(tree, next)) get().fitView();
   },
 
   select: (id, focus = false) => {
-    set({ selectedId: id });
+    set({ selectedId: id, compareId: null });
     if (id) set({ view: { kind: focus ? 'focus' : 'reveal', id, nonce: nonce++ } });
+  },
+
+  compare: (id) => {
+    const { selectedId } = get();
+    // With nobody selected yet, a Shift+click is just a normal selection.
+    if (id && !selectedId) return get().select(id);
+    set({ compareId: id && id !== selectedId ? id : null });
+    if (id && id !== selectedId) set({ view: { kind: 'reveal', id, nonce: nonce++ } });
   },
 
   openDialog: (dialog) => set({ dialog }),

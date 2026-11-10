@@ -1,8 +1,22 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Download, Ellipsis, Image, Moon, Redo2, RotateCcw, Search, Sparkles, Sun, Undo2, Upload } from 'lucide-react';
+import {
+  Download,
+  Ellipsis,
+  Image,
+  Keyboard,
+  Moon,
+  Redo2,
+  RotateCcw,
+  Search,
+  Sparkles,
+  Sun,
+  Undo2,
+  Upload,
+} from 'lucide-react';
+import type { Person } from '../types';
 import { useStore } from '../store';
 import { exportBackup, exportImage, pickBackupFile } from '../lib/actions';
-import { lifespan } from '../lib/dates';
+import { lifespan, yearOf } from '../lib/dates';
 import { kinshipFor } from '../lib/kinship';
 import { displayName } from '../lib/tree';
 import { Avatar } from './Avatar';
@@ -57,6 +71,15 @@ function TreeName() {
   );
 }
 
+/** A short stretch of a note around the word that matched. */
+function snippet(text: string, word: string): string {
+  const flat = text.replace(/\s+/g, ' ');
+  const at = Math.max(0, flat.toLowerCase().indexOf(word));
+  const start = Math.max(0, at - 14);
+  const end = Math.min(flat.length, start + 44);
+  return (start > 0 ? '…' : '') + flat.slice(start, end).trim() + (end < flat.length ? '…' : '');
+}
+
 function SearchBox() {
   const tree = useStore((s) => s.tree);
   const select = useStore((s) => s.select);
@@ -65,15 +88,43 @@ function SearchBox() {
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return Object.values(tree.people)
-      .filter((p) => displayName(p).toLowerCase().includes(q))
-      .sort((a, b) => displayName(a).localeCompare(displayName(b)))
-      .slice(0, 8);
-  }, [tree, query]);
   const kin = kinshipFor(tree);
+
+  // Matches names first, then anything else known about a person: relationship
+  // ("cousin"), birthplace ("Cardiff"), years ("1960") and notes. Every word must match.
+  const results = useMemo(() => {
+    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return [];
+    const hits: { person: Person; rank: number; why: string }[] = [];
+    for (const p of Object.values(tree.people)) {
+      const name = displayName(p).toLowerCase();
+      const relation = (p.id === tree.homeId ? 'you me' : (kin.get(p.id) ?? '')).toLowerCase();
+      // In rank order. The relationship and years already show in the result's subtitle;
+      // a place or note match needs spelling out, or the result looks unexplained.
+      const fields: [text: string, why: (word: string) => string][] = [
+        [p.birthName.toLowerCase(), () => `Born ${p.birthName}`],
+        [relation, () => ''],
+        [p.birthPlace.toLowerCase(), () => `Born in ${p.birthPlace}`],
+        [`${yearOf(p.birthDate) ?? ''} ${yearOf(p.deathDate) ?? ''}`, () => ''],
+        [p.notes.toLowerCase(), (w) => `“${snippet(p.notes, w)}”`],
+      ];
+      let rank = 0;
+      let why = '';
+      const ok = words.every((w) => {
+        if (name.includes(w)) return true;
+        const i = fields.findIndex(([text]) => text.includes(w));
+        if (i === -1) return false;
+        rank = Math.max(rank, i + 1);
+        why ||= fields[i][1](w);
+        return true;
+      });
+      // A name that starts with the query beats one that merely contains it.
+      if (ok) hits.push({ person: p, rank: rank === 0 && !name.startsWith(words[0]) ? 0.5 : rank, why });
+    }
+    return hits
+      .sort((a, b) => a.rank - b.rank || displayName(a.person).localeCompare(displayName(b.person)))
+      .slice(0, 8);
+  }, [tree, kin, query]);
 
   // "/" jumps to search from anywhere.
   useEffect(() => {
@@ -102,7 +153,7 @@ function SearchBox() {
       <input
         ref={inputRef}
         className="search-input"
-        placeholder="Find someone"
+        placeholder="Find by name, place, year…"
         aria-label="Find someone in the tree"
         value={query}
         onChange={(e) => {
@@ -120,7 +171,7 @@ function SearchBox() {
             e.preventDefault();
             setActive((a) => Math.max(a - 1, 0));
           } else if (e.key === 'Enter' && results[active]) {
-            choose(results[active].id);
+            choose(results[active].person.id);
           } else if (e.key === 'Escape') {
             setQuery('');
             e.currentTarget.blur();
@@ -130,8 +181,12 @@ function SearchBox() {
       <kbd className="search-kbd">/</kbd>
       {open && query.trim() && (
         <ul className="search-results" role="listbox">
-          {results.length === 0 && <li className="search-empty">No one by that name</li>}
-          {results.map((p, i) => (
+          {results.length === 0 && (
+            <li className="search-empty">
+              No matches. Try a name, a place, a year or a relationship like “aunt”.
+            </li>
+          )}
+          {results.map(({ person: p, why }, i) => (
             <li key={p.id} role="option" aria-selected={i === active}>
               <button
                 type="button"
@@ -146,7 +201,10 @@ function SearchBox() {
                 <Avatar person={p} size={30} />
                 <span className="rel-text">
                   <span className="rel-name">{displayName(p)}</span>
-                  <span className="rel-sub">{[kin.get(p.id), lifespan(p)].filter(Boolean).join(' · ')}</span>
+                  <span className="rel-sub">
+                    {[p.id === tree.homeId ? 'You' : kin.get(p.id), lifespan(p)].filter(Boolean).join(' · ')}
+                  </span>
+                  {why && <span className="rel-sub search-why">{why}</span>}
                 </span>
               </button>
             </li>
@@ -214,6 +272,7 @@ function MainMenu() {
           {item('Export backup', <Download size={16} />, exportBackup, { disabled: empty })}
           {item('Import backup…', <Upload size={16} />, pickBackupFile)}
           <hr />
+          {item('Keyboard shortcuts', <Keyboard size={16} />, () => openDialog({ type: 'shortcuts' }))}
           {item('Load sample family', <Sparkles size={16} />, () => openDialog({ type: 'sample' }))}
           {item('Start over', <RotateCcw size={16} />, () => openDialog({ type: 'reset' }), { disabled: empty, danger: true })}
         </div>

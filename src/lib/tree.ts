@@ -12,6 +12,7 @@ export function blankInput(partial: Partial<PersonInput> = {}): PersonInput {
   return {
     firstName: '',
     lastName: '',
+    birthName: '',
     gender: 'other',
     birthDate: '',
     deathDate: '',
@@ -32,6 +33,18 @@ export function displayName(p: Person | undefined): string {
 export function shortName(p: Person | undefined): string {
   if (!p) return 'Unknown';
   return p.firstName.trim() || p.lastName.trim() || 'Unknown';
+}
+
+/** The surname someone was born with — what their parents and siblings most likely share. */
+export function familyName(p: Person | undefined): string {
+  if (!p) return '';
+  return p.birthName.trim() || p.lastName.trim();
+}
+
+/** A stand-in created so siblings could be linked: nothing is known about them yet. */
+export function isPlaceholder(p: Person | undefined): boolean {
+  if (!p) return false;
+  return !(p.firstName || p.lastName || p.birthName || p.birthDate || p.deathDate || p.birthPlace || p.photo || p.notes);
 }
 
 export function initials(p: Pick<Person, 'firstName' | 'lastName'>): string {
@@ -163,7 +176,7 @@ export function createPerson(tree: Tree, input: PersonInput): { tree: Tree; id: 
   return { tree: next, id };
 }
 
-export function updatePerson(tree: Tree, id: string, input: PersonInput): Tree {
+export function updatePerson(tree: Tree, id: string, input: Partial<PersonInput>): Tree {
   const cur = tree.people[id];
   if (!cur) return tree;
   return putPerson(tree, { ...cur, ...input });
@@ -182,10 +195,62 @@ function setParents(tree: Tree, childId: string, parentIds: string[]): Tree {
   return next;
 }
 
-export function linkParent(tree: Tree, childId: string, parentId: string): Tree {
-  const child = tree.people[childId];
-  if (!child || child.parentIds.length >= 2 || child.parentIds.includes(parentId)) return tree;
-  return setParents(tree, childId, [...child.parentIds, parentId]);
+/**
+ * Links a parent. `alsoChildIds` are siblings who should gain the same parent — without
+ * that, giving one of two single-parent siblings a second parent splits them apart.
+ */
+export function linkParent(tree: Tree, childId: string, parentId: string, alsoChildIds: string[] = []): Tree {
+  let next = tree;
+  for (const id of [childId, ...alsoChildIds]) {
+    const child = next.people[id];
+    if (!child || child.parentIds.length >= 2 || child.parentIds.includes(parentId)) continue;
+    // Never make someone a parent of themselves or of their own ancestor.
+    if (id === parentId || descendantIds(next, id).has(parentId)) continue;
+    next = setParents(next, id, [...child.parentIds, parentId]);
+  }
+  return next;
+}
+
+/**
+ * Siblings who share this person's only parent and have no second parent either —
+ * the people a newly added second parent most likely belongs to as well.
+ */
+export function singleParentSiblings(tree: Tree, id: string): Person[] {
+  const person = tree.people[id];
+  if (!person || person.parentIds.length !== 1) return [];
+  return childrenOf(tree, person.parentIds[0]).filter((c) => c.id !== id && c.parentIds.length === 1);
+}
+
+/**
+ * Shortest chain of people connecting two relatives, through parent/child links and
+ * couples. Blood links are tried first so ties prefer them. Null when unconnected.
+ */
+export function pathBetween(tree: Tree, fromId: string, toId: string): string[] | null {
+  if (!tree.people[fromId] || !tree.people[toId]) return null;
+  if (fromId === toId) return [fromId];
+  const idx = indexOf(tree);
+  const cameFrom = new Map<string, string | null>([[fromId, null]]);
+  let frontier = [fromId];
+  while (frontier.length && !cameFrom.has(toId)) {
+    const next: string[] = [];
+    for (const cur of frontier) {
+      const neighbours = [
+        ...tree.people[cur].parentIds,
+        ...(idx.children.get(cur) ?? []),
+        ...(idx.unions.get(cur) ?? []).map((u) => partnerIn(u, cur)),
+      ];
+      for (const n of neighbours) {
+        if (cameFrom.has(n) || !tree.people[n]) continue;
+        cameFrom.set(n, cur);
+        next.push(n);
+      }
+    }
+    frontier = next;
+  }
+  if (!cameFrom.has(toId)) return null;
+  const path: string[] = [];
+  for (let cur: string | null = toId; cur; cur = cameFrom.get(cur) ?? null) path.push(cur);
+  return path.reverse();
 }
 
 export function linkPartner(tree: Tree, a: string, b: string, status: UnionStatus): Tree {
@@ -329,6 +394,7 @@ export function sanitizeTree(raw: unknown): Tree {
       id,
       firstName: str(v.firstName),
       lastName: str(v.lastName),
+      birthName: str(v.birthName),
       gender,
       birthDate: str(v.birthDate),
       deathDate: str(v.deathDate),

@@ -18,15 +18,37 @@ export function parseDate(s: string): DateParts {
   };
 }
 
+/** Days in a month; leap-year aware when the year is known, generous (29 Feb) when it isn't. */
+export function daysInMonth(m: number | null, y: number | null): number {
+  if (!m || m < 1 || m > 12) return 31;
+  if (m === 2) return !y || (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 29 : 28;
+  return [4, 6, 9, 11].includes(m) ? 30 : 31;
+}
+
 /** Builds a partial date string. A day without a month, or anything without a year, is dropped. */
 export function buildDate({ y, m, d }: DateParts): string {
   if (!y || y < 1) return '';
   let out = String(y).padStart(4, '0');
   if (m && m >= 1 && m <= 12) {
     out += '-' + String(m).padStart(2, '0');
-    if (d && d >= 1 && d <= 31) out += '-' + String(d).padStart(2, '0');
+    if (d && d >= 1 && d <= daysInMonth(m, y)) out += '-' + String(d).padStart(2, '0');
   }
   return out;
+}
+
+/**
+ * True when partial date `a` is definitely before `b`. Only compares as far as both
+ * dates are known, so "1990" is not before "1990-03".
+ */
+export function isBefore(a: string, b: string): boolean {
+  const x = parseDate(a);
+  const y = parseDate(b);
+  if (!x.y || !y.y) return false;
+  if (x.y !== y.y) return x.y < y.y;
+  if (!x.m || !y.m) return false;
+  if (x.m !== y.m) return x.m < y.m;
+  if (!x.d || !y.d) return false;
+  return x.d < y.d;
 }
 
 export function formatDate(s: string): string {

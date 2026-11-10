@@ -6,6 +6,8 @@ export interface Person {
   id: string;
   firstName: string;
   lastName: string;
+  /** Surname at birth when it differs from `lastName` (maiden name), or '' */
+  birthName: string;
   gender: Gender;
   birthDate: string;
   deathDate: string;

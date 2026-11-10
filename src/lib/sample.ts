@@ -10,7 +10,7 @@ export function sampleTree(): Tree {
     lastName: string,
     gender: Gender,
     birthDate: string,
-    extra: { deathDate?: string; birthPlace?: string; notes?: string } = {},
+    extra: { deathDate?: string; birthPlace?: string; notes?: string; birthName?: string } = {},
   ) => {
     const res = createPerson(
       tree,
@@ -31,7 +31,7 @@ export function sampleTree(): Tree {
     birthPlace: 'Bristol',
     notes: 'Keeper of the family tree.',
   });
-  const maya = add('Maya', 'Morgan', 'female', '1991-09-03', { birthPlace: 'Leicester' });
+  const maya = add('Maya', 'Morgan', 'female', '1991-09-03', { birthPlace: 'Leicester', birthName: 'Patel' });
   marry(alex, maya);
   const leo = add('Leo', 'Morgan', 'male', '2018-06-21');
   const isla = add('Isla', 'Morgan', 'female', '2021-11-02');
@@ -39,7 +39,7 @@ export function sampleTree(): Tree {
   child(isla, alex, maya);
 
   const robert = add('Robert', 'Morgan', 'male', '1960-02-17', { birthPlace: 'Cardiff' });
-  const helen = add('Helen', 'Morgan', 'female', '1962-07-30', { birthPlace: 'Bath' });
+  const helen = add('Helen', 'Morgan', 'female', '1962-07-30', { birthPlace: 'Bath', birthName: 'Bennett' });
   marry(robert, helen);
   child(alex, robert, helen);
   const daniel = add('Daniel', 'Morgan', 'male', '1987-01-08');
@@ -59,11 +59,14 @@ export function sampleTree(): Tree {
   const margaret = add('Margaret', 'Morgan', 'female', '1935-03-11', { deathDate: '2018-08-09' });
   marry(arthur, margaret);
   child(robert, arthur, margaret);
-  const susan = add('Susan', 'Clarke', 'female', '1964-06-02');
+  const susan = add('Susan', 'Clarke', 'female', '1964-06-02', { birthName: 'Morgan' });
   child(susan, arthur, margaret);
 
   const george = add('George', 'Bennett', 'male', '1934-12-01', { deathDate: '2005-04-18' });
-  const ruth = add('Ruth', 'Bennett', 'female', '1938-08-27', { birthPlace: 'Bath' });
+  const ruth = add('Ruth', 'Bennett', 'female', '1938-08-27', {
+    birthPlace: 'Bath',
+    notes: 'Taught piano to half the street.',
+  });
   marry(george, ruth);
   child(helen, george, ruth);
 

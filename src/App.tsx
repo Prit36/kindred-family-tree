@@ -1,14 +1,78 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { ArrowLeftRight, ImageUp, X } from 'lucide-react';
 import { useStore } from './store';
-import { loadSample, startOver } from './lib/actions';
-import { deletePerson, displayName, shortName } from './lib/tree';
+import { importBackup, isBackupFile, loadSample, setPhotoFromFile, startOver } from './lib/actions';
+import { relationBetween } from './lib/kinship';
+import { deletePerson, displayName, pathBetween, shortName } from './lib/tree';
+import { Avatar } from './components/Avatar';
 import { Canvas } from './components/Canvas';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { Modal } from './components/Modal';
 import { PersonDialog } from './components/PersonDialog';
 import { PersonPanel } from './components/PersonPanel';
 import { Toasts } from './components/Toasts';
 import { TopBar } from './components/TopBar';
 import { Welcome } from './components/Welcome';
+
+const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
+  {
+    title: 'Getting around',
+    rows: [
+      [['↑', '↓'], 'Go to a parent or child'],
+      [['←', '→'], 'Go to the next person in the same generation'],
+      [['/'], 'Search by name, place, year or relationship'],
+      [['H'], 'Jump back to yourself'],
+      [['F'], 'Fit the whole tree on screen'],
+      [['+', '−'], 'Zoom in and out'],
+      [['Esc'], 'Deselect'],
+    ],
+  },
+  {
+    title: 'The selected person',
+    rows: [
+      [['Enter'], 'Edit — or double-click their card'],
+      [['Del'], 'Delete'],
+      [['Shift', 'click'], 'See how someone else is related to them'],
+    ],
+  },
+  {
+    title: 'Anywhere',
+    rows: [
+      [['Ctrl', 'Z'], 'Undo'],
+      [['Ctrl', 'Shift', 'Z'], 'Redo'],
+      [['?'], 'Show this list'],
+    ],
+  },
+];
+
+function ShortcutsDialog({ onClose }: { onClose: () => void }) {
+  return (
+    <Modal title="Keyboard shortcuts" onClose={onClose} width={440}>
+      <div className="shortcuts">
+        {SHORTCUTS.map((group) => (
+          <section key={group.title}>
+            <h3>{group.title}</h3>
+            <dl>
+              {group.rows.map(([keys, what]) => (
+                <div key={what}>
+                  <dt>
+                    {keys.map((k) => (
+                      <kbd key={k}>{k}</kbd>
+                    ))}
+                  </dt>
+                  <dd>{what}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))}
+        <p className="shortcuts-note">
+          You can also drop a photo onto anyone's card, or a backup file anywhere to import it.
+        </p>
+      </div>
+    </Modal>
+  );
+}
 
 function Dialogs() {
   const dialog = useStore((s) => s.dialog);
@@ -23,7 +87,12 @@ function Dialogs() {
       // The person a dialog refers to can vanish (undo); just close in that case.
       const refId = dialog.type === 'add' ? dialog.anchorId : dialog.type === 'edit' ? dialog.personId : null;
       if (refId && !tree.people[refId]) return null;
-      const key = dialog.type === 'add' ? `add-${dialog.relation}-${dialog.anchorId}` : dialog.type;
+      const key =
+        dialog.type === 'add'
+          ? `add-${dialog.relation}-${dialog.anchorId}`
+          : dialog.type === 'edit'
+            ? `edit-${dialog.personId}`
+            : dialog.type;
       return <PersonDialog key={key} spec={dialog} />;
     }
     case 'delete': {
@@ -78,28 +147,185 @@ function Dialogs() {
         </ConfirmDialog>
       );
     }
+    case 'shortcuts':
+      return <ShortcutsDialog onClose={closeDialog} />;
   }
+}
+
+/** "Noah is Arthur's great-grandson" — shown while a second person is Shift+clicked. */
+function CompareBanner() {
+  const tree = useStore((s) => s.tree);
+  const selectedId = useStore((s) => s.selectedId);
+  const compareId = useStore((s) => s.compareId);
+  const compare = useStore((s) => s.compare);
+
+  const base = selectedId ? tree.people[selectedId] : undefined;
+  const other = compareId ? tree.people[compareId] : undefined;
+  if (!base || !other) return null;
+
+  const label = relationBetween(tree, base.id, other.id);
+  const connected = label || pathBetween(tree, base.id, other.id);
+
+  return (
+    <div className="compare-wrap">
+      <div className="compare" role="status">
+        <Avatar person={other} size={28} />
+        <span className="compare-text">
+          {label ? (
+            <>
+              <strong>{shortName(other)}</strong> is <strong>{shortName(base)}</strong>'s{' '}
+              <em>{label.charAt(0).toLowerCase() + label.slice(1)}</em>
+            </>
+          ) : connected ? (
+            <>
+              <strong>{shortName(other)}</strong> and <strong>{shortName(base)}</strong> are connected by marriage — follow
+              the highlighted line
+            </>
+          ) : (
+            <>
+              <strong>{shortName(other)}</strong> and <strong>{shortName(base)}</strong> aren't connected in this tree
+            </>
+          )}
+        </span>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Swap the two people"
+          data-tip="Swap"
+          onClick={() => useStore.setState({ selectedId: other.id, compareId: base.id })}
+        >
+          <ArrowLeftRight size={15} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Stop comparing"
+          data-tip="Close (Esc)"
+          onClick={() => compare(null)}
+        >
+          <X size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Files dropped on the window: a photo onto a person's card (or their details panel)
+ * sets their picture, a backup file anywhere imports it. Returns whether a file is
+ * currently being dragged over the window.
+ */
+function useFileDrop(): boolean {
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    let depth = 0;
+    let lit: Element | null = null;
+    const carriesFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
+    const personTarget = (e: DragEvent) =>
+      useStore.getState().dialog ? null : ((e.target as Element | null)?.closest?.('[data-person-id]') ?? null);
+    const light = (el: Element | null) => {
+      if (lit === el) return;
+      lit?.classList.remove('is-drop-target');
+      el?.classList.add('is-drop-target');
+      lit = el;
+    };
+    const reset = () => {
+      depth = 0;
+      light(null);
+      setDragging(false);
+    };
+
+    const onEnter = (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      depth++;
+      setDragging(true);
+    };
+    const onOver = (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      // Without this the browser would navigate away to the dropped file.
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      light(personTarget(e));
+    };
+    const onLeave = (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) reset();
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      e.preventDefault();
+      const personId = (personTarget(e) as HTMLElement | null)?.dataset.personId;
+      reset();
+      const { dialog, toast } = useStore.getState();
+      if (dialog) return; // dialogs take care of their own drops
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      const image = files.find((f) => f.type.startsWith('image/'));
+      const backup = files.find(isBackupFile);
+      if (image && personId) void setPhotoFromFile(personId, image);
+      else if (backup) void importBackup(backup);
+      else if (image) toast("Drop the photo onto someone's card to set their picture");
+      else toast('Drop a photo or a .json backup file', { tone: 'error' });
+    };
+
+    window.addEventListener('dragenter', onEnter);
+    window.addEventListener('dragover', onOver);
+    window.addEventListener('dragleave', onLeave);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragenter', onEnter);
+      window.removeEventListener('dragover', onOver);
+      window.removeEventListener('dragleave', onLeave);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, []);
+
+  return dragging;
 }
 
 export default function App() {
   const empty = useStore((s) => Object.keys(s.tree.people).length === 0);
+  const dialogOpen = useStore((s) => s.dialog !== null);
+  const dragging = useFileDrop();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const { dialog, undo, redo, select, selectedId } = useStore.getState();
+      const { dialog, undo, redo, select, compare, selectedId, compareId, openDialog } = useStore.getState();
       const el = e.target as HTMLElement;
       const typing = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT';
       const mod = e.ctrlKey || e.metaKey;
+      if (dialog || typing) return;
 
-      if (mod && !typing && !dialog && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) redo();
-        else undo();
-      } else if (mod && !typing && !dialog && e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        redo();
-      } else if (e.key === 'Escape' && !dialog && !typing && selectedId) {
-        select(null);
+      if (mod) {
+        const key = e.key.toLowerCase();
+        if (key === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) redo();
+          else undo();
+        } else if (key === 'y') {
+          e.preventDefault();
+          redo();
+        }
+        return;
+      }
+      if (e.altKey) return;
+
+      if (e.key === 'Escape') {
+        if (compareId) compare(null);
+        else if (selectedId) select(null);
+      } else if (e.key === '?') {
+        openDialog({ type: 'shortcuts' });
+      } else if (selectedId) {
+        // Enter on a focused button or menu item belongs to that control, not to the selection.
+        const onControl = Boolean(el.closest('button, a, [role="menu"]'));
+        if ((e.key === 'Enter' && !onControl) || e.key.toLowerCase() === 'e') {
+          e.preventDefault();
+          openDialog({ type: 'edit', personId: selectedId });
+        } else if (e.key === 'Delete' || (e.key === 'Backspace' && !onControl)) {
+          e.preventDefault();
+          openDialog({ type: 'delete', personId: selectedId });
+        }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -111,9 +337,16 @@ export default function App() {
       <Canvas />
       <TopBar />
       {empty && <Welcome />}
+      <CompareBanner />
       <PersonPanel />
       <Dialogs />
       <Toasts />
+      {dragging && !dialogOpen && (
+        <div className="drop-hint" role="status">
+          <ImageUp size={16} />
+          {empty ? 'Drop a backup file to import it' : 'Drop a photo on a card — or a backup file anywhere to import it'}
+        </div>
+      )}
     </div>
   );
 }

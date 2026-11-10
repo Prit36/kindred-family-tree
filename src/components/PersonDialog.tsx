@@ -2,13 +2,16 @@ import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { Camera, ChevronDown, Info } from 'lucide-react';
 import type { Gender, Person, PersonInput, Relation, Tree, UnionStatus } from '../types';
 import { useStore, type Dialog } from '../store';
-import { lifespan } from '../lib/dates';
+import { isBefore, lifespan } from '../lib/dates';
 import { readPhoto } from '../lib/files';
 import {
   blankInput,
   childCandidates,
+  childrenOf,
   createPerson,
   displayName,
+  familyName,
+  isPlaceholder,
   linkChild,
   linkParent,
   linkPartner,
@@ -19,6 +22,7 @@ import {
   partnersOf,
   shortName,
   siblingCandidates,
+  singleParentSiblings,
   updatePerson,
 } from '../lib/tree';
 import { Avatar } from './Avatar';
@@ -42,10 +46,24 @@ const GENDERS: { value: Gender; label: string }[] = [
 
 const opposite = (g: Gender): Gender => (g === 'male' ? 'female' : g === 'female' ? 'male' : 'other');
 
+/** "Ben", "Ben and Cara", "Ben, Cara and 2 others" */
+function listNames(people: Person[]): string {
+  const names = people.map((p) => shortName(p));
+  if (names.length <= 1) return names[0] ?? '';
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  if (names.length === 3) return `${names[0]}, ${names[1]} and ${names[2]}`;
+  return `${names[0]}, ${names[1]} and ${names.length - 2} others`;
+}
+
 /** Sensible starting values so adding a relative takes as little typing as possible. */
 function initialDraft(tree: Tree, spec: PersonDialogSpec): PersonInput {
   if (spec.type === 'edit') {
-    const { id: _id, parentIds: _parents, ...rest } = tree.people[spec.personId];
+    const person = tree.people[spec.personId];
+    const { id: _id, parentIds: _parents, ...rest } = person;
+    // A blank placeholder father most likely shares his children's surname.
+    if (isPlaceholder(person) && person.gender === 'male') {
+      return { ...rest, lastName: familyName(childrenOf(tree, person.id)[0]) };
+    }
     return rest;
   }
   if (spec.type === 'first') return blankInput();
@@ -55,7 +73,8 @@ function initialDraft(tree: Tree, spec: PersonDialogSpec): PersonInput {
       const existing = parentsOf(tree, anchor.id)[0];
       return blankInput({
         gender: existing ? opposite(existing.gender) : 'other',
-        lastName: existing?.gender === 'male' ? '' : anchor.lastName,
+        // Parents share the surname their child was born with, not a married name.
+        lastName: existing?.gender === 'male' ? '' : familyName(anchor),
       });
     }
     case 'partner':
@@ -66,7 +85,7 @@ function initialDraft(tree: Tree, spec: PersonDialogSpec): PersonInput {
       return blankInput({ lastName: father.lastName });
     }
     case 'sibling':
-      return blankInput({ lastName: anchor.lastName });
+      return blankInput({ lastName: familyName(anchor) });
   }
 }
 
@@ -106,6 +125,19 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
     return current?.person.id ?? '';
   });
 
+  // A second parent usually belongs to the siblings who share the first one too.
+  const soloSiblings = useMemo(
+    () => (relation === 'parent' && anchor ? singleParentSiblings(tree, anchor.id) : []),
+    [tree, relation, anchor],
+  );
+  const [shareParent, setShareParent] = useState(true);
+
+  const editingPlaceholder = spec.type === 'edit' && isPlaceholder(tree.people[spec.personId]);
+  const placeholderChildren = editingPlaceholder && spec.type === 'edit' ? childrenOf(tree, spec.personId) : [];
+
+  const deathError =
+    draft.deceased && isBefore(draft.deathDate, draft.birthDate) ? "That's before they were born" : '';
+
   const set = (patch: Partial<PersonInput>) => setDraft((d) => ({ ...d, ...patch }));
 
   const needsPlaceholders =
@@ -118,10 +150,16 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
     spec.type === 'first'
       ? 'Start with yourself'
       : spec.type === 'edit'
-        ? 'Edit details'
+        ? editingPlaceholder
+          ? 'Fill in the details'
+          : 'Edit details'
         : `Add ${shortName(anchor)}'s ${RELATION_WORD[spec.relation]}`;
   const subtitle =
-    spec.type === 'first' ? 'You can add parents, siblings, a partner and children from here.' : undefined;
+    spec.type === 'first'
+      ? 'You can add parents, siblings, a partner and children from here.'
+      : placeholderChildren.length > 0
+        ? `Parent of ${listNames(placeholderChildren)}. Add whatever you know — even just a name.`
+        : undefined;
 
   const onPhoto = async (file: File | undefined) => {
     if (!file) return;
@@ -135,10 +173,15 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    if (mode === 'new' && deathError) return;
+    const lastName = draft.lastName.trim();
+    const birthName = draft.birthName.trim();
     const clean: PersonInput = {
       ...draft,
       firstName: draft.firstName.trim(),
-      lastName: draft.lastName.trim(),
+      lastName,
+      // Only worth keeping when it says something the surname doesn't.
+      birthName: birthName.toLowerCase() === lastName.toLowerCase() ? '' : birthName,
       birthPlace: draft.birthPlace.trim(),
       notes: draft.notes.trim(),
       deathDate: draft.deceased ? draft.deathDate : '',
@@ -169,7 +212,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
 
     switch (spec.relation) {
       case 'parent':
-        next = linkParent(next, spec.anchorId, targetId);
+        next = linkParent(next, spec.anchorId, targetId, shareParent ? soloSiblings.map((s) => s.id) : []);
         break;
       case 'partner':
         next = linkPartner(next, spec.anchorId, targetId, status);
@@ -191,7 +234,16 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
 
   return (
     <Modal title={title} subtitle={subtitle} onClose={closeDialog}>
-      <form onSubmit={submit} className="form">
+      <form
+        onSubmit={submit}
+        className="form"
+        // A photo can be dropped anywhere on the form.
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          if (mode === 'new') void onPhoto(e.dataTransfer.files[0]);
+        }}
+      >
         {spec.type === 'add' && candidates.length > 0 && (
           <div className="segmented" role="tablist" aria-label="Who to add">
             <button type="button" role="tab" aria-selected={mode === 'new'} onClick={() => setMode('new')}>
@@ -319,6 +371,18 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
             {showMore && (
               <>
                 <label className="field">
+                  <span className="field-label">
+                    Surname at birth <small>— if it changed, e.g. on marriage</small>
+                  </span>
+                  <input
+                    className="input"
+                    value={draft.birthName}
+                    autoComplete="off"
+                    onChange={(e) => set({ birthName: e.target.value })}
+                  />
+                </label>
+
+                <label className="field">
                   <span className="field-label">Birthplace</span>
                   <input
                     className="input"
@@ -340,6 +404,11 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
                   <div className="field">
                     <span className="field-label">Died</span>
                     <DateInput label="Died" value={draft.deathDate} onChange={(v) => set({ deathDate: v })} />
+                    {deathError && (
+                      <span className="field-note is-error" role="alert">
+                        {deathError}
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -383,6 +452,16 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
           </label>
         )}
 
+        {soloSiblings.length > 0 && anchor && (
+          <label className="check">
+            <input type="checkbox" checked={shareParent} onChange={(e) => setShareParent(e.target.checked)} />
+            <span>
+              Also {listNames(soloSiblings)}'s parent
+              <small> — keeps {shortName(anchor)} and {soloSiblings.length === 1 ? 'them' : 'the others'} full siblings</small>
+            </span>
+          </label>
+        )}
+
         {needsPlaceholders && (
           <p className="hint">
             <Info size={15} />
@@ -397,7 +476,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
           <button type="button" className="btn" onClick={closeDialog}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary">
+          <button type="submit" className="btn btn-primary" disabled={mode === 'new' && Boolean(deathError)}>
             {spec.type === 'edit' ? 'Save' : spec.type === 'first' ? 'Start my tree' : 'Add to tree'}
           </button>
         </footer>

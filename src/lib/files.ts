@@ -86,11 +86,19 @@ export function renderTreePng(world: HTMLElement, box: ExportBox): Promise<strin
     pixelRatio,
     backgroundColor: background,
     style: { transform: `translate(${margin - box.minX}px, ${margin - box.minY}px)` },
-    filter: (node) => !(node instanceof HTMLElement && node.dataset.noExport !== undefined),
+    // Element, not HTMLElement: the highlight layer is an <svg>.
+    filter: (node) => !(node instanceof Element && node.hasAttribute('data-no-export')),
   });
 }
 
 export async function downloadTreePng(world: HTMLElement, box: ExportBox, name: string) {
-  const dataUrl = await renderTreePng(world, box);
-  download(dataUrl, `${slug(name)}.png`);
+  // `data-exporting` switches off selection rings and highlights (see styles.css) so the
+  // picture looks the same whatever happens to be selected.
+  world.dataset.exporting = '';
+  try {
+    const dataUrl = await renderTreePng(world, box);
+    download(dataUrl, `${slug(name)}.png`);
+  } finally {
+    delete world.dataset.exporting;
+  }
 }

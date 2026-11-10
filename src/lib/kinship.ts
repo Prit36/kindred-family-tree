@@ -119,6 +119,18 @@ export function kinshipFor(tree: Tree): Map<string, string> {
   return m;
 }
 
+const betweenCache = new WeakMap<Tree, Map<string, Map<string, string>>>();
+
+/** How `otherId` is related to `fromId` ("Great-grandfather", "Wife's brother"…), or '' if they aren't. */
+export function relationBetween(tree: Tree, fromId: string, otherId: string): string {
+  if (fromId === tree.homeId) return kinshipFor(tree).get(otherId) ?? '';
+  let perTree = betweenCache.get(tree);
+  if (!perTree) betweenCache.set(tree, (perTree = new Map()));
+  let m = perTree.get(fromId);
+  if (!m) perTree.set(fromId, (m = kinshipMap(tree, fromId)));
+  return m.get(otherId) ?? '';
+}
+
 export function kinshipMap(tree: Tree, homeId: string | null): Map<string, string> {
   const out = new Map<string, string>();
   if (!homeId || !tree.people[homeId]) return out;
