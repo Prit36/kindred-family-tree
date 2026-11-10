@@ -14,6 +14,8 @@ const CORNER = 12;
 const STEP = CARD_W + PARTNER_GAP;
 /** Radius of the small ring drawn where a couple's line meets their children's line. */
 export const UNION_RING = 4.5;
+/** How far from a card the collapse toggle sits on the line to its children or parents. */
+export const TOGGLE_GAP = 24;
 
 export interface NodePos {
   x: number;
@@ -28,6 +30,16 @@ export interface UnionLine {
   midY: number;
   a: string;
   b: string;
+  /** Drawn as a straight line between neighbouring cards (the usual case), not an arc */
+  adjacent: boolean;
+}
+
+/** The start of the line from a couple (or a single parent) down to their children. */
+export interface Stem {
+  x: number;
+  y: number;
+  /** Where the toggle that collapses those children sits */
+  toggleY: number;
 }
 
 export interface ChildLink {
@@ -65,6 +77,30 @@ interface Family {
 }
 
 const mean = (values: number[]) => values.reduce((a, b) => a + b, 0) / values.length;
+
+function stemFrom(nodes: Record<string, NodePos>, union: UnionLine | undefined, parents: string[]): Stem | null {
+  if (union) {
+    return {
+      x: union.midX,
+      y: union.midY + UNION_RING,
+      toggleY: union.adjacent ? union.midY + CARD_H / 2 + TOGGLE_GAP : union.midY - 16,
+    };
+  }
+  const single = parents.map((id) => nodes[id]).find(Boolean);
+  if (!single) return null;
+  return { x: single.x + CARD_W / 2, y: single.y + CARD_H, toggleY: single.y + CARD_H + TOGGLE_GAP };
+}
+
+/**
+ * Where a family's children hang from in a finished layout — also for parents whose
+ * children are currently collapsed away and so have no line of their own.
+ */
+export function familyStem(layout: TreeLayout, parents: string[]): Stem | null {
+  const [a, b] = parents;
+  const union =
+    parents.length === 2 ? layout.unions.find((u) => (u.a === a && u.b === b) || (u.a === b && u.b === a)) : undefined;
+  return stemFrom(layout.nodes, union, parents);
+}
 
 /**
  * Lays the family out in generations.
@@ -514,7 +550,7 @@ export function computeLayout(tree: Tree, anchor?: LayoutAnchor): TreeLayout {
     if (adjacent) {
       // Two segments, leaving room for the ring drawn at the midpoint.
       const d = `M ${x1} ${y} L ${midX - UNION_RING} ${y} M ${midX + UNION_RING} ${y} L ${x2} ${y}`;
-      return { id: u.id, status: u.status, d, midX, midY: y, a: u.a, b: u.b };
+      return { id: u.id, status: u.status, d, midX, midY: y, a: u.a, b: u.b, adjacent: true };
     }
     // Not side by side (rare, e.g. several marriages): arc over the cards in between.
     const top = Math.min(l.y, r.y) - 22;
@@ -528,6 +564,7 @@ export function computeLayout(tree: Tree, anchor?: LayoutAnchor): TreeLayout {
       midY: top + 6,
       a: u.a,
       b: u.b,
+      adjacent: false,
     };
   });
   const unionByPair = new Map(unionLines.map((u) => [[u.a, u.b].sort().join('|'), u]));
@@ -546,9 +583,7 @@ export function computeLayout(tree: Tree, anchor?: LayoutAnchor): TreeLayout {
   const runs: Run[] = [];
   for (const [key, fam] of families) {
     const union = fam.parents.length === 2 ? unionByPair.get(key) : undefined;
-    const single = nodes[fam.parents[0]];
-    const ax = union ? union.midX : single.x + CARD_W / 2;
-    const ay = union ? union.midY + UNION_RING : single.y + CARD_H;
+    const { x: ax, y: ay } = stemFrom(nodes, union, fam.parents)!;
     const centers = fam.children.map((c) => nodes[c].x + CARD_W / 2);
     runs.push({
       ax,

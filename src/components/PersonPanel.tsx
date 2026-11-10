@@ -1,8 +1,23 @@
 import { Fragment, type ReactNode } from 'react';
-import { Baby, Camera, ChevronRight, Heart, House, Lock, Pencil, Trash, Unlink, UserRound, Users, X } from 'lucide-react';
+import {
+  Baby,
+  Camera,
+  ChevronRight,
+  Focus,
+  Heart,
+  House,
+  Lock,
+  Pencil,
+  Trash,
+  Unlink,
+  UserRound,
+  Users,
+  X,
+} from 'lucide-react';
 import type { Person, Relation, UnionStatus } from '../types';
 import { useStore } from '../store';
 import { addRelative, pickPhotoFor } from '../lib/actions';
+import { branchOf } from '../lib/branches';
 import { ageOf, compareByBirth, formatDate, lifespan } from '../lib/dates';
 import { kinshipFor } from '../lib/kinship';
 import {
@@ -31,7 +46,8 @@ const ADD_BUTTONS: { relation: Relation; label: string; icon: ReactNode }[] = [
 export function PersonPanel() {
   const tree = useStore((s) => s.tree);
   const selectedId = useStore((s) => s.selectedId);
-  const { select, commit, openDialog, toast, undo } = useStore.getState();
+  const focusId = useStore((s) => s.focusId);
+  const { select, commit, openDialog, toast, undo, focusOn, clearFocus } = useStore.getState();
 
   const person = selectedId ? tree.people[selectedId] : undefined;
   if (!person) return null;
@@ -58,6 +74,11 @@ export function PersonPanel() {
   // The people in between explain a label like "Cousin once removed" better than the label does.
   const chain = !isHome && tree.homeId ? pathBetween(tree, tree.homeId, person.id) : null;
   const showChain = chain !== null && chain.length > 2;
+
+  // Focusing only earns its place when it would actually clear people out of the way.
+  const total = Object.keys(tree.people).length;
+  const branchSize = branchOf(tree, person.id).size;
+  const focused = focusId === person.id;
 
   const parentSlotsFull = person.parentIds.length >= 2;
   const placeholderParent = parents.find(isPlaceholder);
@@ -202,6 +223,29 @@ export function PersonPanel() {
             <Trash size={15} />
           </button>
         </div>
+
+        {(focused || branchSize < total) && (
+          <button
+            type="button"
+            className={`focus-btn${focused ? ' is-active' : ''}`}
+            aria-pressed={focused}
+            data-tip={focused ? 'Back to the whole tree (B)' : 'Hide everyone else (B)'}
+            onClick={() => (focused ? clearFocus() : focusOn(person.id))}
+          >
+            <Focus size={17} />
+            <span className="focus-btn-text">
+              <span className="focus-btn-title">
+                {focused ? `Showing only ${shortName(person)}'s branch` : `Focus on ${shortName(person)}'s branch`}
+              </span>
+              <span className="focus-btn-sub">
+                {focused ? 'Click to bring back the whole tree' : 'Ancestors, descendants and close family'}
+              </span>
+            </span>
+            <span className="focus-btn-count">
+              {branchSize} of {total}
+            </span>
+          </button>
+        )}
 
         <section className="panel-section">
           <h3>Add a relative</h3>

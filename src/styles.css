@@ -733,6 +733,92 @@ textarea.input {
   transform: translate(0, -50%);
 }
 
+/* Collapse toggles on the connecting lines ---------------------------------- */
+
+.branch-slot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  z-index: 1;
+  transition: transform 0.42s var(--ease);
+}
+
+.branch-slot:hover,
+.branch-slot:focus-within {
+  z-index: 3;
+}
+
+.branch-stub {
+  animation: fade-in 0.3s ease both;
+}
+
+/* Expanded: a quiet "−" sitting on the line. */
+.branch-toggle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  translate: -50% -50%;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--text-3);
+  font: 700 11px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2.5px var(--bg);
+  transition:
+    scale 0.14s var(--ease),
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+  animation: pop-in 0.26s var(--ease) both;
+}
+
+/* A bigger target than the dot itself, for fingers and fast mice. */
+.branch-toggle::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 99px;
+}
+
+.branch-toggle:hover,
+.branch-toggle:focus-visible {
+  scale: 1.2;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Collapsed: a badge saying how many people are tucked away behind it. */
+.branch-toggle.is-collapsed {
+  min-width: 30px;
+  height: 22px;
+  padding: 0 8px;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.branch-toggle.is-collapsed:hover,
+.branch-toggle.is-collapsed:focus-visible {
+  scale: 1.1;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Above a card the tooltip goes up, clear of the card below. */
+.branch-toggle.is-up::after {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
 /* Zoom controls */
 
 .canvas-controls {
@@ -769,6 +855,31 @@ textarea.input {
   font-size: 12.5px;
   font-weight: 500;
   backdrop-filter: blur(6px);
+}
+
+/* Some branches are folded away: the pill says so and undoes it in one click. */
+.stats-pill.is-filtered {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-color: var(--accent);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-card);
+  transition: background 0.15s;
+}
+
+.stats-pill.is-filtered svg,
+.stats-pill.is-filtered strong {
+  color: var(--accent);
+}
+
+.stats-pill.is-filtered strong {
+  font-weight: 650;
+}
+
+.stats-pill.is-filtered:hover {
+  background: var(--accent-soft);
 }
 
 /* ==========================================================================
@@ -1188,6 +1299,75 @@ kbd {
 
 .panel-actions .btn-danger-ghost[data-tip]:hover::after {
   transform: none;
+}
+
+/* "Focus on this branch" */
+.focus-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: left;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.focus-btn > svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.focus-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.focus-btn.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.focus-btn-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.focus-btn-title {
+  font-weight: 550;
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-btn-sub {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.focus-btn-count {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-btn.is-active .focus-btn-count {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .panel-section {
@@ -1612,9 +1792,16 @@ kbd {
   left: 12px;
   right: 392px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   pointer-events: none;
   z-index: 9;
+}
+
+/* No details panel open: the whole width is free. */
+.compare-wrap.is-wide {
+  right: 12px;
 }
 
 .compare {
@@ -1642,6 +1829,53 @@ kbd {
   color: var(--accent);
   font-style: normal;
   font-weight: 650;
+}
+
+/* "Showing only Arthur's branch · 12 of 54 people  [Show everyone]" */
+.focus-banner {
+  padding-left: 8px;
+  background: var(--accent-soft);
+}
+
+.focus-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.focus-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-strong);
+  font-weight: 650;
+}
+
+.focus-name:hover {
+  text-decoration: underline;
+}
+
+.focus-count {
+  color: var(--text-2);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.focus-count::before {
+  content: '· ';
+}
+
+.focus-exit {
+  flex: none;
+  height: 32px;
+  padding: 0 12px;
+  border-color: var(--accent);
+  border-radius: 10px;
 }
 
 .drop-hint {

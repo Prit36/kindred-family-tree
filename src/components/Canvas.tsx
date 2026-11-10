@@ -2,10 +2,20 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { select } from 'd3-selection';
 import 'd3-transition';
 import { zoom, zoomIdentity, zoomTransform, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-import { House, Maximize, Minus, Plus } from 'lucide-react';
+import { EyeOff, House, Maximize, Minus, Plus } from 'lucide-react';
 import type { Relation } from '../types';
 import { useStore } from '../store';
-import { CARD_H, CARD_W, UNION_RING, computeLayout, type LayoutAnchor, type TreeLayout } from '../lib/layout';
+import {
+  CARD_H,
+  CARD_W,
+  TOGGLE_GAP,
+  UNION_RING,
+  computeLayout,
+  familyStem,
+  type LayoutAnchor,
+  type TreeLayout,
+} from '../lib/layout';
+import { branchToggles, subTree, visibleIds } from '../lib/branches';
 import { kinshipFor } from '../lib/kinship';
 import { ancestorIds, childrenOf, descendantIds, isPlaceholder, pathBetween, shortName } from '../lib/tree';
 import { addRelative } from '../lib/actions';
@@ -29,6 +39,7 @@ const ARROWS: Record<string, 'up' | 'down' | 'left' | 'right'> = {
 };
 
 const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+const countPeople = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`;
 
 const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 2;
@@ -38,55 +49,70 @@ export function Canvas() {
   const tree = useStore((s) => s.tree);
   const selectedId = useStore((s) => s.selectedId);
   const compareId = useStore((s) => s.compareId);
+  const focusId = useStore((s) => s.focusId);
+  const collapsed = useStore((s) => s.collapsed);
   const view = useStore((s) => s.view);
   const select_ = useStore((s) => s.select);
   const compare = useStore((s) => s.compare);
   const openDialog = useStore((s) => s.openDialog);
+  const toggleCollapse = useStore((s) => s.toggleCollapse);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef<ZoomBehavior<HTMLDivElement, unknown> | null>(null);
 
-  // Keep whoever the user is looking at pinned in place when the tree changes.
-  const previous = useRef<{ layout: TreeLayout; selectedId: string | null } | null>(null);
+  // Only the people on show are laid out: a focused branch, or the tree minus its folded
+  // branches. Everything drawn below works from `shown`, never from the full tree.
+  const visible = useMemo(() => visibleIds(tree, focusId, collapsed), [tree, focusId, collapsed]);
+  const shown = useMemo(() => subTree(tree, visible), [tree, visible]);
+  const total = Object.keys(tree.people).length;
+  const hiddenCount = total - visible.size;
+
+  // Keep whoever the user is looking at pinned in place when the tree changes — or, when a
+  // branch is folded, the card it was folded at.
+  const previous = useRef<{ layout: TreeLayout; selectedId: string | null; focusId: string | null } | null>(null);
+  const foldedAt = useRef<string | null>(null);
   const layout = useMemo(() => {
     const prev = previous.current;
     let anchor: LayoutAnchor | undefined;
     if (prev) {
       const usable = (id: string | null | undefined): id is string =>
-        Boolean(id && prev.layout.nodes[id] && tree.people[id]);
+        Boolean(id && prev.layout.nodes[id] && shown.people[id]);
       const id =
-        [selectedId, prev.selectedId, tree.homeId].find(usable) ?? Object.keys(prev.layout.nodes).find(usable);
+        [foldedAt.current, selectedId, prev.selectedId, prev.focusId, tree.homeId].find(usable) ??
+        Object.keys(prev.layout.nodes).find(usable);
       if (id) anchor = { id, ...prev.layout.nodes[id] };
     }
-    return computeLayout(tree, anchor);
-    // selectedId is read on purpose without being a dependency: only tree changes re-layout.
+    return computeLayout(shown, anchor);
+    // selectedId is read on purpose without being a dependency: only a change in who is shown re-layouts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tree]);
+  }, [shown]);
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
   useEffect(() => {
-    previous.current = { layout, selectedId };
+    previous.current = { layout, selectedId, focusId };
+    foldedAt.current = null;
   });
 
   const kin = kinshipFor(tree);
 
   const lineage = useMemo(() => {
-    if (!selectedId || !tree.people[selectedId]) return null;
-    return new Set([selectedId, ...ancestorIds(tree, selectedId), ...descendantIds(tree, selectedId)]);
-  }, [tree, selectedId]);
+    if (!selectedId || !shown.people[selectedId]) return null;
+    return new Set([selectedId, ...ancestorIds(shown, selectedId), ...descendantIds(shown, selectedId)]);
+  }, [shown, selectedId]);
 
   // The chain of people between the selected person and "me" (or whoever they're being
   // compared with) — it's what makes a label like "Cousin once removed" make sense.
-  const pathFrom = compareId && tree.people[compareId] ? compareId : tree.homeId;
+  // It's traced through the people on show; if the other end is hidden there's no chain to draw.
+  const pathFrom = compareId && shown.people[compareId] ? compareId : shown.homeId;
   const path = useMemo(() => {
     if (!selectedId || !pathFrom || pathFrom === selectedId) return null;
-    const ids = pathBetween(tree, pathFrom, selectedId);
+    const ids = pathBetween(shown, pathFrom, selectedId);
     if (!ids || ids.length < 2) return null;
     const cards = new Set(ids);
     const childLinks = new Set<string>();
     const unions = new Set<string>();
-    const parentsOf = (id: string) => tree.people[id].parentIds;
+    const parentsOf = (id: string) => shown.people[id].parentIds;
     for (let i = 0; i < ids.length - 1; i++) {
       const [a, b] = [ids[i], ids[i + 1]];
       if (parentsOf(b).includes(a)) childLinks.add(b);
@@ -104,7 +130,34 @@ export function Canvas() {
       }
     }
     return { cards, childLinks, unions };
-  }, [tree, selectedId, pathFrom]);
+  }, [shown, selectedId, pathFrom]);
+
+  // --- Collapse toggles -------------------------------------------------------
+  // A small button on each line that can be folded: under a couple to tuck their children's
+  // branches away, above a person to tuck away their parents' side of the family.
+  const toggles = useMemo(() => {
+    if (focusId) return [];
+    return branchToggles(tree, collapsed).flatMap((t) => {
+      let x: number;
+      let y: number;
+      let from: number;
+      if (t.kind === 'down') {
+        const stem = familyStem(layout, t.ids);
+        if (!stem) return [];
+        [x, y, from] = [stem.x, stem.toggleY, stem.y];
+      } else {
+        const pos = layout.nodes[t.ids[0]];
+        if (!pos) return [];
+        [x, y, from] = [pos.x + CARD_W / 2, pos.y - TOGGLE_GAP, pos.y];
+      }
+      const names = t.ids.map((id) => shortName(tree.people[id])).join(' and ');
+      const where = t.kind === 'down' ? `below ${names}` : `on ${names}'s parents' side`;
+      const label = t.collapsed
+        ? `Show the ${countPeople(t.count)} hidden ${where}`
+        : `Hide the ${countPeople(t.count)} ${where}`;
+      return [{ ...t, x, y, from, label }];
+    });
+  }, [tree, collapsed, focusId, layout]);
 
   const placeholders = useMemo(
     () => new Set(Object.values(tree.people).filter(isPlaceholder).map((p) => p.id)),
@@ -122,7 +175,7 @@ export function Canvas() {
         if (e.type === 'wheel') return true;
         if (e.button) return false;
         // Let buttons on the canvas be clicked without starting a drag.
-        return !(e.target as HTMLElement).closest('.quick-add, .canvas-controls');
+        return !(e.target as HTMLElement).closest('.quick-add, .branch-toggle, .canvas-controls');
       })
       .on('zoom', (event: { transform: ZoomTransform }) => {
         const t = event.transform;
@@ -325,6 +378,12 @@ export function Canvas() {
           {layout.unions.map((u) => (
             <circle key={`ring-${u.id}`} className="union-ring" cx={u.midX} cy={u.midY} r={UNION_RING} />
           ))}
+          {/* A folded branch leaves a short stub, so the line visibly leads somewhere. */}
+          {toggles
+            .filter((t) => t.collapsed)
+            .map((t) => (
+              <path key={t.key} className="branch-stub" d={`M ${t.x} ${t.from} L ${t.x} ${t.y}`} />
+            ))}
         </svg>
         <svg
           className="links links-lit"
@@ -376,6 +435,28 @@ export function Canvas() {
             />
           );
         })}
+
+        {toggles.map((t) => (
+          <div key={t.key} className="branch-slot" style={{ transform: `translate(${t.x}px, ${t.y}px)` }}>
+            <button
+              type="button"
+              className={`branch-toggle is-${t.kind}${t.collapsed ? ' is-collapsed' : ''}`}
+              // Folded branches stay marked in an exported image; the fold buttons themselves don't.
+              data-no-export={t.collapsed ? undefined : ''}
+              data-tip={`${t.collapsed ? 'Show' : 'Hide'} ${countPeople(t.count)}`}
+              aria-label={t.label}
+              aria-expanded={!t.collapsed}
+              onClick={(e) => {
+                e.stopPropagation();
+                foldedAt.current = t.ids[0];
+                toggleCollapse(t.key);
+              }}
+              onDoubleClick={(e) => e.stopPropagation()}
+            >
+              {t.collapsed ? `+${t.count}` : <Minus size={10} strokeWidth={3.2} />}
+            </button>
+          </div>
+        ))}
       </div>
 
       {people.length > 0 && (
@@ -408,10 +489,23 @@ export function Canvas() {
               </button>
             )}
           </div>
-          <div className="stats-pill">
-            {people.length} {people.length === 1 ? 'person' : 'people'} · {layout.generations}{' '}
-            {layout.generations === 1 ? 'generation' : 'generations'}
-          </div>
+          {hiddenCount > 0 && !focusId ? (
+            <button
+              type="button"
+              className="stats-pill is-filtered"
+              onClick={() => useStore.getState().showAll()}
+              data-tip="Unfold every collapsed branch"
+            >
+              <EyeOff size={13} />
+              {visible.size} of {countPeople(total)}
+              <strong>Show all</strong>
+            </button>
+          ) : (
+            <div className="stats-pill">
+              {hiddenCount > 0 ? `${visible.size} of ${countPeople(total)}` : countPeople(total)} · {layout.generations}{' '}
+              {layout.generations === 1 ? 'generation' : 'generations'}
+            </div>
+          )}
         </div>
       )}
     </div>
