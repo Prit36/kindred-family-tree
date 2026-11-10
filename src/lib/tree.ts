@@ -1,4 +1,6 @@
 import type { Person, PersonInput, Tree, Union, UnionStatus } from '../types';
+import type { CropView } from './crop';
+import { isOriginalId } from './photoStore';
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -19,6 +21,8 @@ export function blankInput(partial: Partial<PersonInput> = {}): PersonInput {
     deceased: false,
     birthPlace: '',
     photo: '',
+    photoOriginal: '',
+    photoCrop: null,
     notes: '',
     ...partial,
   };
@@ -378,6 +382,13 @@ export function siblingCandidates(tree: Tree, id: string): Person[] {
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
+function cropOf(v: unknown): CropView | null {
+  if (!v || typeof v !== 'object') return null;
+  const { cx, cy, zoom } = v as Record<string, unknown>;
+  const ok = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
+  return ok(cx) && ok(cy) && ok(zoom) && zoom >= 1 ? { cx, cy, zoom } : null;
+}
+
 /** Accepts anything parsed from JSON and returns a well-formed tree, or throws. */
 export function sanitizeTree(raw: unknown): Tree {
   if (!raw || typeof raw !== 'object') throw new Error('Not a family tree file');
@@ -390,6 +401,7 @@ export function sanitizeTree(raw: unknown): Tree {
     const v = value as Record<string, unknown>;
     const gender = v.gender === 'male' || v.gender === 'female' ? v.gender : 'other';
     const photo = str(v.photo);
+    const hasPhoto = photo.startsWith('data:image/');
     people[id] = {
       id,
       firstName: str(v.firstName),
@@ -400,7 +412,9 @@ export function sanitizeTree(raw: unknown): Tree {
       deathDate: str(v.deathDate),
       deceased: Boolean(v.deceased) || Boolean(str(v.deathDate)),
       birthPlace: str(v.birthPlace),
-      photo: photo.startsWith('data:image/') ? photo : '',
+      photo: hasPhoto ? photo : '',
+      photoOriginal: hasPhoto && isOriginalId(v.photoOriginal) ? v.photoOriginal : '',
+      photoCrop: hasPhoto ? cropOf(v.photoCrop) : null,
       notes: str(v.notes),
       parentIds: Array.isArray(v.parentIds) ? v.parentIds.filter((x): x is string => typeof x === 'string') : [],
     };

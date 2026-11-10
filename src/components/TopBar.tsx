@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  CalendarHeart,
   Download,
   Ellipsis,
+  FileText,
   Image,
   Keyboard,
   Moon,
@@ -15,8 +17,9 @@ import {
 } from 'lucide-react';
 import type { Person } from '../types';
 import { useStore } from '../store';
-import { exportBackup, exportImage, pickBackupFile } from '../lib/actions';
+import { exportBackup, exportGedcom, exportImage, pickBackupFile } from '../lib/actions';
 import { lifespan, yearOf } from '../lib/dates';
+import { upcomingDates } from '../lib/insights';
 import { kinshipFor } from '../lib/kinship';
 import { displayName } from '../lib/tree';
 import { Avatar } from './Avatar';
@@ -269,8 +272,9 @@ function MainMenu() {
       {open && (
         <div className="menu-pop" role="menu">
           {item('Save as image', <Image size={16} />, () => void exportImage(), { disabled: empty })}
-          {item('Export backup', <Download size={16} />, exportBackup, { disabled: empty })}
-          {item('Import backup…', <Upload size={16} />, pickBackupFile)}
+          {item('Export backup', <Download size={16} />, () => void exportBackup(), { disabled: empty })}
+          {item('Export GEDCOM (.ged)', <FileText size={16} />, exportGedcom, { disabled: empty })}
+          {item('Import backup or GEDCOM…', <Upload size={16} />, pickBackupFile)}
           <hr />
           {item('Keyboard shortcuts', <Keyboard size={16} />, () => openDialog({ type: 'shortcuts' }))}
           {item('Load sample family', <Sparkles size={16} />, () => openDialog({ type: 'sample' }))}
@@ -278,6 +282,26 @@ function MainMenu() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Opens the calendar & checks dialog. A dot means someone has a birthday (or anniversary) today. */
+function InsightsButton() {
+  const tree = useStore((s) => s.tree);
+  const openDialog = useStore((s) => s.openDialog);
+  const today = useMemo(() => upcomingDates(tree, new Date(), 0), [tree]);
+  const label = today.length > 0 ? `Calendar & checks — ${today.length} today` : 'Calendar & checks';
+  return (
+    <button
+      type="button"
+      className="icon-btn insights-btn"
+      onClick={() => openDialog({ type: 'insights', tab: 'upcoming' })}
+      aria-label={label}
+      data-tip={today.length > 0 ? `${today.length} today` : 'Birthdays & checks'}
+    >
+      <CalendarHeart size={17} />
+      {today.length > 0 && <span className="insights-dot" aria-hidden="true" />}
+    </button>
   );
 }
 
@@ -309,6 +333,7 @@ export function TopBar() {
           <Redo2 size={17} />
         </button>
         <span className="divider" />
+        {!empty && <InsightsButton />}
         <button
           type="button"
           className="icon-btn"

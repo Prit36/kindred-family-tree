@@ -2145,3 +2145,651 @@ kbd {
     align-self: center;
   }
 }
+
+/* ==========================================================================
+   Photo cropper
+   ========================================================================== */
+
+.cropper {
+  padding-top: 12px;
+}
+
+.crop-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-height: 52dvh;
+  overflow: hidden;
+  border-radius: 14px;
+  background:
+    repeating-conic-gradient(#2a2620 0% 25%, #221f1a 0% 50%) 0 0 / 20px 20px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.crop-stage.is-dragging {
+  cursor: grabbing;
+}
+
+.crop-stage:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.crop-image {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The kept circle; everything outside it is dimmed but still visible for context. */
+.crop-mask {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.9),
+    0 0 0 9999px rgba(18, 14, 9, 0.58);
+  pointer-events: none;
+}
+
+.crop-grid {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    linear-gradient(to right, transparent calc(33.33% - 0.5px), rgba(255, 255, 255, 0.45) 0, rgba(255, 255, 255, 0.45) calc(33.33% + 0.5px), transparent 0, transparent calc(66.67% - 0.5px), rgba(255, 255, 255, 0.45) 0, rgba(255, 255, 255, 0.45) calc(66.67% + 0.5px), transparent 0),
+    linear-gradient(to bottom, transparent calc(33.33% - 0.5px), rgba(255, 255, 255, 0.45) 0, rgba(255, 255, 255, 0.45) calc(33.33% + 0.5px), transparent 0, transparent calc(66.67% - 0.5px), rgba(255, 255, 255, 0.45) 0, rgba(255, 255, 255, 0.45) calc(66.67% + 0.5px), transparent 0);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.crop-stage.is-dragging .crop-grid {
+  opacity: 1;
+}
+
+.crop-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: -4px;
+}
+
+.crop-controls .icon-btn[aria-disabled='true'] {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.crop-zoom {
+  flex: 1;
+  min-width: 0;
+  margin: 0 4px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.crop-preview {
+  flex: none;
+  display: grid;
+  place-items: center;
+  margin-left: 10px;
+  padding: 4px;
+}
+
+.crop-preview-avatar {
+  position: relative;
+}
+
+.crop-preview-avatar img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: none;
+  object-fit: fill;
+}
+
+.crop-error {
+  margin-top: -8px;
+  font-size: 13px;
+}
+
+.crop-foot {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.crop-another {
+  margin-right: auto;
+}
+
+@media (max-width: 480px) {
+  .crop-another {
+    flex: 1 0 100%;
+    justify-content: center;
+    margin: 0 0 4px;
+  }
+
+  .crop-foot .btn {
+    flex: 1;
+  }
+}
+
+/* ==========================================================================
+   Photo viewer
+   ========================================================================== */
+
+/* The avatar in the details panel opens the viewer; the badge beside it changes the photo. */
+.photo-wrap {
+  flex: none;
+  position: relative;
+  padding: 4px;
+}
+
+.photo-view {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: zoom-in;
+}
+
+.photo-view .avatar {
+  transition: filter 0.15s;
+}
+
+.photo-view-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(20, 16, 10, 0.38);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.photo-view:hover .photo-view-icon,
+.photo-view:focus-visible .photo-view-icon {
+  opacity: 1;
+}
+
+.photo-wrap .photo-badge {
+  padding: 0;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.photo-wrap .photo-badge:hover,
+.photo-wrap .photo-badge:focus-visible {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Always dark, whatever the theme: photos read best against black. */
+.viewer {
+  --viewer-text: #f3eee4;
+  --viewer-text-2: rgba(243, 238, 228, 0.62);
+  --viewer-hover: rgba(255, 255, 255, 0.12);
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: rgba(12, 10, 7, 0.95);
+  backdrop-filter: blur(8px);
+  color: var(--viewer-text);
+  animation: fade-in 0.18s ease both;
+}
+
+.viewer:focus {
+  outline: none;
+}
+
+.viewer-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 10px 20px;
+  /* Above the photo when it's zoomed under the bar. */
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(rgba(12, 10, 7, 0.85), rgba(12, 10, 7, 0.6));
+}
+
+.viewer-title {
+  min-width: 0;
+}
+
+.viewer-title h2 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.viewer-title p {
+  margin-top: 2px;
+  color: var(--viewer-text-2);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.viewer-tools {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.viewer .icon-btn {
+  width: 38px;
+  height: 38px;
+  color: var(--viewer-text);
+}
+
+.viewer .icon-btn:hover:not(:disabled) {
+  background: var(--viewer-hover);
+  color: #fff;
+}
+
+.viewer-zoom {
+  min-width: 58px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--viewer-text);
+  font: 600 12.5px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.viewer-zoom:hover:not(:disabled) {
+  background: var(--viewer-hover);
+}
+
+.viewer-sep {
+  width: 1px;
+  height: 22px;
+  margin: 0 6px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* Tooltips here sit on a dark page, so use the light version in either theme. */
+.viewer [data-tip]::after {
+  background: #f3eee4;
+  color: #211e19;
+}
+
+/* The close button sits at the screen's edge; keep its tooltip on screen. */
+.viewer-tools > :last-child::after {
+  left: auto;
+  right: 0;
+  transform: translate(0, -3px);
+}
+
+.viewer-tools > :last-child:hover::after,
+.viewer-tools > :last-child:focus-visible::after {
+  transform: none;
+}
+
+.viewer-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  cursor: zoom-in;
+}
+
+.viewer-stage.can-pan {
+  cursor: grab;
+}
+
+.viewer-stage.is-dragging.can-pan {
+  cursor: grabbing;
+}
+
+.viewer-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  transform-origin: 0 0;
+  border-radius: 2px;
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+  animation: fade-in 0.2s ease both;
+}
+
+.viewer-image.is-animating {
+  transition: transform 0.24s var(--ease);
+}
+
+.viewer-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--viewer-text-2);
+  font-size: 13.5px;
+}
+
+.viewer-note {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: rgba(40, 34, 26, 0.92);
+  color: var(--viewer-text);
+  font-size: 13px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.viewer-note-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #8fd6bd;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .viewer-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .viewer-bar {
+    flex-wrap: wrap;
+    padding: 8px 8px 8px 16px;
+  }
+
+  .viewer-title {
+    flex: 1;
+  }
+
+  .viewer-tools {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .viewer .icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Tooltips would spill off a phone screen; the buttons have labels for screen readers. */
+  .viewer [data-tip]::after {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Family calendar & checks
+   ========================================================================== */
+
+:root {
+  --warn: #a8701d;
+  --warn-soft: #f8ecd6;
+}
+
+:root[data-theme='dark'] {
+  --warn: #e0b25e;
+  --warn-soft: #3d2f17;
+}
+
+.insights-btn {
+  position: relative;
+}
+
+.insights-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--female);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.insights {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 24px 22px;
+}
+
+.insights-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.insights-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 550;
+  font-size: 13.5px;
+}
+
+.insights-tab:hover {
+  color: var(--text);
+}
+
+.insights-tab.is-active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-card);
+}
+
+.insights-count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: 11.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.insights-tab.is-active .insights-count {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.insights-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 120px;
+}
+
+.insights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.insights-issue {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.insights-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.insights-row:hover {
+  background: var(--surface-2);
+}
+
+.insights-row.is-today {
+  background: var(--accent-soft);
+}
+
+.insights-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.insights-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.insights-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.insights-milestone {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--female-soft);
+  color: var(--female);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.insights-when {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  font-size: 13px;
+}
+
+.insights-when span {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.insights-sev {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.sev-problem .insights-sev {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.sev-warning .insights-sev {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.sev-tip .insights-sev {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+
+.insights-msg {
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.insights-dismiss {
+  flex: none;
+  width: 30px;
+  height: 30px;
+}
+
+.insights-empty {
+  padding: 28px 8px;
+  color: var(--text-2);
+  text-align: center;
+}
+
+.insights-ok {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--accent);
+}
+
+.insights-note {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+@media (max-width: 480px) {
+  .insights {
+    padding: 10px 16px 18px;
+  }
+}

@@ -3,6 +3,7 @@ import {
   Baby,
   Camera,
   ChevronRight,
+  Expand,
   Focus,
   Heart,
   House,
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react';
 import type { Person, Relation, UnionStatus } from '../types';
 import { useStore } from '../store';
-import { addRelative, pickPhotoFor } from '../lib/actions';
+import { addRelative, pickPhotoFor, viewPhoto } from '../lib/actions';
 import { branchOf } from '../lib/branches';
 import { ageOf, compareByBirth, formatDate, lifespan } from '../lib/dates';
 import { kinshipFor } from '../lib/kinship';
@@ -112,18 +113,44 @@ export function PersonPanel() {
 
       <div className="panel-scroll">
         <header className="panel-head">
-          <button
-            type="button"
-            className="photo-btn"
-            onClick={() => pickPhotoFor(person.id)}
-            aria-label={person.photo ? 'Change photo' : 'Add photo'}
-            data-tip={person.photo ? 'Change photo' : 'Add a photo — or drop one here'}
-          >
-            <Avatar person={person} size={84} />
-            <span className="photo-badge">
-              <Camera size={13} />
+          {person.photo ? (
+            <span className="photo-wrap">
+              <button
+                type="button"
+                className="photo-view"
+                onClick={() => viewPhoto(person.id)}
+                aria-label="View full photo"
+                data-tip="View full photo (P)"
+              >
+                <Avatar person={person} size={84} />
+                <span className="photo-view-icon" aria-hidden="true">
+                  <Expand size={18} />
+                </span>
+              </button>
+              <button
+                type="button"
+                className="photo-badge"
+                onClick={() => pickPhotoFor(person.id)}
+                aria-label="Change photo"
+                data-tip="Change photo"
+              >
+                <Camera size={13} />
+              </button>
             </span>
-          </button>
+          ) : (
+            <button
+              type="button"
+              className="photo-btn"
+              onClick={() => pickPhotoFor(person.id)}
+              aria-label="Add photo"
+              data-tip="Add a photo — or drop one here"
+            >
+              <Avatar person={person} size={84} />
+              <span className="photo-badge">
+                <Camera size={13} />
+              </span>
+            </button>
+          )}
           <h2 className="panel-name">{displayName(person)}</h2>
           {birthName && <span className="panel-aka">{birthName}</span>}
           {relation && (

@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react';
-import { Camera, ChevronDown, Info } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Camera, ChevronDown, Crop, Expand, Info } from 'lucide-react';
 import type { Gender, Person, PersonInput, Relation, Tree, UnionStatus } from '../types';
 import { useStore, type Dialog } from '../store';
 import { isBefore, lifespan } from '../lib/dates';
-import { readPhoto } from '../lib/files';
+import type { CropView } from '../lib/crop';
+import { keepOriginal, loadPhoto, loadStoredPhoto, releasePhoto, type PhotoSource } from '../lib/files';
 import {
   blankInput,
   childCandidates,
@@ -28,6 +29,8 @@ import {
 import { Avatar } from './Avatar';
 import { DateInput } from './DateInput';
 import { Modal } from './Modal';
+import { PhotoCropper } from './PhotoCropper';
+import { PhotoViewer } from './PhotoViewer';
 
 type PersonDialogSpec = Extract<Dialog, { type: 'first' | 'add' | 'edit' }>;
 
@@ -115,6 +118,16 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
   const [status, setStatus] = useState<UnionStatus>('married');
   const [photoError, setPhotoError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  // The photo being cropped. Every photo loaded while the dialog is open is freed when it closes.
+  const [cropping, setCropping] = useState<{ source: PhotoSource; view?: CropView } | null>(null);
+  const [viewing, setViewing] = useState(false);
+  const sources = useRef(new Set<PhotoSource>());
+  useEffect(
+    () => () => {
+      for (const s of sources.current) releasePhoto(s);
+    },
+    [],
+  );
 
   const candidates = useMemo(() => candidatesFor(tree, spec), [tree, spec]);
   const [existingId, setExistingId] = useState('');
@@ -162,13 +175,35 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
         : undefined;
 
   const onPhoto = async (file: File | undefined) => {
-    if (!file) return;
+    if (!file || cropping) return;
     try {
-      set({ photo: await readPhoto(file) });
+      const source = await loadPhoto(file);
+      sources.current.add(source);
+      setCropping({ source });
       setPhotoError('');
     } catch (err) {
       setPhotoError(err instanceof Error ? err.message : "That image couldn't be read");
     }
+  };
+
+  const removePhoto = () => set({ photo: '', photoOriginal: '', photoCrop: null });
+
+  /** Re-crops the current photo from its full-size original, loading that if needed. */
+  const adjustPhoto = async () => {
+    const id = draft.photoOriginal;
+    if (!id || cropping) return;
+    let source = [...sources.current].find((s) => s.originalId === id);
+    if (!source) {
+      try {
+        source = await loadStoredPhoto(id);
+        sources.current.add(source);
+      } catch (err) {
+        setPhotoError(err instanceof Error ? err.message : "The full-size photo couldn't be read");
+        return;
+      }
+    }
+    setPhotoError('');
+    setCropping({ source, view: draft.photoCrop ?? undefined });
   };
 
   const submit = (e: FormEvent) => {
@@ -331,7 +366,17 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
               <div className="photo-meta">
                 {photoError && <span className="error-text">{photoError}</span>}
                 {draft.photo && (
-                  <button type="button" className="link-btn" onClick={() => set({ photo: '' })}>
+                  <button type="button" className="link-btn" onClick={() => setViewing(true)}>
+                    <Expand size={14} /> View
+                  </button>
+                )}
+                {draft.photo && draft.photoOriginal && (
+                  <button type="button" className="link-btn" onClick={() => void adjustPhoto()}>
+                    <Crop size={14} /> Adjust
+                  </button>
+                )}
+                {draft.photo && (
+                  <button type="button" className="link-btn" onClick={removePhoto}>
                     Remove photo
                   </button>
                 )}
@@ -470,6 +515,39 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
               will be added — you can fill them in later.
             </span>
           </p>
+        )}
+
+        {cropping && (
+          <PhotoCropper
+            source={cropping.source}
+            view={cropping.view}
+            onCancel={() => setCropping(null)}
+            onSave={(photo, source, view) => {
+              sources.current.add(source);
+              // Stored now; if the dialog is cancelled instead, it's tidied away on a later visit.
+              set({ photo, photoOriginal: keepOriginal(source), photoCrop: view });
+              setCropping(null);
+            }}
+          />
+        )}
+
+        {viewing && draft.photo && (
+          <PhotoViewer
+            person={draft}
+            onClose={() => setViewing(false)}
+            onAdjust={
+              draft.photoOriginal
+                ? () => {
+                    setViewing(false);
+                    void adjustPhoto();
+                  }
+                : undefined
+            }
+            onChange={() => {
+              setViewing(false);
+              fileRef.current?.click();
+            }}
+          />
         )}
 
         <footer className="modal-foot">

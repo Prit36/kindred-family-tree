@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import type { Relation, Tree } from './types';
+import type { CropView } from './lib/crop';
+import type { PhotoSource } from './lib/files';
 import { NOTHING_COLLAPSED, branchOf, pruneCollapsed, unfoldTo, visibleIds, type Collapsed } from './lib/branches';
-import { emptyTree, sanitizeTree, shortName } from './lib/tree';
+import { emptyTree, shortName } from './lib/tree';
+import { onSaveResult, requestPersistence, saveTree } from './lib/treeStore';
 
-const TREE_KEY = 'kindred.tree.v1';
 const VIEW_KEY = 'kindred.view.v1';
 const THEME_KEY = 'kindred.theme';
 const HISTORY_LIMIT = 100;
@@ -17,7 +19,15 @@ export type Dialog =
   | { type: 'delete'; personId: string }
   | { type: 'reset' }
   | { type: 'sample' }
-  | { type: 'shortcuts' };
+  | { type: 'shortcuts' }
+  /** Cropping a newly picked photo (or re-cropping the original) for someone, outside the edit dialog. */
+  | { type: 'photo'; personId: string; source: PhotoSource; view?: CropView }
+  /** Someone's photo shown full size. */
+  | { type: 'viewPhoto'; personId: string }
+  /** Upcoming birthdays and anniversaries, and possible mistakes in the data. */
+  | { type: 'insights'; tab: InsightsTab };
+
+export type InsightsTab = 'upcoming' | 'checks';
 
 export interface Toast {
   id: number;
@@ -74,16 +84,6 @@ interface State {
   toggleTheme: () => void;
 }
 
-function loadTree(): Tree {
-  try {
-    const raw = localStorage.getItem(TREE_KEY);
-    if (raw) return sanitizeTree(JSON.parse(raw));
-  } catch {
-    /* fall through to an empty tree */
-  }
-  return emptyTree();
-}
-
 /** Folds are remembered between visits, as long as they still belong to this tree. */
 function loadCollapsed(tree: Tree): Collapsed {
   try {
@@ -131,7 +131,9 @@ const surviving = (tree: Tree, s: ViewState & Pick<State, 'tree'>): ViewState =>
     collapsed: tree.homeId === s.tree.homeId ? pruneCollapsed(tree, s.collapsed) : NOTHING_COLLAPSED,
   });
 
-const initialTree = loadTree();
+// The saved tree is loaded asynchronously (see lib/treeStore.ts) and put in place by
+// `hydrate` before the app first renders.
+const initialTree = emptyTree();
 
 export const useStore = create<State>((set, get) => ({
   tree: initialTree,
@@ -273,19 +275,29 @@ useStore.subscribe((state, prev) => {
   }
 });
 
-// Autosave. Photos are stored inline, so a very large tree can hit the browser's quota.
+let hydrated = false;
+
+/** Puts the tree loaded from storage in place. Called once, before the first render. */
+export function hydrate(tree: Tree) {
+  useStore.setState({ tree, collapsed: loadCollapsed(tree) });
+  hydrated = true;
+  if (Object.keys(tree.people).length > 0) requestPersistence();
+}
+
+// Autosave, to IndexedDB (lib/treeStore.ts). Cropped photos are stored inline in the tree.
 let warnedAboutStorage = false;
-useStore.subscribe((state, prev) => {
-  if (state.tree === prev.tree) return;
-  try {
-    localStorage.setItem(TREE_KEY, JSON.stringify(state.tree));
+onSaveResult((ok) => {
+  if (ok) {
     warnedAboutStorage = false;
-  } catch {
-    if (!warnedAboutStorage) {
-      warnedAboutStorage = true;
-      state.toast("Couldn't save — browser storage is full. Export a backup and remove some photos.", {
-        tone: 'error',
-      });
-    }
+  } else if (!warnedAboutStorage) {
+    warnedAboutStorage = true;
+    useStore.getState().toast("Couldn't save — browser storage is full. Export a backup and remove some photos.", {
+      tone: 'error',
+    });
   }
+});
+useStore.subscribe((state, prev) => {
+  if (!hydrated || state.tree === prev.tree) return;
+  saveTree(state.tree);
+  if (Object.keys(state.tree.people).length > 0) requestPersistence();
 });
