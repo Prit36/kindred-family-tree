@@ -34,7 +34,7 @@ interface Point {
  */
 export function PhotoCropper({ source: initialSource, view: initial, title = 'Position the photo', onCancel, onSave }: Props) {
   const [source, setSource] = useState(initialSource);
-  const [view, setView] = useState(() => initial ?? initialView(initialSource));
+  const [view, setView] = useState(() => (initial ? clampView(initialSource, initial) : initialView(initialSource)));
   const [stage, setStage] = useState({ width: 0, height: 0 });
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState('');

@@ -1,3 +1,5 @@
+import type { CropView } from './lib/crop';
+
 export type Gender = 'male' | 'female' | 'other';
 export type UnionStatus = 'married' | 'partner' | 'divorced';
 
@@ -15,6 +17,10 @@ export interface Person {
   birthPlace: string;
   /** Small square JPEG data URL, or '' */
   photo: string;
+  /** Id of the full-size photo `photo` was cropped from (see lib/photoStore.ts), or '' */
+  photoOriginal: string;
+  /** Where in that original the crop was taken, so it can be adjusted later */
+  photoCrop: CropView | null;
   notes: string;
   /** Up to two parents */
   parentIds: string[];

@@ -33,7 +33,7 @@ export function Welcome() {
           </button>
         </div>
         <button type="button" className="link-btn" onClick={pickBackupFile}>
-          Import a backup file
+          Import a backup or GEDCOM file
         </button>
       </div>
     </div>

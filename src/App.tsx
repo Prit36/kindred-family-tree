@@ -1,7 +1,18 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeftRight, Focus, ImageUp, X } from 'lucide-react';
 import { useStore } from './store';
-import { importBackup, isBackupFile, loadSample, savePhoto, setPhotoFromFile, startOver } from './lib/actions';
+import {
+  adjustPhoto,
+  importBackup,
+  isBackupFile,
+  loadSample,
+  pickPhotoFor,
+  savePhoto,
+  setPhotoFromFile,
+  startOver,
+  viewPhoto,
+} from './lib/actions';
+import type { CropView } from './lib/crop';
 import { releasePhoto, type PhotoSource } from './lib/files';
 import { branchOf } from './lib/branches';
 import { relationBetween } from './lib/kinship';
@@ -9,10 +20,12 @@ import { deletePerson, displayName, pathBetween, shortName } from './lib/tree';
 import { Avatar } from './components/Avatar';
 import { Canvas } from './components/Canvas';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { InsightsDialog } from './components/InsightsDialog';
 import { Modal } from './components/Modal';
 import { PersonDialog } from './components/PersonDialog';
 import { PersonPanel } from './components/PersonPanel';
 import { PhotoCropper } from './components/PhotoCropper';
+import { PhotoViewer } from './components/PhotoViewer';
 import { Toasts } from './components/Toasts';
 import { TopBar } from './components/TopBar';
 import { Welcome } from './components/Welcome';
@@ -34,6 +47,7 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
     title: 'The selected person',
     rows: [
       [['Enter'], 'Edit — or double-click their card'],
+      [['P'], 'View their photo full size'],
       [['Del'], 'Delete'],
       [['B'], 'Show only their branch — press again for the whole tree'],
       [['Shift', 'click'], 'See how someone else is related to them'],
@@ -81,7 +95,7 @@ function ShortcutsDialog({ onClose }: { onClose: () => void }) {
 }
 
 /** The cropper for a photo picked from the details panel or dropped on a card. */
-function PhotoDialog({ personId, source }: { personId: string; source: PhotoSource }) {
+function PhotoDialog({ personId, source, view }: { personId: string; source: PhotoSource; view?: CropView }) {
   const person = useStore((s) => s.tree.people[personId]);
   const { closeDialog } = useStore.getState();
   // Freed when the dialog is closed rather than in an effect cleanup, which StrictMode
@@ -93,10 +107,11 @@ function PhotoDialog({ personId, source }: { personId: string; source: PhotoSour
   return (
     <PhotoCropper
       source={source}
+      view={view}
       title={person ? `Photo of ${shortName(person)}` : undefined}
       onCancel={close}
-      onSave={(photo, saved) => {
-        savePhoto(personId, photo);
+      onSave={(photo, saved, cropView) => {
+        savePhoto(personId, photo, saved, cropView);
         close();
         // A different photo picked inside the cropper is no longer needed either.
         if (saved !== source) releasePhoto(saved);
@@ -180,10 +195,31 @@ function Dialogs() {
     }
     case 'shortcuts':
       return <ShortcutsDialog onClose={closeDialog} />;
+    case 'insights':
+      return <InsightsDialog tab={dialog.tab} />;
     case 'photo':
       // The person can vanish (undo) while the cropper is open.
       if (!tree.people[dialog.personId]) return null;
-      return <PhotoDialog key={dialog.source.url} personId={dialog.personId} source={dialog.source} />;
+      return (
+        <PhotoDialog key={dialog.source.url} personId={dialog.personId} source={dialog.source} view={dialog.view} />
+      );
+    case 'viewPhoto': {
+      const person = tree.people[dialog.personId];
+      if (!person?.photo) return null;
+      return (
+        <PhotoViewer
+          key={person.photoOriginal || person.photo}
+          person={person}
+          onClose={closeDialog}
+          onAdjust={person.photoOriginal ? () => void adjustPhoto(person.id) : undefined}
+          onChange={() => {
+            // The picker only takes a photo while no dialog is open.
+            closeDialog();
+            pickPhotoFor(person.id);
+          }}
+        />
+      );
+    }
   }
 }
 
@@ -342,7 +378,7 @@ function useFileDrop(): boolean {
       if (image && personId) void setPhotoFromFile(personId, image);
       else if (backup) void importBackup(backup);
       else if (image) toast("Drop the photo onto someone's card to set their picture");
-      else toast('Drop a photo or a .json backup file', { tone: 'error' });
+      else toast('Drop a photo, a .json backup or a .ged GEDCOM file', { tone: 'error' });
     };
 
     window.addEventListener('dragenter', onEnter);
@@ -404,6 +440,8 @@ export default function App() {
         if ((e.key === 'Enter' && !onControl) || e.key.toLowerCase() === 'e') {
           e.preventDefault();
           openDialog({ type: 'edit', personId: selectedId });
+        } else if (e.key.toLowerCase() === 'p') {
+          viewPhoto(selectedId);
         } else if (e.key === 'Delete' || (e.key === 'Backspace' && !onControl)) {
           e.preventDefault();
           openDialog({ type: 'delete', personId: selectedId });
@@ -426,7 +464,9 @@ export default function App() {
       {dragging && !dialogOpen && (
         <div className="drop-hint" role="status">
           <ImageUp size={16} />
-          {empty ? 'Drop a backup file to import it' : 'Drop a photo on a card — or a backup file anywhere to import it'}
+          {empty
+            ? 'Drop a backup or GEDCOM file to import it'
+            : 'Drop a photo on a card — or a backup or GEDCOM file anywhere to import it'}
         </div>
       )}
     </div>

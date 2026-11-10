@@ -1,7 +1,10 @@
 import type { Relation } from '../types';
 import { useStore } from '../store';
 import { canvasHandle } from './canvasHandle';
-import { downloadTreeJson, loadPhoto, releasePhoto } from './files';
+import type { CropView } from './crop';
+import { decodeGedcom, nameFromFile, parseGedcom, toGedcom } from './gedcom';
+import { download, downloadTreeJson, keepOriginal, slug, loadPhoto, loadStoredPhoto, releasePhoto, type PhotoSource } from './files';
+import { importOriginals, onStoreFailure, pruneOriginals } from './photoStore';
 import { sampleTree } from './sample';
 import { emptyTree, isPlaceholder, parentsOf, sanitizeTree, shortName, updatePerson } from './tree';
 
@@ -9,10 +12,14 @@ import { emptyTree, isPlaceholder, parentsOf, sanitizeTree, shortName, updatePer
 
 const undoAction = () => ({ label: 'Undo', run: useStore.getState().undo });
 
-export function exportBackup() {
+export async function exportBackup() {
   const { tree, toast } = useStore.getState();
-  downloadTreeJson(tree);
-  toast('Backup downloaded');
+  try {
+    await downloadTreeJson(tree);
+    toast('Backup downloaded');
+  } catch {
+    toast("Couldn't create the backup", { tone: 'error' });
+  }
 }
 
 export async function exportImage() {
@@ -26,12 +33,45 @@ export async function exportImage() {
   }
 }
 
-export async function importBackup(file: File) {
+export function exportGedcom() {
+  const { tree, toast } = useStore.getState();
+  try {
+    const blob = new Blob([toGedcom(tree)], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    download(url, `${slug(tree.name)}.ged`);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('GEDCOM file downloaded — photos aren’t included, so keep a backup too');
+  } catch {
+    toast("Couldn't create the GEDCOM file", { tone: 'error' });
+  }
+}
+
+const isGedcomFile = (file: File) => /\.ged$/i.test(file.name);
+
+async function importGedcom(file: File) {
   const { commit, toast, fitView, tree: current } = useStore.getState();
   try {
-    const tree = sanitizeTree(JSON.parse(await file.text()));
+    const { tree, count } = parseGedcom(decodeGedcom(await file.arrayBuffer()), nameFromFile(file.name));
+    const hadPeople = Object.keys(current.people).length > 0;
+    commit(tree);
+    fitView();
+    toast(`Imported ${count} ${count === 1 ? 'person' : 'people'} from GEDCOM`, hadPeople ? { action: undoAction() } : undefined);
+  } catch {
+    toast("That file couldn't be read as GEDCOM", { tone: 'error' });
+  }
+}
+
+/** Imports a Kindred backup (.json) or a GEDCOM file (.ged), replacing the current tree. */
+export async function importBackup(file: File) {
+  if (isGedcomFile(file)) return importGedcom(file);
+  const { commit, toast, fitView, tree: current } = useStore.getState();
+  try {
+    const raw: unknown = JSON.parse(await file.text());
+    const tree = sanitizeTree(raw);
     const count = Object.keys(tree.people).length;
     if (count === 0) throw new Error('empty');
+    // Full-size photos travel in the backup next to the tree.
+    await importOriginals((raw as { originals?: unknown }).originals, originalIds(tree));
     const hadPeople = Object.keys(current.people).length > 0;
     commit(tree);
     fitView();
@@ -66,9 +106,9 @@ function pickFile(accept: string, onFile: (file: File) => void) {
   input.click();
 }
 
-/** Opens the system file picker for a backup file. */
+/** Opens the system file picker for a backup or GEDCOM file. */
 export function pickBackupFile() {
-  pickFile('application/json,.json', (file) => void importBackup(file));
+  pickFile('application/json,.json,.ged', (file) => void importBackup(file));
 }
 
 /** Opens the cropper for a photo file, without going through the edit dialog. */
@@ -88,20 +128,68 @@ export async function setPhotoFromFile(personId: string, file: File) {
   }
 }
 
-/** Saves a cropped photo chosen in the cropper. */
-export function savePhoto(personId: string, photo: string) {
+/** Saves a cropped photo chosen in the cropper, keeping the original it was cut from. */
+export function savePhoto(personId: string, photo: string, source: PhotoSource, view: CropView) {
   const { tree, commit, toast } = useStore.getState();
   const person = tree.people[personId];
   if (!person) return;
-  commit(updatePerson(tree, personId, { photo }));
+  commit(updatePerson(tree, personId, { photo, photoOriginal: keepOriginal(source), photoCrop: view }));
   toast(`Photo updated for ${shortName(person)}`, { action: undoAction() });
+}
+
+/** Shows someone's photo full size. */
+export function viewPhoto(personId: string) {
+  const { tree, openDialog } = useStore.getState();
+  if (tree.people[personId]?.photo) openDialog({ type: 'viewPhoto', personId });
+}
+
+/** Opens the cropper on someone's stored original, at the crop they have now. */
+export async function adjustPhoto(personId: string) {
+  const { tree, toast } = useStore.getState();
+  const person = tree.people[personId];
+  if (!person?.photoOriginal) return;
+  try {
+    const source = await loadStoredPhoto(person.photoOriginal);
+    const { tree: now, openDialog } = useStore.getState();
+    if (now.people[personId]?.photoOriginal !== person.photoOriginal) {
+      releasePhoto(source);
+      return;
+    }
+    openDialog({ type: 'photo', personId, source, view: person.photoCrop ?? undefined });
+  } catch (err) {
+    toast(err instanceof Error ? err.message : "The full-size photo couldn't be read", { tone: 'error' });
+  }
+}
+
+const originalIds = (tree: { people: Record<string, { photoOriginal: string }> }) =>
+  new Set(
+    Object.values(tree.people)
+      .map((p) => p.photoOriginal)
+      .filter(Boolean),
+  );
+
+let warnedAboutOriginals = false;
+onStoreFailure(() => {
+  if (warnedAboutOriginals) return;
+  warnedAboutOriginals = true;
+  useStore
+    .getState()
+    .toast("Couldn't keep the full-size photo in this browser — only the cropped version will be saved", {
+      tone: 'error',
+    });
+});
+
+/** Clears out full-size photos nobody uses any more. Undo history doesn't survive a reload, so this runs once at startup. */
+export function tidyPhotoStore() {
+  void pruneOriginals(originalIds(useStore.getState().tree));
 }
 
 export function pickPhotoFor(personId: string) {
   pickFile('image/*', (file) => void setPhotoFromFile(personId, file));
 }
 
-export const isBackupFile = (file: File) => file.type === 'application/json' || /\.json$/i.test(file.name);
+export const isBackupFile = (file: File) =>
+  file.type === 'application/json' || /\.json$/i.test(file.name) || isGedcomFile(file);
 
 /**
  * Starts adding a relative. Someone whose two parent slots are taken by a blank
