@@ -1148,15 +1148,21 @@ textarea.input {
 
 .panel-head {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  text-align: center;
-  padding-top: 6px;
+  gap: 16px;
+  /* Clear of the close button in the corner */
+  padding-right: 28px;
+}
+
+.panel-id {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
 
 .panel-name {
-  margin-top: 6px;
   font-family: var(--font-display);
   font-size: 24px;
   font-weight: 600;
@@ -1166,7 +1172,7 @@ textarea.input {
 }
 
 .panel-aka {
-  margin-top: -6px;
+  margin-top: -4px;
   color: var(--text-2);
   font-family: var(--font-display);
   font-style: italic;
@@ -1178,7 +1184,7 @@ textarea.input {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  margin: 14px 0 0 -6px;
   gap: 2px 3px;
   max-width: 100%;
   color: var(--text-3);
@@ -1239,25 +1245,28 @@ kbd {
 }
 
 .facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 0;
   margin-top: 18px;
-  padding: 4px 14px;
+  padding: 11px 0;
   border-radius: 14px;
   background: var(--surface-2);
 }
 
 .facts > div {
+  flex: 1 1 auto;
   display: flex;
-  gap: 12px;
-  padding: 9px 0;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 14px;
 }
 
 .facts > div + div {
-  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
 }
 
 .facts dt {
-  flex: none;
-  width: 48px;
   color: var(--text-2);
   font-size: 13px;
 }
@@ -1301,62 +1310,26 @@ kbd {
   transform: none;
 }
 
-/* "Focus on this branch" */
+/* "Focus branch", in the Family section's header */
 .focus-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  margin-top: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: 12px;
-  background: var(--surface);
-  text-align: left;
-  transition:
-    background 0.15s,
-    border-color 0.15s;
+  flex: none;
+  height: 30px;
+  padding: 0 6px 0 10px;
+  font-size: 13px;
 }
 
 .focus-btn > svg {
-  flex: none;
   color: var(--accent);
 }
 
-.focus-btn:hover {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-}
-
+.focus-btn:hover,
 .focus-btn.is-active {
   background: var(--accent-soft);
   border-color: var(--accent);
 }
 
-.focus-btn-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.focus-btn-title {
-  font-weight: 550;
-  font-size: 13.5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.focus-btn-sub {
-  color: var(--text-2);
-  font-size: 12px;
-}
-
 .focus-btn-count {
-  flex: none;
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: 99px;
   background: var(--surface-3);
   color: var(--text-2);
@@ -1370,10 +1343,34 @@ kbd {
   color: var(--on-accent);
 }
 
+/* It sits at the panel's right edge: open the tooltip leftwards. */
+.focus-btn[data-tip]::after {
+  left: auto;
+  right: 0;
+  transform: translate(0, -3px);
+}
+
+.focus-btn[data-tip]:hover::after,
+.focus-btn[data-tip]:focus-visible::after {
+  transform: none;
+}
+
 .panel-section {
   margin-top: 22px;
   padding-top: 18px;
   border-top: 1px solid var(--border);
+}
+
+.panel-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.panel-section-head h3 {
+  margin-bottom: 0;
 }
 
 .panel-section h3 {
@@ -1396,42 +1393,51 @@ kbd {
   margin-top: 0;
 }
 
-.add-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.add-btn {
+.rel-head {
   display: flex;
   align-items: center;
-  gap: 9px;
-  height: 42px;
-  padding: 0 13px;
-  border: 1px dashed var(--border-strong);
-  border-radius: 12px;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+
+.panel-section-head + .rel-head {
+  margin-top: 0;
+}
+
+.rel-head h4 {
+  margin: 0;
+}
+
+/* Sits on the heading's line without making it taller. */
+.rel-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: -4px -6px -4px 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
   background: transparent;
-  font-weight: 550;
-  transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
-}
-
-.add-btn svg {
   color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: background 0.15s;
 }
 
-.add-btn:hover:not(:disabled) {
+.rel-add:hover {
   background: var(--accent-soft);
-  border-color: var(--accent);
-  border-style: solid;
-  color: var(--accent-strong);
 }
 
-.add-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
+.rel-add[data-tip]::after {
+  left: auto;
+  right: 0;
+  transform: translate(0, -3px);
+}
+
+.rel-add[data-tip]:hover::after,
+.rel-add[data-tip]:focus-visible::after {
+  transform: none;
 }
 
 .rel-row {
@@ -1456,6 +1462,38 @@ kbd {
 
 .rel-main:hover {
   background: var(--surface-2);
+}
+
+.rel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 4px;
+  margin: 0 -8px;
+}
+
+.rel-grid .rel-row {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+}
+
+.rel-grid .rel-action {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  translate: 0 -50%;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    background 0.15s,
+    color 0.15s;
+}
+
+.rel-grid .rel-row:hover .rel-action,
+.rel-grid .rel-action:focus-visible {
+  opacity: 1;
 }
 
 .rel-text {
@@ -1598,9 +1636,27 @@ kbd {
 .name-fields {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Two related fields side by side, inputs lined up along the bottom. */
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: end;
+}
+
+/* "Has passed away" sits level with the date inputs it reveals. */
+.field-row.is-death .check {
+  align-items: center;
+  min-height: 38px;
+}
+
+.field-row.is-death .check input {
+  margin: 0;
 }
 
 .photo-btn {
@@ -1899,9 +1955,9 @@ kbd {
 }
 
 .shortcuts {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px 32px;
   padding: 14px 24px 24px;
 }
 
@@ -1914,18 +1970,26 @@ kbd {
   color: var(--text-2);
 }
 
+/* The key column is as wide as the longest shortcut in its group, no wider. */
+.shortcuts dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 14px;
+}
+
 .shortcuts dl > div {
+  display: contents;
+}
+
+.shortcuts dt,
+.shortcuts dd {
   display: flex;
   align-items: center;
-  gap: 14px;
   padding: 5px 0;
 }
 
 .shortcuts dt {
-  flex: none;
-  display: flex;
   gap: 4px;
-  width: 112px;
 }
 
 .shortcuts dd {
@@ -1933,6 +1997,7 @@ kbd {
 }
 
 .shortcuts-note {
+  grid-column: 1 / -1;
   padding-top: 14px;
   border-top: 1px solid var(--border);
   color: var(--text-2);
@@ -2139,6 +2204,11 @@ kbd {
   .name-row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .field-row,
+  .name-fields {
+    grid-template-columns: 1fr;
   }
 
   .photo-btn {

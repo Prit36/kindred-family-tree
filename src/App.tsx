@@ -67,7 +67,7 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
 
 function ShortcutsDialog({ onClose }: { onClose: () => void }) {
   return (
-    <Modal title="Keyboard shortcuts" onClose={onClose} width={440}>
+    <Modal title="Keyboard shortcuts" onClose={onClose} width={720}>
       <div className="shortcuts">
         {SHORTCUTS.map((group) => (
           <section key={group.title}>

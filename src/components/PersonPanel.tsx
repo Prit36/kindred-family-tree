@@ -1,18 +1,15 @@
 import { Fragment, type ReactNode } from 'react';
 import {
-  Baby,
   Camera,
   ChevronRight,
   Expand,
   Focus,
-  Heart,
   House,
   Lock,
   Pencil,
+  Plus,
   Trash,
   Unlink,
-  UserRound,
-  Users,
   X,
 } from 'lucide-react';
 import type { Person, Relation, UnionStatus } from '../types';
@@ -37,12 +34,12 @@ import {
 } from '../lib/tree';
 import { Avatar } from './Avatar';
 
-const ADD_BUTTONS: { relation: Relation; label: string; icon: ReactNode }[] = [
-  { relation: 'parent', label: 'Parent', icon: <UserRound size={16} /> },
-  { relation: 'partner', label: 'Partner', icon: <Heart size={16} /> },
-  { relation: 'sibling', label: 'Sibling', icon: <Users size={16} /> },
-  { relation: 'child', label: 'Child', icon: <Baby size={16} /> },
-];
+const ADD_LABELS: Record<Relation, string> = {
+  parent: 'parent',
+  partner: 'partner',
+  sibling: 'sibling',
+  child: 'child',
+};
 
 export function PersonPanel() {
   const tree = useStore((s) => s.tree);
@@ -85,6 +82,27 @@ export function PersonPanel() {
   const placeholderParent = parents.find(isPlaceholder);
 
   const withUndo = (message: string) => toast(message, { action: { label: 'Undo', run: undo } });
+
+  // Each family group's heading has its own "+ Add", so adding sits right where the new person will appear.
+  const groupHead = (relation: Relation, title: string) => {
+    const full = relation === 'parent' && parentSlotsFull && !placeholderParent;
+    const fills = relation === 'parent' && parentSlotsFull && placeholderParent;
+    return (
+      <div className="rel-head">
+        <h4>{title}</h4>
+        {!full && (
+          <button
+            type="button"
+            className="rel-add"
+            data-tip={fills ? 'Fill in the placeholder parent' : `Add a ${ADD_LABELS[relation]}`}
+            onClick={() => addRelative(relation, person.id)}
+          >
+            <Plus size={14} /> Add
+          </button>
+        )}
+      </div>
+    );
+  };
 
   const row = (p: Person, extra?: ReactNode) => (
     <li key={p.id} className="rel-row">
@@ -151,35 +169,38 @@ export function PersonPanel() {
               </span>
             </button>
           )}
-          <h2 className="panel-name">{displayName(person)}</h2>
-          {birthName && <span className="panel-aka">{birthName}</span>}
-          {relation && (
-            <span className={`chip${isHome ? ' chip-home' : ''}`}>
-              {isHome && <House size={12} strokeWidth={2.4} />}
-              {relation}
-            </span>
-          )}
-          {showChain && (
-            <nav className="chain" aria-label="How you're connected">
-              {chain.map((id, i) => {
-                const last = i === chain.length - 1;
-                const label = i === 0 ? 'You' : shortName(tree.people[id]);
-                return (
-                  <Fragment key={id}>
-                    {i > 0 && <ChevronRight size={12} aria-hidden="true" />}
-                    {last ? (
-                      <span className="chain-here">{label}</span>
-                    ) : (
-                      <button type="button" className="chain-step" onClick={() => select(id, true)}>
-                        {label}
-                      </button>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </nav>
-          )}
+          <div className="panel-id">
+            <h2 className="panel-name">{displayName(person)}</h2>
+            {birthName && <span className="panel-aka">{birthName}</span>}
+            {relation && (
+              <span className={`chip${isHome ? ' chip-home' : ''}`}>
+                {isHome && <House size={12} strokeWidth={2.4} />}
+                {relation}
+              </span>
+            )}
+          </div>
         </header>
+
+        {showChain && (
+          <nav className="chain" aria-label="How you're connected">
+            {chain.map((id, i) => {
+              const last = i === chain.length - 1;
+              const label = i === 0 ? 'You' : shortName(tree.people[id]);
+              return (
+                <Fragment key={id}>
+                  {i > 0 && <ChevronRight size={12} aria-hidden="true" />}
+                  {last ? (
+                    <span className="chain-here">{label}</span>
+                  ) : (
+                    <button type="button" className="chain-step" onClick={() => select(id, true)}>
+                      {label}
+                    </button>
+                  )}
+                </Fragment>
+              );
+            })}
+          </nav>
+        )}
 
         {placeholder && (
           <button type="button" className="hint hint-action" onClick={() => openDialog({ type: 'edit', personId: person.id })}>
@@ -251,183 +272,145 @@ export function PersonPanel() {
           </button>
         </div>
 
-        {(focused || branchSize < total) && (
-          <button
-            type="button"
-            className={`focus-btn${focused ? ' is-active' : ''}`}
-            aria-pressed={focused}
-            data-tip={focused ? 'Back to the whole tree (B)' : 'Hide everyone else (B)'}
-            onClick={() => (focused ? clearFocus() : focusOn(person.id))}
-          >
-            <Focus size={17} />
-            <span className="focus-btn-text">
-              <span className="focus-btn-title">
-                {focused ? `Showing only ${shortName(person)}'s branch` : `Focus on ${shortName(person)}'s branch`}
-              </span>
-              <span className="focus-btn-sub">
-                {focused ? 'Click to bring back the whole tree' : 'Ancestors, descendants and close family'}
-              </span>
-            </span>
-            <span className="focus-btn-count">
-              {branchSize} of {total}
-            </span>
-          </button>
-        )}
-
         <section className="panel-section">
-          <h3>Add a relative</h3>
-          <div className="add-grid">
-            {ADD_BUTTONS.map((b) => {
-              const isParent = b.relation === 'parent';
-              const full = isParent && parentSlotsFull && !placeholderParent;
-              const fills = isParent && parentSlotsFull && placeholderParent;
-              return (
-                <button
-                  key={b.relation}
-                  type="button"
-                  className="add-btn"
-                  disabled={full}
-                  title={
-                    full
-                      ? 'Both parents are already in the tree'
-                      : fills
-                        ? 'Fill in the placeholder parent'
-                        : undefined
-                  }
-                  onClick={() => addRelative(b.relation, person.id)}
-                >
-                  {b.icon}
-                  {b.label}
-                </button>
-              );
-            })}
+          <div className="panel-section-head">
+            <h3>Family</h3>
+            {(focused || branchSize < total) && (
+              <button
+                type="button"
+                className={`btn focus-btn${focused ? ' is-active' : ''}`}
+                aria-pressed={focused}
+                data-tip={focused ? 'Bring back the whole tree (B)' : 'Hide everyone outside this branch (B)'}
+                onClick={() => (focused ? clearFocus() : focusOn(person.id))}
+              >
+                <Focus size={15} />
+                {focused ? 'Show all' : 'Focus branch'}
+                <span className="focus-btn-count">
+                  {branchSize} of {total}
+                </span>
+              </button>
+            )}
           </div>
+
+          {groupHead('parent', 'Parents')}
+          {parents.length > 0 && (
+            <>
+              <ul className="rel-list rel-grid">
+                {parents.map((p) =>
+                  row(
+                    p,
+                    <button
+                      type="button"
+                      className="icon-btn rel-action"
+                      aria-label={`Remove ${displayName(p)} as parent`}
+                      data-tip="Remove link"
+                      onClick={() => {
+                        commit(unlinkParent(tree, person.id, p.id));
+                        withUndo(`${shortName(p)} is no longer linked as a parent`);
+                      }}
+                    >
+                      <Unlink size={14} />
+                    </button>,
+                  ),
+                )}
+              </ul>
+            </>
+          )}
+
+          {groupHead('partner', partners.length > 1 ? 'Partners' : 'Partner')}
+          {partners.length > 0 && (
+            <>
+              <ul className="rel-list">
+                {partners.map(({ person: p, union }) => {
+                  const shared = sharedChildren(tree, person.id, p.id);
+                  const locked = shared.length > 0;
+                  return row(
+                    p,
+                    <>
+                      <select
+                        className="input status-select"
+                        aria-label={`Relationship with ${displayName(p)}`}
+                        value={union.status}
+                        onChange={(e) => commit(setUnionStatus(tree, union.id, e.target.value as UnionStatus))}
+                      >
+                        <option value="married">Married</option>
+                        <option value="partner">Partner</option>
+                        <option value="divorced">Divorced</option>
+                      </select>
+                      {locked ? (
+                        // Not hidden or dead: say why this couple can't be unlinked.
+                        <button
+                          type="button"
+                          className="icon-btn rel-action is-locked"
+                          aria-label={`${displayName(p)} can't be unlinked while they share children`}
+                          data-tip="Linked through their children"
+                          onClick={() =>
+                            toast(
+                              `${shortName(person)} and ${shortName(p)} are both parents of ${
+                                shared.length === 1 ? shortName(shared[0]) : `${shared.length} children`
+                              }. Remove that parent link first — or mark them as divorced.`,
+                            )
+                          }
+                        >
+                          <Lock size={13} />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="icon-btn rel-action"
+                          aria-label={`Remove ${displayName(p)} as partner`}
+                          data-tip="Remove link"
+                          onClick={() => {
+                            commit(removeUnion(tree, union.id));
+                            withUndo(`${shortName(p)} is no longer linked as a partner`);
+                          }}
+                        >
+                          <Unlink size={14} />
+                        </button>
+                      )}
+                    </>,
+                  );
+                })}
+              </ul>
+            </>
+          )}
+
+          {groupHead('sibling', 'Siblings')}
+          {siblings.length > 0 && (
+            <>
+              <ul className="rel-list rel-grid">{siblings.map((p) => row(p))}</ul>
+            </>
+          )}
+
+          {groupHead('child', 'Children')}
+          {children.length > 0 && (
+            <>
+              <ul className="rel-list rel-grid">
+                {children.map((p) =>
+                  row(
+                    p,
+                    <button
+                      type="button"
+                      className="icon-btn rel-action"
+                      aria-label={`Remove ${displayName(p)} as child`}
+                      data-tip="Remove link"
+                      onClick={() => {
+                        commit(unlinkParent(tree, p.id, person.id));
+                        withUndo(`${shortName(p)} is no longer linked as a child`);
+                      }}
+                    >
+                      <Unlink size={14} />
+                    </button>,
+                  ),
+                )}
+              </ul>
+            </>
+          )}
         </section>
 
         {hasFamily && (
-          <section className="panel-section">
-            <h3>Family</h3>
-
-            {parents.length > 0 && (
-              <>
-                <h4>Parents</h4>
-                <ul className="rel-list">
-                  {parents.map((p) =>
-                    row(
-                      p,
-                      <button
-                        type="button"
-                        className="icon-btn rel-action"
-                        aria-label={`Remove ${displayName(p)} as parent`}
-                        data-tip="Remove link"
-                        onClick={() => {
-                          commit(unlinkParent(tree, person.id, p.id));
-                          withUndo(`${shortName(p)} is no longer linked as a parent`);
-                        }}
-                      >
-                        <Unlink size={14} />
-                      </button>,
-                    ),
-                  )}
-                </ul>
-              </>
-            )}
-
-            {partners.length > 0 && (
-              <>
-                <h4>{partners.length > 1 ? 'Partners' : 'Partner'}</h4>
-                <ul className="rel-list">
-                  {partners.map(({ person: p, union }) => {
-                    const shared = sharedChildren(tree, person.id, p.id);
-                    const locked = shared.length > 0;
-                    return row(
-                      p,
-                      <>
-                        <select
-                          className="input status-select"
-                          aria-label={`Relationship with ${displayName(p)}`}
-                          value={union.status}
-                          onChange={(e) => commit(setUnionStatus(tree, union.id, e.target.value as UnionStatus))}
-                        >
-                          <option value="married">Married</option>
-                          <option value="partner">Partner</option>
-                          <option value="divorced">Divorced</option>
-                        </select>
-                        {locked ? (
-                          // Not hidden or dead: say why this couple can't be unlinked.
-                          <button
-                            type="button"
-                            className="icon-btn rel-action is-locked"
-                            aria-label={`${displayName(p)} can't be unlinked while they share children`}
-                            data-tip="Linked through their children"
-                            onClick={() =>
-                              toast(
-                                `${shortName(person)} and ${shortName(p)} are both parents of ${
-                                  shared.length === 1 ? shortName(shared[0]) : `${shared.length} children`
-                                }. Remove that parent link first — or mark them as divorced.`,
-                              )
-                            }
-                          >
-                            <Lock size={13} />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="icon-btn rel-action"
-                            aria-label={`Remove ${displayName(p)} as partner`}
-                            data-tip="Remove link"
-                            onClick={() => {
-                              commit(removeUnion(tree, union.id));
-                              withUndo(`${shortName(p)} is no longer linked as a partner`);
-                            }}
-                          >
-                            <Unlink size={14} />
-                          </button>
-                        )}
-                      </>,
-                    );
-                  })}
-                </ul>
-              </>
-            )}
-
-            {siblings.length > 0 && (
-              <>
-                <h4>Siblings</h4>
-                <ul className="rel-list">{siblings.map((p) => row(p))}</ul>
-              </>
-            )}
-
-            {children.length > 0 && (
-              <>
-                <h4>Children</h4>
-                <ul className="rel-list">
-                  {children.map((p) =>
-                    row(
-                      p,
-                      <button
-                        type="button"
-                        className="icon-btn rel-action"
-                        aria-label={`Remove ${displayName(p)} as child`}
-                        data-tip="Remove link"
-                        onClick={() => {
-                          commit(unlinkParent(tree, p.id, person.id));
-                          withUndo(`${shortName(p)} is no longer linked as a child`);
-                        }}
-                      >
-                        <Unlink size={14} />
-                      </button>,
-                    ),
-                  )}
-                </ul>
-              </>
-            )}
-          </section>
-        )}
-
-        {hasFamily && (
           <p className="panel-tip">
-            <kbd>Shift</kbd>+click another card to see how they're related to {shortName(person)}.
+            <kbd>Shift</kbd>+click a card to see how they relate to {shortName(person)}
           </p>
         )}
       </div>

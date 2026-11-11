@@ -268,7 +268,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
   };
 
   return (
-    <Modal title={title} subtitle={subtitle} onClose={closeDialog}>
+    <Modal title={title} subtitle={subtitle} onClose={closeDialog} width={600}>
       <form
         onSubmit={submit}
         className="form"
@@ -383,28 +383,30 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
               </div>
             )}
 
-            <div className="field">
-              <span className="field-label">Gender</span>
-              <div className="segmented" role="radiogroup" aria-label="Gender">
-                {GENDERS.map((g) => (
-                  <button
-                    key={g.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={draft.gender === g.value}
-                    onClick={() => set({ gender: g.value })}
-                  >
-                    {g.label}
-                  </button>
-                ))}
+            <div className="field-row">
+              <div className="field">
+                <span className="field-label">Gender</span>
+                <div className="segmented" role="radiogroup" aria-label="Gender">
+                  {GENDERS.map((g) => (
+                    <button
+                      key={g.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={draft.gender === g.value}
+                      onClick={() => set({ gender: g.value })}
+                    >
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="field">
-              <span className="field-label">
-                Born <small>— just the year is fine</small>
-              </span>
-              <DateInput label="Born" value={draft.birthDate} onChange={(v) => set({ birthDate: v })} />
+              <div className="field">
+                <span className="field-label">
+                  Born <small>— just the year is fine</small>
+                </span>
+                <DateInput label="Born" value={draft.birthDate} onChange={(v) => set({ birthDate: v })} />
+              </div>
             </div>
 
             {!showMore && (
@@ -415,47 +417,51 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
 
             {showMore && (
               <>
-                <label className="field">
-                  <span className="field-label">
-                    Surname at birth <small>— if it changed, e.g. on marriage</small>
-                  </span>
-                  <input
-                    className="input"
-                    value={draft.birthName}
-                    autoComplete="off"
-                    onChange={(e) => set({ birthName: e.target.value })}
-                  />
-                </label>
+                <div className="field-row">
+                  <label className="field">
+                    <span className="field-label">
+                      Surname at birth <small>— if it changed</small>
+                    </span>
+                    <input
+                      className="input"
+                      value={draft.birthName}
+                      autoComplete="off"
+                      onChange={(e) => set({ birthName: e.target.value })}
+                    />
+                  </label>
 
-                <label className="field">
-                  <span className="field-label">Birthplace</span>
-                  <input
-                    className="input"
-                    value={draft.birthPlace}
-                    autoComplete="off"
-                    onChange={(e) => set({ birthPlace: e.target.value })}
-                  />
-                </label>
+                  <label className="field">
+                    <span className="field-label">Birthplace</span>
+                    <input
+                      className="input"
+                      value={draft.birthPlace}
+                      autoComplete="off"
+                      onChange={(e) => set({ birthPlace: e.target.value })}
+                    />
+                  </label>
+                </div>
 
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={draft.deceased}
-                    onChange={(e) => set({ deceased: e.target.checked })}
-                  />
-                  <span>Has passed away</span>
-                </label>
-                {draft.deceased && (
-                  <div className="field">
-                    <span className="field-label">Died</span>
-                    <DateInput label="Died" value={draft.deathDate} onChange={(v) => set({ deathDate: v })} />
-                    {deathError && (
-                      <span className="field-note is-error" role="alert">
-                        {deathError}
-                      </span>
-                    )}
-                  </div>
-                )}
+                <div className="field-row is-death">
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={draft.deceased}
+                      onChange={(e) => set({ deceased: e.target.checked })}
+                    />
+                    <span>Has passed away</span>
+                  </label>
+                  {draft.deceased && (
+                    <div className="field">
+                      <span className="field-label">Died</span>
+                      <DateInput label="Died" value={draft.deathDate} onChange={(v) => set({ deathDate: v })} />
+                      {deathError && (
+                        <span className="field-note is-error" role="alert">
+                          {deathError}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <label className="field">
                   <span className="field-label">Notes</span>
