@@ -519,7 +519,8 @@ textarea.input {
   transition:
     transform 0.18s var(--ease),
     box-shadow 0.18s,
-    border-color 0.18s;
+    border-color 0.18s,
+    opacity 0.2s;
   animation: card-in 0.36s var(--ease) both;
 }
 
@@ -4062,4 +4063,571 @@ kbd {
   .tl-toolbar {
     justify-content: space-between;
   }
+}
+
+/* ==========================================================================
+   Sides of the family (lib/sides.ts)
+   ========================================================================== */
+
+:root {
+  --side-0: #2f6f5e;
+  --side-1: #3567b0;
+  --side-2: #c0622f;
+  --side-3: #7b55b8;
+  --side-4: #9a7612;
+  --side-5: #b03f6e;
+  --side-6: #1f8494;
+  --side-7: #66762a;
+}
+
+:root[data-theme='dark'] {
+  --side-0: #6cc4a7;
+  --side-1: #7aa6e8;
+  --side-2: #e8956a;
+  --side-3: #b49be6;
+  --side-4: #d9b54a;
+  --side-5: #e47fa6;
+  --side-6: #5cc3d1;
+  --side-7: #a9ba5e;
+}
+
+[data-tone='-1'] {
+  --side: var(--text-3);
+}
+[data-tone='0'] {
+  --side: var(--side-0);
+}
+[data-tone='1'] {
+  --side: var(--side-1);
+}
+[data-tone='2'] {
+  --side: var(--side-2);
+}
+[data-tone='3'] {
+  --side: var(--side-3);
+}
+[data-tone='4'] {
+  --side: var(--side-4);
+}
+[data-tone='5'] {
+  --side: var(--side-5);
+}
+[data-tone='6'] {
+  --side: var(--side-6);
+}
+[data-tone='7'] {
+  --side: var(--side-7);
+}
+
+/* A card takes its side's colour in its outline, a faint wash and the relationship
+   line. :where() keeps selection and path highlights (which also set the border) on top. */
+.card:where([data-tone]) {
+  border-color: color-mix(in srgb, var(--side) 60%, var(--border));
+  background: color-mix(in srgb, var(--side) 7%, var(--surface));
+}
+
+.card:where([data-tone]) .card-relation {
+  color: color-mix(in srgb, var(--side) 82%, var(--text));
+}
+
+/* Previewing a side from the list: everyone else steps back. */
+.card.is-dimmed {
+  opacity: 0.18;
+}
+
+.world .links {
+  transition: opacity 0.2s;
+}
+
+.world.is-peeking .links {
+  opacity: 0.35;
+}
+
+/* --- Zoomed far out: big relationship labels on side-coloured cards ------------ */
+
+.card-glance {
+  display: none;
+}
+
+.viewport[data-zoom='far'] .world:not([data-exporting]) .card > :not(.card-glance) {
+  display: none;
+}
+
+.viewport[data-zoom='far'] .world:not([data-exporting]) .card {
+  justify-content: center;
+  padding: 0 14px;
+}
+
+.viewport[data-zoom='far'] .world:not([data-exporting]) .card:where([data-tone]) {
+  border-color: var(--side);
+  border-width: 3px;
+  background: color-mix(in srgb, var(--side) 15%, var(--surface));
+}
+
+.viewport[data-zoom='far'] .world:not([data-exporting]) .card-glance {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  max-width: 100%;
+  line-height: 1.04;
+  text-align: center;
+}
+
+.glance-relation,
+.glance-name {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sized to stay readable on screen as the tree shrinks, up to what fits the card. */
+.glance-relation {
+  font-family: var(--font-display);
+  font-weight: 650;
+  font-size: clamp(14px, calc(13px / var(--k, 1)), var(--fit, 36px));
+  color: color-mix(in srgb, var(--side, var(--accent)) 72%, var(--text));
+}
+
+.glance-name {
+  font-weight: 550;
+  font-size: clamp(12px, calc(10px / var(--k, 1)), var(--fit, 28px));
+  color: var(--text-2);
+}
+
+.viewport[data-zoom='far'] .world:not([data-exporting]) .card.is-placeholder .glance-relation {
+  color: var(--text-3);
+}
+
+/* --- The list of sides, above the zoom controls --------------------------------- */
+
+.sides-toggle {
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  gap: 6px;
+  padding: 0 10px 0 9px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sides-toggle.is-active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.sides {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  width: 300px;
+  max-width: calc(100vw - 28px);
+  max-height: min(56vh, 520px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  animation: drop-in 0.2s var(--ease) both;
+}
+
+.sides-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px 6px 14px;
+}
+
+.sides-head h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.sides-colour {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.sides-colour:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.sides-colour input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.sides-close {
+  width: 30px;
+  height: 30px;
+}
+
+.sides-list {
+  min-height: 0;
+  margin: 0;
+  padding: 0 6px 6px;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.side-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-left: calc(var(--depth, 0) * 18px);
+}
+
+.side-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.side-main:hover:not(:disabled),
+.side-main:focus-visible {
+  background: var(--surface-2);
+}
+
+.side-main.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.side-main:disabled {
+  cursor: default;
+}
+
+.side-swatch {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  background: var(--side);
+}
+
+/* Title and who it belongs to share one line; the latter gives way when space runs out. */
+.side-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.side-title {
+  flex: none;
+  max-width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.side-sub {
+  min-width: 0;
+}
+
+.side-sub {
+  font-size: 12.5px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.side-count {
+  flex: none;
+  min-width: 26px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.side-expand {
+  flex: none;
+  width: 28px;
+  height: 28px;
+}
+
+.side-expand svg {
+  transition: transform 0.15s var(--ease);
+}
+
+.side-expand.is-open svg {
+  transform: rotate(90deg);
+}
+
+/* --- Details panel: which side someone is on, and "Show only" ------------------- */
+
+.panel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.side-chip {
+  border: 1px solid color-mix(in srgb, var(--side) 45%, transparent);
+  background: color-mix(in srgb, var(--side) 12%, var(--surface));
+  color: var(--text);
+}
+
+.side-chip .side-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+
+.side-chip:hover:not(:disabled),
+.side-chip.is-active {
+  border-color: var(--side);
+  background: color-mix(in srgb, var(--side) 22%, var(--surface));
+}
+
+.side-chip:disabled {
+  cursor: default;
+}
+
+.side-chip[data-tip]::after {
+  left: 0;
+  transform: translate(0, -3px);
+}
+
+.side-chip[data-tip]:hover::after,
+.side-chip[data-tip]:focus-visible::after {
+  transform: none;
+}
+
+.focus-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.focus-row-label {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.focus-row-label svg {
+  color: var(--accent);
+}
+
+.focus-row .focus-scopes {
+  flex: 1;
+}
+
+.focus-scopes button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
+}
+
+.focus-scopes button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 1px 3px rgba(40, 30, 10, 0.14);
+}
+
+.focus-scope-count {
+  color: var(--text-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-scopes button[aria-pressed='true'] .focus-scope-count {
+  color: inherit;
+  opacity: 0.8;
+}
+
+/* Hugging the panel's right edge: keep the last tooltip inside. */
+.focus-row .focus-scopes button:last-child[data-tip]::after {
+  left: auto;
+  right: 0;
+  transform: translate(0, -3px);
+}
+
+.focus-row .focus-scopes button:last-child[data-tip]:hover::after {
+  transform: none;
+}
+
+/* In the "Showing only…" banner */
+.focus-banner .focus-scopes {
+  flex: none;
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+}
+
+.focus-banner .focus-scopes button {
+  height: 28px;
+}
+
+.focus-icon[data-tone] {
+  background: var(--side);
+}
+
+@media (max-width: 859px) {
+  .sides {
+    top: calc(100% + 10px);
+    bottom: auto;
+    max-height: 48dvh;
+  }
+
+  .focus-banner {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+/* ==========================================================================
+   Connector lines: side colours, hover card
+   ========================================================================== */
+
+/* Lines take a softened version of their side's colour. */
+.links [data-tone] {
+  color: color-mix(in srgb, var(--side) 55%, var(--link));
+}
+
+/* The line being rested on, and the people it joins */
+.links-hover {
+  color: var(--accent);
+}
+
+.links-hover [data-tone] {
+  color: var(--side);
+}
+
+.links-hover .child-link,
+.links-hover .union-line,
+.links-hover .union-ring {
+  animation-duration: 0.12s;
+}
+
+.links-hover .union-ring {
+  fill: var(--bg);
+}
+
+.links-hit path {
+  pointer-events: stroke;
+  stroke: transparent;
+  stroke-width: 16px;
+  cursor: help;
+}
+
+.card.is-linked:not(.is-selected) {
+  border-color: var(--side, var(--accent));
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--side, var(--accent)) 28%, transparent),
+    var(--shadow-lift);
+}
+
+.ctip {
+  position: absolute;
+  z-index: 15;
+  width: max-content;
+  max-width: min(300px, calc(100% - 32px));
+  padding: 9px 12px 10px;
+  border: 1px solid color-mix(in srgb, var(--side, var(--accent)) 50%, var(--border));
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  font-size: 13.5px;
+  pointer-events: none;
+  animation: fade-in 0.12s ease both;
+}
+
+.ctip-kind {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  color: color-mix(in srgb, var(--side, var(--accent)) 80%, var(--text));
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.ctip-count {
+  color: var(--text-2);
+  font-weight: 550;
+}
+
+.ctip-pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 7px;
+}
+
+.ctip-person {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+
+.ctip-person strong {
+  font-weight: 650;
+}
+
+.ctip-rel {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.ctip-amp {
+  color: var(--text-3);
+}
+
+.ctip-list {
+  display: grid;
+  gap: 3px;
+  margin: 7px 0 0;
+  padding: 7px 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+}
+
+.ctip-more {
+  color: var(--text-3);
+  font-size: 12.5px;
 }

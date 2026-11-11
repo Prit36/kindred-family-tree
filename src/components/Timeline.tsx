@@ -14,7 +14,7 @@ import { createPortal } from 'react-dom';
 import { Baby, CalendarPlus, Flower2, House, Maximize, Minus, Plus, X } from 'lucide-react';
 import type { Person } from '../types';
 import { useStore } from '../store';
-import { branchOf } from '../lib/branches';
+import { focusSet } from '../lib/branches';
 import { ageOf, formatDate, yearOf } from '../lib/dates';
 import { kinshipFor } from '../lib/kinship';
 import {
@@ -309,7 +309,7 @@ export function Timeline() {
   const tree = useStore((s) => s.tree);
   const selectedId = useStore((s) => s.selectedId);
   const compareId = useStore((s) => s.compareId);
-  const focusId = useStore((s) => s.focusId);
+  const focus = useStore((s) => s.focus);
   const view = useStore((s) => s.view);
   const panelOpen = useStore((s) => Boolean(s.selectedId && s.tree.people[s.selectedId]));
   const select = useStore((s) => s.select);
@@ -335,8 +335,8 @@ export function Timeline() {
 
   // A focused branch narrows the timeline too; folded branches are a tree-only thing.
   const ids = useMemo(
-    () => (focusId && tree.people[focusId] ? branchOf(tree, focusId) : Object.keys(tree.people)),
-    [tree, focusId],
+    () => (focus && tree.people[focus.id] ? focusSet(tree, focus) : Object.keys(tree.people)),
+    [tree, focus],
   );
   const { rows, undated, min, max } = useMemo(() => timelineRows(tree, ids, order, now), [tree, ids, order, now]);
   const rowIndex = useMemo(() => new Map(rows.map((s, i) => [s.person.id, i])), [rows]);

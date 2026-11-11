@@ -163,6 +163,20 @@ export function descendantIds(tree: Tree, id: string): Set<string> {
   return out;
 }
 
+/**
+ * Everyone related to someone by blood: their ancestors, and every descendant of those
+ * ancestors (aunts, uncles, cousins…) and of themselves. No partners.
+ */
+export function bloodRelatives(tree: Tree, id: string): Set<string> {
+  const out = new Set<string>();
+  if (!tree.people[id]) return out;
+  for (const r of [id, ...ancestorIds(tree, id)]) {
+    out.add(r);
+    for (const d of descendantIds(tree, r)) out.add(d);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Mutations (all return a new tree)
 // ---------------------------------------------------------------------------

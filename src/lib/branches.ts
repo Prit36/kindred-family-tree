@@ -1,13 +1,14 @@
 import type { Tree } from '../types';
 import { ancestorIds, descendantIds, partnersOf, siblingsOf } from './tree';
+import { sideMembers } from './sides';
 
 /**
  * Which part of a large tree is drawn.
  *
  * Two independent ways to cut a tree down to size:
  *
- * - **Focus** shows one person's branch on its own: their ancestors, their descendants
- *   (with partners) and their immediate family.
+ * - **Focus** shows one person's branch on its own - their direct line, their whole
+ *   family by blood, or their close family (see FocusScope).
  * - **Collapsing** folds a branch away at a connector. `down:<parents>` stops at a couple
  *   instead of continuing to their children; `up:<person>` stops at a person instead of
  *   continuing to their parents. Whoever can no longer be reached from the home person is
@@ -172,6 +173,28 @@ const countOf = (seen: Uint8Array) => {
 // ---------------------------------------------------------------------------
 
 /**
+ * How much of the tree around a person a focus keeps:
+ *
+ * - `line`: their direct line - ancestors, descendants and immediate family.
+ * - `family`: everyone related to them by blood - ancestors, and every descendant of those
+ *   ancestors (aunts, uncles, cousins…) - with partners. Focusing on your father this way
+ *   shows your father's side of the family; on your brother's wife, her family.
+ * - `close`: their parents and everyone descended from them (siblings, nieces and nephews),
+ *   their own descendants, and partners.
+ * - `side`: one side of the home person's family (lib/sides.ts) - the one this person is
+ *   the root of, like "Father's side" for your father - plus the people linking it to you.
+ */
+export type FocusScope = 'line' | 'family' | 'close' | 'side';
+
+export interface Focus {
+  id: string;
+  scope: FocusScope;
+}
+
+export const sameFocus = (a: Focus | null, b: Focus | null) =>
+  a === b || (a !== null && b !== null && a.id === b.id && a.scope === b.scope);
+
+/**
  * One person's branch: their ancestors, descendants and immediate family. Descendants
  * bring their partners along so each of their families is drawn whole.
  */
@@ -189,29 +212,65 @@ export function branchOf(tree: Tree, id: string): Set<string> {
   return out;
 }
 
+/**
+ * Everyone descended from `roots` (and the roots themselves), with their partners so
+ * every couple is drawn whole - but not the partners' own relatives.
+ */
+function withDescendantsAndPartners(tree: Tree, roots: Iterable<string>): Set<string> {
+  const out = new Set<string>();
+  for (const r of roots) {
+    if (!tree.people[r]) continue;
+    out.add(r);
+    for (const d of descendantIds(tree, r)) out.add(d);
+  }
+  for (const id of [...out]) for (const { person } of partnersOf(tree, id)) out.add(person.id);
+  return out;
+}
+
+const focusCache = new WeakMap<Tree, Map<string, ReadonlySet<string>>>();
+
+/** The people a focus keeps on screen. */
+export function focusSet(tree: Tree, focus: Focus): ReadonlySet<string> {
+  let perTree = focusCache.get(tree);
+  if (!perTree) focusCache.set(tree, (perTree = new Map()));
+  const key = `${focus.scope}:${focus.id}`;
+  let ids = perTree.get(key);
+  if (ids) return ids;
+
+  const { id } = focus;
+  if (!tree.people[id]) ids = new Set();
+  else if (focus.scope === 'line') ids = branchOf(tree, id);
+  else if (focus.scope === 'family') ids = withDescendantsAndPartners(tree, [id, ...ancestorIds(tree, id)]);
+  else if (focus.scope === 'side') ids = sideMembers(tree, id);
+  else ids = withDescendantsAndPartners(tree, [id, ...tree.people[id].parentIds]);
+  perTree.set(key, ids);
+  return ids;
+}
+
 // ---------------------------------------------------------------------------
 // Visibility
 // ---------------------------------------------------------------------------
 
-const visibleCache = new WeakMap<Tree, { focusId: string | null; collapsed: Collapsed; ids: ReadonlySet<string> }>();
+const visibleCache = new WeakMap<Tree, { focus: Focus | null; collapsed: Collapsed; ids: ReadonlySet<string> }>();
 
 /** The people drawn on the canvas for this focus and these folds. */
-export function visibleIds(tree: Tree, focusId: string | null, collapsed: Collapsed): ReadonlySet<string> {
+export function visibleIds(tree: Tree, focus: Focus | null, collapsed: Collapsed): ReadonlySet<string> {
   const hit = visibleCache.get(tree);
-  if (hit && hit.focusId === focusId && hit.collapsed === collapsed) return hit.ids;
+  if (hit && sameFocus(hit.focus, focus) && hit.collapsed === collapsed) return hit.ids;
 
-  let ids: Set<string>;
-  if (focusId && tree.people[focusId]) {
-    ids = branchOf(tree, focusId);
+  let ids: ReadonlySet<string>;
+  if (focus && tree.people[focus.id]) {
+    ids = focusSet(tree, focus);
   } else {
     const g = graphOf(tree);
     const seen = reach(g, collapsed);
-    ids = new Set<string>();
+    const reached = new Set<string>();
     g.ids.forEach((id, i) => {
-      if (seen[i]) ids.add(id);
+      if (seen[i]) reached.add(id);
     });
+    ids = reached;
   }
-  visibleCache.set(tree, { focusId, collapsed, ids });
+  visibleCache.set(tree, { focus, collapsed, ids });
   return ids;
 }
 

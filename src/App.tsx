@@ -14,7 +14,8 @@ import {
 } from './lib/actions';
 import type { CropView } from './lib/crop';
 import { releasePhoto, type PhotoSource } from './lib/files';
-import { branchOf } from './lib/branches';
+import { focusSet, type FocusScope } from './lib/branches';
+import { familySides, focusTitle, sideForFocus } from './lib/sides';
 import { relationBetween } from './lib/kinship';
 import { deletePerson, displayName, pathBetween, shortName } from './lib/tree';
 import { Avatar } from './components/Avatar';
@@ -51,7 +52,8 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
       [['Enter'], 'Edit - or double-click their card'],
       [['P'], 'View their photo full size'],
       [['Del'], 'Delete'],
-      [['B'], 'Show only their branch - press again for the whole tree'],
+      [['B'], 'Show only their direct line - press again for the whole tree'],
+      [['Shift', 'B'], 'Show only their family: every blood relative, aunts to cousins'],
       [['Shift', 'click'], 'See how someone else is related to them'],
     ],
   },
@@ -87,8 +89,11 @@ function ShortcutsDialog({ onClose }: { onClose: () => void }) {
           </section>
         ))}
         <p className="shortcuts-note">
-          In a big tree, the small <strong>−</strong> buttons on the connecting lines fold a branch away; the{' '}
-          <strong>+</strong> badge left behind brings it back. You can also drop a photo onto anyone's card, or a backup
+          In a big tree, <strong>Sides</strong> (bottom left) lists your father's side, your mother's side and each family
+          that married in, in the colours their cards are tinted with - click one to show only that side. The small{' '}
+          <strong>−</strong> buttons on the connecting lines fold a branch away; the <strong>+</strong> badge left behind
+          brings it back. Rest on any connecting line to see who it joins: couples' lines are solid when married, dashed for
+          partners and dotted when divorced. You can also drop a photo onto anyone's card, or a backup
           file anywhere to import it.
         </p>
       </div>
@@ -281,31 +286,65 @@ function CompareBanner() {
   );
 }
 
-/** "Showing only Arthur's branch" - while the rest of the tree is hidden. */
+const SCOPES: { scope: FocusScope; label: string; tip: string }[] = [
+  { scope: 'side', label: 'Side', tip: 'Just this side, and how it links to you' },
+  { scope: 'line', label: 'Line', tip: 'Ancestors and descendants only (B)' },
+  { scope: 'close', label: 'Close', tip: 'Parents, siblings, children and their partners' },
+  { scope: 'family', label: 'Family', tip: 'Every blood relative - aunts, uncles, cousins (Shift+B)' },
+];
+
+/** "Showing only Father's side" - while the rest of the tree is hidden. */
 function FocusBanner() {
   const tree = useStore((s) => s.tree);
-  const focusId = useStore((s) => s.focusId);
-  const { select, clearFocus } = useStore.getState();
+  const focus = useStore((s) => s.focus);
+  const { select, clearFocus, focusOn } = useStore.getState();
 
-  const person = focusId ? tree.people[focusId] : undefined;
-  if (!person) return null;
-  const shown = branchOf(tree, person.id).size;
+  const person = focus ? tree.people[focus.id] : undefined;
+  if (!focus || !person) return null;
+  const shown = focusSet(tree, focus).size;
   const total = Object.keys(tree.people).length;
+  const sides = familySides(tree);
+  const side = sideForFocus(sides, focus);
+  const title = focusTitle(tree, focus);
+  // Other ways to narrow the tree around the same person, if they'd show something different.
+  const scopes = SCOPES.filter(({ scope }) => {
+    if (scope === focus.scope) return true;
+    // Only the root of a side (your father, your wife…) has a side to show.
+    if (scope === 'side' && !sideForFocus(sides, { id: person.id, scope })) return false;
+    const size = focusSet(tree, { id: person.id, scope }).size;
+    return size < total && size !== shown;
+  });
 
   return (
     <div className="compare focus-banner" role="status">
-      <span className="focus-icon">
+      <span className="focus-icon" data-tone={side?.tone}>
         <Focus size={15} />
       </span>
       <span className="compare-text">
         Showing only{' '}
-        <button type="button" className="focus-name" onClick={() => select(person.id, true)} data-tip="Go to them">
-          {shortName(person)}'s branch
+        <button type="button" className="focus-name" onClick={() => select(person.id, true)} data-tip={`Go to ${shortName(person)}`}>
+          {title}
         </button>{' '}
         <span className="focus-count">
           {shown} of {total} people
         </span>
       </span>
+      {scopes.length > 1 && (
+        <div className="segmented focus-scopes" role="radiogroup" aria-label={`How much around ${shortName(person)} to show`}>
+          {scopes.map(({ scope, label, tip }) => (
+            <button
+              key={scope}
+              type="button"
+              role="radio"
+              aria-checked={scope === focus.scope}
+              data-tip={tip}
+              onClick={() => scope !== focus.scope && focusOn(person.id, scope)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       <button type="button" className="btn focus-exit" onClick={clearFocus} data-tip="Back to the whole tree (B)">
         Show everyone
       </button>
@@ -406,7 +445,7 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const { dialog, undo, redo, select, compare, selectedId, compareId, openDialog, focusId, focusOn, clearFocus } =
+      const { dialog, undo, redo, select, compare, selectedId, compareId, openDialog, focus, focusOn, clearFocus } =
         useStore.getState();
       const el = e.target as HTMLElement;
       const typing = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT';
@@ -430,15 +469,17 @@ export default function App() {
       if (e.key === 'Escape') {
         if (compareId) compare(null);
         else if (selectedId) select(null);
-        else if (focusId) clearFocus();
+        else if (focus) clearFocus();
       } else if (e.key === '?') {
         openDialog({ type: 'shortcuts' });
       } else if (e.key.toLowerCase() === 't') {
         const { mode, setMode, tree } = useStore.getState();
         if (Object.keys(tree.people).length > 0) setMode(mode === 'tree' ? 'timeline' : 'tree');
       } else if (e.key.toLowerCase() === 'b') {
-        // B on the focused person (or with nobody selected) goes back to the whole tree.
-        if (selectedId && selectedId !== focusId) focusOn(selectedId);
+        // B shows the selected person's direct line, Shift+B their whole family; pressing it
+        // again (or with nobody selected) goes back to the whole tree.
+        const scope: FocusScope = e.shiftKey ? 'family' : 'line';
+        if (selectedId && !(focus?.id === selectedId && focus.scope === scope)) focusOn(selectedId, scope);
         else clearFocus();
       } else if (selectedId) {
         // Enter on a focused button or menu item belongs to that control, not to the selection.

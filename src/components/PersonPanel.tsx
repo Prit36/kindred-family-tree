@@ -15,7 +15,8 @@ import {
 import type { Person, Relation, UnionStatus } from '../types';
 import { useStore } from '../store';
 import { addRelative, pickPhotoFor, viewPhoto } from '../lib/actions';
-import { branchOf } from '../lib/branches';
+import { focusSet, sameFocus, type FocusScope } from '../lib/branches';
+import { familySides } from '../lib/sides';
 import { ageOf, compareByBirth, formatDate, lifespan } from '../lib/dates';
 import { kinshipFor } from '../lib/kinship';
 import {
@@ -34,6 +35,15 @@ import {
 } from '../lib/tree';
 import { Avatar } from './Avatar';
 
+/** Ways to show only part of the tree around someone, narrowest first. */
+const SCOPES: { scope: FocusScope; label: string; tip: string }[] = [
+  { scope: 'line', label: 'Line', tip: 'their ancestors and descendants (B)' },
+  { scope: 'close', label: 'Close', tip: 'their parents, siblings, children and partners' },
+  { scope: 'family', label: 'Family', tip: 'every blood relative - aunts, uncles, cousins (Shift+B)' },
+];
+
+const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) => a.size === b.size && [...a].every((id) => b.has(id));
+
 const ADD_LABELS: Record<Relation, string> = {
   parent: 'parent',
   partner: 'partner',
@@ -44,7 +54,7 @@ const ADD_LABELS: Record<Relation, string> = {
 export function PersonPanel() {
   const tree = useStore((s) => s.tree);
   const selectedId = useStore((s) => s.selectedId);
-  const focusId = useStore((s) => s.focusId);
+  const focus = useStore((s) => s.focus);
   const { select, commit, openDialog, toast, undo, focusOn, clearFocus } = useStore.getState();
 
   const person = selectedId ? tree.people[selectedId] : undefined;
@@ -73,10 +83,23 @@ export function PersonPanel() {
   const chain = !isHome && tree.homeId ? pathBetween(tree, tree.homeId, person.id) : null;
   const showChain = chain !== null && chain.length > 2;
 
-  // Focusing only earns its place when it would actually clear people out of the way.
+  // Each way of focusing only earns its place when it would clear people out of the way,
+  // and show something the narrower ones don't.
   const total = Object.keys(tree.people).length;
-  const branchSize = branchOf(tree, person.id).size;
-  const focused = focusId === person.id;
+  const scopes: { scope: FocusScope; label: string; tip: string; size: number }[] = [];
+  const seen: ReadonlySet<string>[] = [];
+  for (const option of SCOPES) {
+    const ids = focusSet(tree, { id: person.id, scope: option.scope });
+    if (ids.size >= total || seen.some((other) => sameSet(other, ids))) continue;
+    seen.push(ids);
+    scopes.push({ ...option, size: ids.size });
+  }
+  const focusedScope = focus?.id === person.id ? focus.scope : null;
+
+  // Which side of the family they're on, unless that's obvious (it's you).
+  const sides = familySides(tree);
+  const side = isHome ? undefined : sides.byKey.get(sides.sideOf.get(person.id) ?? '');
+  const sideActive = Boolean(side?.focus && sameFocus(side.focus, focus));
 
   const parentSlotsFull = person.parentIds.length >= 2;
   const placeholderParent = parents.find(isPlaceholder);
@@ -172,11 +195,32 @@ export function PersonPanel() {
           <div className="panel-id">
             <h2 className="panel-name">{displayName(person)}</h2>
             {birthName && <span className="panel-aka">{birthName}</span>}
-            {relation && (
-              <span className={`chip${isHome ? ' chip-home' : ''}`}>
-                {isHome && <House size={12} strokeWidth={2.4} />}
-                {relation}
-              </span>
+            {(relation || side) && (
+              <div className="panel-chips">
+                {relation && (
+                  <span className={`chip${isHome ? ' chip-home' : ''}`}>
+                    {isHome && <House size={12} strokeWidth={2.4} />}
+                    {relation}
+                  </span>
+                )}
+                {side && (
+                  <button
+                    type="button"
+                    className={`chip side-chip${sideActive ? ' is-active' : ''}`}
+                    disabled={!side.focus}
+                    aria-pressed={side.focus ? sideActive : undefined}
+                    data-tip={side.focus ? (sideActive ? 'Show everyone again' : `Show only ${side.title}`) : undefined}
+                    onClick={() => {
+                      if (!side.focus) return;
+                      if (sideActive) clearFocus();
+                      else focusOn(side.focus.id, side.focus.scope);
+                    }}
+                  >
+                    <span className="side-swatch" data-tone={side.tone} aria-hidden="true" />
+                    {side.title}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </header>
@@ -275,22 +319,32 @@ export function PersonPanel() {
         <section className="panel-section">
           <div className="panel-section-head">
             <h3>Family</h3>
-            {(focused || branchSize < total) && (
-              <button
-                type="button"
-                className={`btn focus-btn${focused ? ' is-active' : ''}`}
-                aria-pressed={focused}
-                data-tip={focused ? 'Bring back the whole tree (B)' : 'Hide everyone outside this branch (B)'}
-                onClick={() => (focused ? clearFocus() : focusOn(person.id))}
-              >
-                <Focus size={15} />
-                {focused ? 'Show all' : 'Focus branch'}
-                <span className="focus-btn-count">
-                  {branchSize} of {total}
-                </span>
-              </button>
-            )}
           </div>
+          {scopes.length > 0 && (
+            <div className="focus-row">
+              <span className="focus-row-label">
+                <Focus size={15} />
+                Show only
+              </span>
+              <div className="segmented focus-scopes" role="group" aria-label={`Show only part of the tree around ${shortName(person)}`}>
+                {scopes.map(({ scope, label, tip, size }) => {
+                  const on = focusedScope === scope;
+                  return (
+                    <button
+                      key={scope}
+                      type="button"
+                      aria-pressed={on}
+                      data-tip={on ? 'Show everyone again' : `Show only ${tip}`}
+                      onClick={() => (on ? clearFocus() : focusOn(person.id, scope))}
+                    >
+                      {label}
+                      <span className="focus-scope-count">{size}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {groupHead('parent', 'Parents')}
           {parents.length > 0 && (

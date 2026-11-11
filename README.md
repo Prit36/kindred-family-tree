@@ -17,6 +17,9 @@ Then open http://localhost:5173. `npm run build` produces a static site in `dist
 - Relationship labels (Father, Sister-in-law, Cousin once removed…) are worked out relative to the "home" person. Use **This is me** on anyone to change it.
 - Selecting someone highlights their direct line - ancestors and descendants - and, more strongly, the chain of people connecting them to you. The same chain is listed under their name in the side panel.
 - **Shift+click** a second card to see how those two people are related to each other.
+- **Sides of the family.** Kindred splits the tree into your close family, your father's side, your mother's side and each family that married in (your wife's parents and siblings, your brother's wife's family…), and tints every card with its side's colour. **Sides** (bottom left) lists them: rest on one to light it up, click it to show only that side plus the people linking it to you. Families that married into an aunt or cousin are tucked under that side. The details panel says which side someone is on, and **Show only** narrows the tree around them to their direct line (`B`), close family, or every blood relative (`Shift+B`).
+- **Connecting lines** say what they join. A couple's line is heavier than the lines down to children, and solid for married, dashed for partners, dotted for divorced; every line takes its side's colour. Rest on (or tap) a line to light up the people it joins and see who they are to you - "George, maternal grandfather & Ruth, maternal grandmother · married · 1 child", or a set of siblings with each one's relationship.
+- **Zoomed out**, cards switch to large type showing just the relationship and first name ("Father · Robert", "Wife · Maya") on their side's colour, so a big tree stays readable without zooming in.
 - **Double-click** a card (or press `Enter`) to edit it. Drop a photo onto a card to set their picture; drop a backup file anywhere to import it.
 - Search (`/`) matches names, birth surnames, birthplaces, years, notes and relationships - try "aunt" or "1960".
 - Drag to pan, scroll to zoom, arrow keys to walk the tree, `H` to jump back to yourself, `F` to fit, `Ctrl+Z` / `Ctrl+Shift+Z` to undo and redo. Press `?` for the full list.
@@ -33,6 +36,8 @@ Your tree lives only in the browser you created it in, so export a backup now an
 | `src/lib/tree.ts` | Data model operations (add/link/unlink/delete, validation of imported files) |
 | `src/lib/layout.ts` | Generational layout: partner grouping, ordering, positioning, connector paths |
 | `src/lib/kinship.ts` | Relationship naming relative to the home person |
+| `src/lib/sides.ts` | Sides of the family (close family, each parent's side, families that married in) |
+| `src/lib/branches.ts` | Which part of the tree is drawn: focus (line, close family, family, side) and folded branches |
 | `src/lib/treeStore.ts` | Saving and loading the tree in IndexedDB (with the one-off move from localStorage) |
 | `src/lib/gedcom.ts` | GEDCOM 5.5.1 export and import |
 | `src/lib/timeline.ts` | Lifetimes on the time axis: guessed ends, row order, overlaps, axis ticks |

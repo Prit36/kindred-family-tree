@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, type CSSProperties } from 'react';
 import { House, Plus, ScrollText } from 'lucide-react';
 import type { Person, Relation } from '../types';
 import { lifespan } from '../lib/dates';
@@ -18,12 +18,33 @@ interface Props {
   /** A blank stand-in parent that still needs filling in */
   placeholder: boolean;
   relation: string;
+  /** Colour of their side of the family (see lib/sides.ts), or null for none */
+  tone: number | null;
+  /** Faded while another part of the tree is being previewed */
+  dimmed: boolean;
+  /** Joined by the connector line being rested on */
+  linked: boolean;
   canAddParent: boolean;
   onSelect: (id: string) => void;
   onCompare: (id: string) => void;
   onEdit: (id: string) => void;
   onAdd: (relation: Relation, id: string) => void;
 }
+
+/** Width the glance label has to fit in, and the largest it is drawn (world pixels). */
+const GLANCE_W = 196;
+const GLANCE_MAX = 36;
+
+/**
+ * The relationship as shown when zoomed out. The side colour already says paternal or
+ * maternal, so that part goes.
+ */
+function glanceLabel(relation: string): string {
+  return relation.replace(/^(Paternal|Maternal) (\w)/, (_, _side, c: string) => c.toUpperCase());
+}
+
+/** A font size that lets the text fill the card's width without overflowing it. */
+const fitFont = (text: string, ratio: number) => Math.min(GLANCE_MAX, Math.floor(GLANCE_W / Math.max(1, text.length * ratio)));
 
 const QUICK_ADD: { relation: Relation; side: string; label: string }[] = [
   { relation: 'parent', side: 'top', label: 'Add parent' },
@@ -42,6 +63,9 @@ export const PersonCard = memo(function PersonCard({
   isHome,
   placeholder,
   relation,
+  tone,
+  dimmed,
+  linked,
   canAddParent,
   onSelect,
   onCompare,
@@ -51,6 +75,8 @@ export const PersonCard = memo(function PersonCard({
   const name = displayName(person);
   const life = lifespan(person);
   const showRelation = relation && !isHome;
+  const glance = isHome ? 'You' : glanceLabel(relation);
+  const first = person.firstName.trim() || name;
 
   const cls = [
     'card',
@@ -60,6 +86,8 @@ export const PersonCard = memo(function PersonCard({
     onPath && 'is-on-path',
     person.deceased && 'is-deceased',
     placeholder && 'is-placeholder',
+    dimmed && 'is-dimmed',
+    linked && 'is-linked',
   ]
     .filter(Boolean)
     .join(' ');
@@ -72,6 +100,7 @@ export const PersonCard = memo(function PersonCard({
     >
       <div
         className={cls}
+        data-tone={tone ?? undefined}
         role="button"
         tabIndex={0}
         aria-pressed={selected}
@@ -106,6 +135,23 @@ export const PersonCard = memo(function PersonCard({
             <House size={11} strokeWidth={2.4} />
           </span>
         )}
+        {/* Shown instead of the above when zoomed far out (see FAR_ZOOM in Canvas). */}
+        <div className="card-glance" aria-hidden="true">
+          {glance ? (
+            <>
+              <span className="glance-relation" style={{ '--fit': `${fitFont(glance, 0.56)}px` } as CSSProperties}>
+                {glance}
+              </span>
+              <span className="glance-name" style={{ '--fit': `${fitFont(first, 0.6) * 0.78}px` } as CSSProperties}>
+                {first}
+              </span>
+            </>
+          ) : (
+            <span className="glance-relation" style={{ '--fit': `${fitFont(first, 0.6)}px` } as CSSProperties}>
+              {first}
+            </span>
+          )}
+        </div>
         {person.notes && (
           <span className="card-note" title="Has notes - select to read">
             <ScrollText size={13} />

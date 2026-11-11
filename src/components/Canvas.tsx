@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { select } from 'd3-selection';
 import 'd3-transition';
 import { zoom, zoomIdentity, zoomTransform, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
@@ -15,13 +15,16 @@ import {
   type LayoutAnchor,
   type TreeLayout,
 } from '../lib/layout';
-import { branchToggles, subTree, visibleIds } from '../lib/branches';
+import { branchToggles, focusSet, subTree, visibleIds } from '../lib/branches';
+import { familySides } from '../lib/sides';
 import { kinshipFor } from '../lib/kinship';
 import { ancestorIds, childrenOf, descendantIds, isPlaceholder, pathBetween, shortName } from '../lib/tree';
 import { addRelative } from '../lib/actions';
 import { downloadTreePng } from '../lib/files';
 import { canvasHandle } from '../lib/canvasHandle';
 import { PersonCard } from './PersonCard';
+import { SidesLegend } from './SidesLegend';
+import { ConnectorTip, type Connector } from './ConnectorTip';
 
 const STROKE = {
   fill: 'none',
@@ -39,9 +42,25 @@ const ARROWS: Record<string, 'up' | 'down' | 'left' | 'right'> = {
 };
 
 const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+const familyKey = (parentIds: string[]) => [...parentIds].sort().join('|');
+
+/** How each kind of couple line is drawn: married solid, partners dashed, divorced dotted. */
+const UNION_DASH: Record<string, string | undefined> = { married: undefined, partner: '9 6', divorced: '2 7' };
+
+/** A connector line being rested on (or tapped), and where the pointer is in the viewport. */
+type LineHover = ({ kind: 'union'; id: string } | { kind: 'family'; key: string }) & {
+  x: number;
+  y: number;
+  pinned: boolean;
+};
 const countPeople = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`;
 
 const MIN_ZOOM = 0.15;
+/**
+ * Below this zoom names are too small to read, so cards switch to a glance view: the
+ * relationship ("Father", "Wife") and first name in large type, on their side's colour.
+ */
+const FAR_ZOOM = 0.62;
 const MAX_ZOOM = 2;
 const TOP_INSET = 76;
 
@@ -49,7 +68,10 @@ export function Canvas() {
   const tree = useStore((s) => s.tree);
   const selectedId = useStore((s) => s.selectedId);
   const compareId = useStore((s) => s.compareId);
-  const focusId = useStore((s) => s.focusId);
+  const focus = useStore((s) => s.focus);
+  const focusId = focus?.id ?? null;
+  const peek = useStore((s) => s.peek);
+  const sideColours = useStore((s) => s.sides.colour);
   const collapsed = useStore((s) => s.collapsed);
   const view = useStore((s) => s.view);
   const select_ = useStore((s) => s.select);
@@ -57,13 +79,17 @@ export function Canvas() {
   const openDialog = useStore((s) => s.openDialog);
   const toggleCollapse = useStore((s) => s.toggleCollapse);
 
+  const [lineHover, setLineHover] = useState<LineHover | null>(null);
+  const lineHoverRef = useRef(lineHover);
+  lineHoverRef.current = lineHover;
+
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef<ZoomBehavior<HTMLDivElement, unknown> | null>(null);
 
   // Only the people on show are laid out: a focused branch, or the tree minus its folded
   // branches. Everything drawn below works from `shown`, never from the full tree.
-  const visible = useMemo(() => visibleIds(tree, focusId, collapsed), [tree, focusId, collapsed]);
+  const visible = useMemo(() => visibleIds(tree, focus, collapsed), [tree, focus, collapsed]);
   const shown = useMemo(() => subTree(tree, visible), [tree, visible]);
   const total = Object.keys(tree.people).length;
   const hiddenCount = total - visible.size;
@@ -95,6 +121,9 @@ export function Canvas() {
   });
 
   const kin = kinshipFor(tree);
+  const sides = familySides(tree);
+  // Hovering a side in the list lights it up and dims everyone else.
+  const peeked = useMemo(() => (peek ? focusSet(tree, peek) : null), [tree, peek]);
 
   const lineage = useMemo(() => {
     if (!selectedId || !shown.people[selectedId]) return null;
@@ -175,11 +204,21 @@ export function Canvas() {
         if (e.type === 'wheel') return true;
         if (e.button) return false;
         // Let buttons on the canvas be clicked without starting a drag.
-        return !(e.target as HTMLElement).closest('.quick-add, .branch-toggle, .canvas-controls');
+        return !(e.target as HTMLElement).closest('.quick-add, .branch-toggle, .canvas-controls, .sides');
       })
       .on('zoom', (event: { transform: ZoomTransform }) => {
         const t = event.transform;
         world.style.transform = `translate(${t.x}px, ${t.y}px) scale(${t.k})`;
+        // The line moves out from under the pointer, so whatever it explained goes.
+        if (lineHoverRef.current) setLineHover(null);
+        // Glance labels are sized against the zoom (in steps, to spare restyling every frame).
+        const far = t.k < FAR_ZOOM;
+        const zoomLevel = far ? 'far' : 'near';
+        if (viewport.dataset.zoom !== zoomLevel) viewport.dataset.zoom = zoomLevel;
+        if (far) {
+          const k = (Math.round(t.k * 40) / 40).toString();
+          if (world.style.getPropertyValue('--k') !== k) world.style.setProperty('--k', k);
+        }
         let grid = 28 * t.k;
         while (grid < 16) grid *= 2;
         viewport.style.backgroundSize = `${grid}px ${grid}px`;
@@ -354,31 +393,123 @@ export function Canvas() {
   const pathUnions = path ? layout.unions.filter((u) => path.unions.has(pairKey(u.a, u.b))) : [];
   const home = tree.homeId ? tree.people[tree.homeId] : undefined;
 
+  // --- Connector lines ----------------------------------------------------------
+  // Lines take the colour of the side of the family they belong to; couples' lines are
+  // drawn by status. Resting on a line lights up the people it joins and says who they are.
+  const toneOf = (id: string) => {
+    if (!sideColours) return undefined;
+    return sides.byKey.get(sides.sideOf.get(id) ?? '')?.tone;
+  };
+  const families = new Map<string, { parents: string[]; children: string[] }>();
+  for (const l of layout.links) {
+    const key = familyKey(l.parentIds);
+    let fam = families.get(key);
+    if (!fam) families.set(key, (fam = { parents: l.parentIds, children: [] }));
+    fam.children.push(l.childId);
+  }
+  const unionByPair = new Map(layout.unions.map((u) => [pairKey(u.a, u.b), u]));
+
+  let hovered: { connector: Connector; tone?: number; unions: typeof layout.unions; links: typeof layout.links; ids: Set<string> } | null =
+    null;
+  if (lineHover?.kind === 'union') {
+    const u = layout.unions.find((x) => x.id === lineHover.id);
+    if (u) {
+      const children = families.get(familyKey([u.a, u.b]))?.children.length ?? 0;
+      hovered = {
+        connector: { kind: 'union', a: u.a, b: u.b, status: u.status, children },
+        tone: toneOf(u.a),
+        unions: [u],
+        links: [],
+        ids: new Set([u.a, u.b]),
+      };
+    }
+  } else if (lineHover?.kind === 'family') {
+    const fam = families.get(lineHover.key);
+    if (fam) {
+      const u = fam.parents.length === 2 ? unionByPair.get(pairKey(fam.parents[0], fam.parents[1])) : undefined;
+      hovered = {
+        connector: { kind: 'family', parents: fam.parents, children: fam.children },
+        tone: toneOf(fam.parents[0]),
+        unions: u ? [u] : [],
+        links: layout.links.filter((l) => familyKey(l.parentIds) === lineHover.key),
+        ids: new Set([...fam.parents, ...fam.children]),
+      };
+    }
+  }
+
+  const hoverLine = (target: { kind: 'union'; id: string } | { kind: 'family'; key: string }) => ({
+    onPointerEnter: (e: React.PointerEvent) => {
+      if (e.buttons) return; // panning across lines
+      const box = viewportRef.current!.getBoundingClientRect();
+      setLineHover({ ...target, x: e.clientX - box.left, y: e.clientY - box.top, pinned: false });
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const cur = lineHoverRef.current;
+      if (!cur || cur.pinned || e.buttons) return;
+      const box = viewportRef.current!.getBoundingClientRect();
+      setLineHover({ ...cur, x: e.clientX - box.left, y: e.clientY - box.top });
+    },
+    onPointerLeave: () => {
+      if (!lineHoverRef.current?.pinned) setLineHover(null);
+    },
+    // A tap (or click) keeps the card up - the only way to read it on a touch screen.
+    onClick: (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const box = viewportRef.current!.getBoundingClientRect();
+      setLineHover({ ...target, x: e.clientX - box.left, y: e.clientY - box.top, pinned: true });
+    },
+  });
+
+  // Keep the card on screen: it flips to the other side of the pointer near the edges.
+  const tipStyle = (() => {
+    if (!lineHover) return undefined;
+    const vp = viewportRef.current;
+    const w = vp?.clientWidth ?? 0;
+    const h = vp?.clientHeight ?? 0;
+    const left = lineHover.x > w - 300 ? undefined : lineHover.x + 16;
+    const right = left === undefined ? w - lineHover.x + 16 : undefined;
+    const top = lineHover.y > h - 220 ? undefined : lineHover.y + 18;
+    const bottom = top === undefined ? h - lineHover.y + 14 : undefined;
+    return { left, right, top, bottom };
+  })();
+
   return (
     <div
       ref={viewportRef}
       className="viewport"
       onClick={(e) => {
-        if (!(e.target as HTMLElement).closest('.card-slot, .canvas-controls')) select_(null);
+        if (lineHover) setLineHover(null);
+        if (!(e.target as HTMLElement).closest('.card-slot, .canvas-controls, .sides')) select_(null);
       }}
     >
-      <div ref={worldRef} className="world">
+      <div ref={worldRef} className={`world${peeked ? ' is-peeking' : ''}`}>
         {/* Colours come from `currentColor` and shapes from attributes (not CSS classes) so
             the lines survive being cloned for image export. */}
         <svg className="links" width="1" height="1" aria-hidden="true" {...STROKE}>
+          {layout.links.map((l) => (
+            <path key={l.childId} className="child-link" d={l.d} data-tone={toneOf(l.parentIds[0])} />
+          ))}
+          {/* Couples on top of the lines to their children, a little heavier so a partner
+              line never reads as a parent line. */}
           {layout.unions.map((u) => (
             <path
               key={u.id}
               className="union-line"
               d={u.d}
-              strokeDasharray={u.status === 'divorced' ? '2 7' : undefined}
+              data-tone={toneOf(u.a)}
+              strokeWidth={2.6}
+              strokeDasharray={UNION_DASH[u.status]}
             />
           ))}
-          {layout.links.map((l) => (
-            <path key={l.childId} className="child-link" d={l.d} />
-          ))}
           {layout.unions.map((u) => (
-            <circle key={`ring-${u.id}`} className="union-ring" cx={u.midX} cy={u.midY} r={UNION_RING} />
+            <circle
+              key={`ring-${u.id}`}
+              className="union-ring"
+              cx={u.midX}
+              cy={u.midY}
+              r={UNION_RING}
+              data-tone={toneOf(u.a)}
+            />
           ))}
           {/* A folded branch leaves a short stub, so the line visibly leads somewhere. */}
           {toggles
@@ -413,10 +544,44 @@ export function Canvas() {
             ))}
           </g>
         </svg>
+        {hovered && (
+          <svg
+            className="links links-hover"
+            width="1"
+            height="1"
+            aria-hidden="true"
+            data-no-export=""
+            {...STROKE}
+            strokeWidth={4}
+          >
+            <g data-tone={hovered.tone}>
+              {hovered.links.map((l) => (
+                <path key={l.childId} className="child-link" d={l.d} />
+              ))}
+              {hovered.unions.map((u) => (
+                <path key={u.id} className="union-line" d={u.d} strokeDasharray={UNION_DASH[u.status]} />
+              ))}
+              {hovered.unions.map((u) => (
+                <circle key={`ring-${u.id}`} className="union-ring" cx={u.midX} cy={u.midY} r={UNION_RING + 1} />
+              ))}
+            </g>
+          </svg>
+        )}
+        {/* Wide invisible strokes over every line, so a line is easy to rest on. Under the
+            cards, so they still get the clicks. */}
+        <svg className="links links-hit" width="1" height="1" aria-hidden="true" data-no-export="" fill="none">
+          {layout.links.map((l) => (
+            <path key={l.childId} d={l.d} {...hoverLine({ kind: 'family', key: familyKey(l.parentIds) })} />
+          ))}
+          {layout.unions.map((u) => (
+            <path key={u.id} d={u.d} {...hoverLine({ kind: 'union', id: u.id })} />
+          ))}
+        </svg>
 
         {people.map((p) => {
           const pos = layout.nodes[p.id];
           if (!pos) return null;
+          const side = sides.byKey.get(sides.sideOf.get(p.id) ?? '');
           return (
             <PersonCard
               key={p.id}
@@ -429,6 +594,9 @@ export function Canvas() {
               isHome={p.id === tree.homeId}
               placeholder={placeholders.has(p.id)}
               relation={kin.get(p.id) ?? ''}
+              tone={sideColours && side ? side.tone : null}
+              dimmed={peeked !== null && !peeked.has(p.id)}
+              linked={Boolean(hovered?.ids.has(p.id))}
               canAddParent={p.parentIds.length < 2 || p.parentIds.some((id) => placeholders.has(id))}
               onSelect={onSelect}
               onCompare={onCompare}
@@ -461,8 +629,15 @@ export function Canvas() {
         ))}
       </div>
 
+      {hovered && tipStyle && (
+        <div className={`ctip${lineHover?.pinned ? ' is-pinned' : ''}`} role="status" style={tipStyle} data-tone={hovered.tone}>
+          <ConnectorTip tree={tree} connector={hovered.connector} />
+        </div>
+      )}
+
       {people.length > 0 && (
         <div className="canvas-controls">
+          <SidesLegend />
           <div className="control-group">
             <button type="button" className="icon-btn" onClick={() => zoomBy(1 / 1.35)} data-tip="Zoom out (−)" aria-label="Zoom out">
               <Minus size={17} />
@@ -491,7 +666,7 @@ export function Canvas() {
               </button>
             )}
           </div>
-          {hiddenCount > 0 && !focusId ? (
+          {hiddenCount > 0 && !focus ? (
             <button
               type="button"
               className="stats-pill is-filtered"
