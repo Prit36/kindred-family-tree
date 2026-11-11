@@ -3,6 +3,7 @@ import { House, Plus, ScrollText } from 'lucide-react';
 import type { Person, Relation } from '../types';
 import { lifespan } from '../lib/dates';
 import { displayName } from '../lib/tree';
+import { useLinkedByLine } from '../lib/lineHover';
 import { Avatar } from './Avatar';
 
 interface Props {
@@ -22,8 +23,13 @@ interface Props {
   tone: number | null;
   /** Faded while another part of the tree is being previewed */
   dimmed: boolean;
-  /** Joined by the connector line being rested on */
-  linked: boolean;
+  /**
+   * Zoomed far out: only the glance view (relationship and first name in large type) is
+   * drawn, which is all that shows at that size - a much lighter card when hundreds are on screen.
+   */
+  far: boolean;
+  /** Just added to what's drawn (a new person, or an unfolded branch): fades in. */
+  fresh: boolean;
   canAddParent: boolean;
   onSelect: (id: string) => void;
   onCompare: (id: string) => void;
@@ -76,7 +82,8 @@ export const PersonCard = memo(function PersonCard({
   relation,
   tone,
   dimmed,
-  linked,
+  far,
+  fresh,
   canAddParent,
   onSelect,
   onCompare,
@@ -88,6 +95,7 @@ export const PersonCard = memo(function PersonCard({
   // The home person's relation is what they're called: "You", or "તમે" in Gujarati.
   const glance = isHome ? relation || 'You' : glanceLabel(relation);
   const first = person.firstName.trim() || name;
+  const linked = useLinkedByLine(person.id);
 
   const cls = [
     'card',
@@ -99,6 +107,7 @@ export const PersonCard = memo(function PersonCard({
     placeholder && 'is-placeholder',
     dimmed && 'is-dimmed',
     linked && 'is-linked',
+    fresh && 'is-fresh',
   ]
     .filter(Boolean)
     .join(' ');
@@ -127,40 +136,44 @@ export const PersonCard = memo(function PersonCard({
           }
         }}
       >
-        <Avatar person={person} size={52} />
-        <div className="card-text">
-          <div className="card-name" title={name}>
-            {name}
-          </div>
-          {(relation || isHome) && <div className="card-relation">{relation || 'You'}</div>}
-          {life && <div className="card-life">{life}</div>}
-        </div>
-        {isHome && (
-          <span className="card-home" title="Relationships are shown relative to this person">
-            <House size={11} strokeWidth={2.4} />
-          </span>
-        )}
-        {/* Shown instead of the above when zoomed far out (see FAR_ZOOM in Canvas). */}
-        <div className="card-glance" aria-hidden="true">
-          {glance ? (
-            <>
-              <span className="glance-relation" style={{ '--fit': `${fitFont(glance, 0.56)}px` } as CSSProperties}>
-                {glance}
-              </span>
-              <span className="glance-name" style={{ '--fit': `${fitFont(first, 0.6) * 0.78}px` } as CSSProperties}>
+        {far ? (
+          <div className="card-glance" aria-hidden="true">
+            {glance ? (
+              <>
+                <span className="glance-relation" style={{ '--fit': `${fitFont(glance, 0.56)}px` } as CSSProperties}>
+                  {glance}
+                </span>
+                <span className="glance-name" style={{ '--fit': `${fitFont(first, 0.6) * 0.78}px` } as CSSProperties}>
+                  {first}
+                </span>
+              </>
+            ) : (
+              <span className="glance-relation" style={{ '--fit': `${fitFont(first, 0.6)}px` } as CSSProperties}>
                 {first}
               </span>
-            </>
-          ) : (
-            <span className="glance-relation" style={{ '--fit': `${fitFont(first, 0.6)}px` } as CSSProperties}>
-              {first}
-            </span>
-          )}
-        </div>
-        {person.notes && (
-          <span className="card-note" title="Has notes - select to read">
-            <ScrollText size={13} />
-          </span>
+            )}
+          </div>
+        ) : (
+          <>
+            <Avatar person={person} size={52} />
+            <div className="card-text">
+              <div className="card-name" title={name}>
+                {name}
+              </div>
+              {(relation || isHome) && <div className="card-relation">{relation || 'You'}</div>}
+              {life && <div className="card-life">{life}</div>}
+            </div>
+            {isHome && (
+              <span className="card-home" title="Relationships are shown relative to this person">
+                <House size={11} strokeWidth={2.4} />
+              </span>
+            )}
+            {person.notes && (
+              <span className="card-note" title="Has notes - select to read">
+                <ScrollText size={13} />
+              </span>
+            )}
+          </>
         )}
       </div>
 

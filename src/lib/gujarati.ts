@@ -1,3 +1,4 @@
+import { shapeOf, type Shape } from './shape';
 import type { Gender, Tree, UnionStatus } from '../types';
 import { indexOf, partnerIn, unionsOf } from './tree';
 
@@ -487,13 +488,13 @@ function describe(steps: Step[]): GuTerm {
   return { gu, latin, en };
 }
 
-const cache = new WeakMap<Tree, Map<string, Map<string, GuTerm>>>();
+const cache = new WeakMap<Shape, Map<string, Map<string, GuTerm>>>();
 
 /** Gujarati names for how everyone connected to `egoId` is related to them (memoised per tree). */
 export function gujaratiKinship(tree: Tree, egoId: string | null): Map<string, GuTerm> {
   if (!egoId || !tree.people[egoId]) return new Map();
-  let perTree = cache.get(tree);
-  if (!perTree) cache.set(tree, (perTree = new Map()));
+  let perTree = cache.get(shapeOf(tree));
+  if (!perTree) cache.set(shapeOf(tree), (perTree = new Map()));
   let out = perTree.get(egoId);
   if (out) return out;
   out = new Map();

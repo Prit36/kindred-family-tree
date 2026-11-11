@@ -1,3 +1,4 @@
+import { shapeOf, type Shape } from './shape';
 import type { Gender, Tree, Union } from '../types';
 import { partnersOf } from './tree';
 
@@ -110,22 +111,22 @@ function spouseWord(g: Gender, u: Union): string {
   return u.status === 'divorced' ? `Ex-${base.toLowerCase()}` : base;
 }
 
-const cache = new WeakMap<Tree, Map<string, string>>();
+const cache = new WeakMap<Shape, Map<string, string>>();
 
 /** Relationship labels relative to the tree's home person (memoised per tree). */
 export function kinshipFor(tree: Tree): Map<string, string> {
-  let m = cache.get(tree);
-  if (!m) cache.set(tree, (m = kinshipMap(tree, tree.homeId)));
+  let m = cache.get(shapeOf(tree));
+  if (!m) cache.set(shapeOf(tree), (m = kinshipMap(tree, tree.homeId)));
   return m;
 }
 
-const betweenCache = new WeakMap<Tree, Map<string, Map<string, string>>>();
+const betweenCache = new WeakMap<Shape, Map<string, Map<string, string>>>();
 
 /** How `otherId` is related to `fromId` ("Great-grandfather", "Wife's brother"…), or '' if they aren't. */
 export function relationBetween(tree: Tree, fromId: string, otherId: string): string {
   if (fromId === tree.homeId) return kinshipFor(tree).get(otherId) ?? '';
-  let perTree = betweenCache.get(tree);
-  if (!perTree) betweenCache.set(tree, (perTree = new Map()));
+  let perTree = betweenCache.get(shapeOf(tree));
+  if (!perTree) betweenCache.set(shapeOf(tree), (perTree = new Map()));
   let m = perTree.get(fromId);
   if (!m) perTree.set(fromId, (m = kinshipMap(tree, fromId)));
   return m.get(otherId) ?? '';

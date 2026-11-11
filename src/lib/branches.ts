@@ -1,3 +1,4 @@
+import { shapeOf, type Shape } from './shape';
 import type { Tree } from '../types';
 import { ancestorIds, descendantIds, partnersOf, siblingsOf } from './tree';
 import { sideMembers } from './sides';
@@ -55,10 +56,10 @@ interface Graph {
   roots: number[];
 }
 
-const graphCache = new WeakMap<Tree, Graph>();
+const graphCache = new WeakMap<Shape, Graph>();
 
 function graphOf(tree: Tree): Graph {
-  let g = graphCache.get(tree);
+  let g = graphCache.get(shapeOf(tree));
   if (g) return g;
 
   const ids = Object.keys(tree.people);
@@ -118,7 +119,7 @@ function graphOf(tree: Tree): Graph {
     flood(i);
   }
 
-  graphCache.set(tree, g);
+  graphCache.set(shapeOf(tree), g);
   return g;
 }
 
@@ -162,11 +163,139 @@ function reach(g: Graph, collapsed: Collapsed, flip?: string): Uint8Array {
   return seen;
 }
 
-const countOf = (seen: Uint8Array) => {
-  let n = 0;
-  for (let i = 0; i < seen.length; i++) n += seen[i];
-  return n;
-};
+/**
+ * How many people each fold hides (or, for one already folded, would bring back), all
+ * worked out at once.
+ *
+ * Every fold is a gate in the graph that `reach` walks: a node between a couple and their
+ * children, or between a person and their parents. Closing an open gate hides exactly the
+ * people who can only be reached through it - the ones it *dominates* - so one dominator
+ * tree (Cooper, Harvey & Kennedy's iterative algorithm) answers every open fold together,
+ * instead of walking the whole tree again for each one. Folds that are already closed are
+ * few (the user closed them), so each is simply opened and walked from.
+ */
+function foldCounts(g: Graph, collapsed: Collapsed, base: Uint8Array): Map<string, number> {
+  const n = g.ids.length;
+  const famIndex = new Map(g.allFamilies.map((f, i) => [f, i]));
+  const F = g.allFamilies.length;
+  const FAM = n; // family gates: FAM + family index
+  const UP = n + F; // parent gates: UP + person index
+  const ROOT = n + F + n;
+  const total = ROOT + 1;
+
+  const successors = (v: number, visit: (w: number) => void) => {
+    if (v === ROOT) {
+      for (const r of g.roots) visit(r);
+    } else if (v < n) {
+      for (const p of g.partners[v]) visit(p);
+      if (g.parents[v].length && !collapsed.has(g.upKeys[v])) visit(UP + v);
+      for (const fam of g.families[v]) if (!collapsed.has(fam.key)) visit(FAM + famIndex.get(fam)!);
+    } else if (v < UP) {
+      for (const c of g.allFamilies[v - FAM].children) visit(c);
+    } else {
+      for (const p of g.parents[v - UP]) visit(p);
+    }
+  };
+
+  // Reverse postorder from the root (iterative depth-first walk).
+  const order = new Int32Array(total).fill(-1); // position in reverse postorder
+  const post: number[] = [];
+  const preds: number[][] = Array.from({ length: total }, () => []);
+  const visited = new Uint8Array(total);
+  const stack: { v: number; next: number[]; i: number }[] = [];
+  const open = (v: number) => {
+    visited[v] = 1;
+    const next: number[] = [];
+    successors(v, (w) => next.push(w));
+    stack.push({ v, next, i: 0 });
+  };
+  open(ROOT);
+  while (stack.length) {
+    const top = stack[stack.length - 1];
+    if (top.i < top.next.length) {
+      const w = top.next[top.i++];
+      preds[w].push(top.v);
+      if (!visited[w]) open(w);
+    } else {
+      post.push(top.v);
+      stack.pop();
+    }
+  }
+  const rpo = post.reverse();
+  rpo.forEach((v, i) => (order[v] = i));
+
+  // Immediate dominators.
+  const idom = new Int32Array(total).fill(-1);
+  idom[ROOT] = ROOT;
+  const intersect = (a: number, b: number) => {
+    while (a !== b) {
+      while (order[a] > order[b]) a = idom[a];
+      while (order[b] > order[a]) b = idom[b];
+    }
+    return a;
+  };
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (let i = 1; i < rpo.length; i++) {
+      const v = rpo[i];
+      let d = -1;
+      for (const p of preds[v]) {
+        if (idom[p] === -1) continue;
+        d = d === -1 ? p : intersect(p, d);
+      }
+      if (d !== -1 && idom[v] !== d) {
+        idom[v] = d;
+        changed = true;
+      }
+    }
+  }
+
+  // People under each node of the dominator tree (a node comes after its dominator in rpo).
+  const under = new Int32Array(total);
+  for (let i = rpo.length - 1; i > 0; i--) {
+    const v = rpo[i];
+    if (v < n) under[v]++;
+    under[idom[v]] += under[v];
+  }
+
+  const out = new Map<string, number>();
+  g.allFamilies.forEach((fam, i) => {
+    if (!collapsed.has(fam.key)) out.set(fam.key, under[FAM + i]);
+  });
+  for (let i = 0; i < n; i++) if (g.parents[i].length && !collapsed.has(g.upKeys[i])) out.set(g.upKeys[i], under[UP + i]);
+
+  // Folds already closed: open each one alone and count who comes back.
+  const stamp = new Int32Array(n);
+  let round = 0;
+  const regained = (starts: number[]) => {
+    round++;
+    let count = 0;
+    const todo: number[] = [];
+    const visit = (w: number) => {
+      if (w >= n) {
+        successors(w, visit);
+        return;
+      }
+      if (base[w] || stamp[w] === round) return;
+      stamp[w] = round;
+      count++;
+      todo.push(w);
+    };
+    for (const s of starts) visit(s);
+    while (todo.length) successors(todo.pop()!, visit);
+    return count;
+  };
+  for (const key of collapsed) {
+    if (key.startsWith('up:')) {
+      const i = g.at.get(key.slice(3));
+      if (i !== undefined && base[i]) out.set(key, regained(g.parents[i]));
+    } else {
+      const fam = g.allFamilies.find((f) => f.key === key);
+      if (fam && base[fam.parents[0]]) out.set(key, regained(fam.children));
+    }
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Focus
@@ -227,12 +356,12 @@ function withDescendantsAndPartners(tree: Tree, roots: Iterable<string>): Set<st
   return out;
 }
 
-const focusCache = new WeakMap<Tree, Map<string, ReadonlySet<string>>>();
+const focusCache = new WeakMap<Shape, Map<string, ReadonlySet<string>>>();
 
 /** The people a focus keeps on screen. */
 export function focusSet(tree: Tree, focus: Focus): ReadonlySet<string> {
-  let perTree = focusCache.get(tree);
-  if (!perTree) focusCache.set(tree, (perTree = new Map()));
+  let perTree = focusCache.get(shapeOf(tree));
+  if (!perTree) focusCache.set(shapeOf(tree), (perTree = new Map()));
   const key = `${focus.scope}:${focus.id}`;
   let ids = perTree.get(key);
   if (ids) return ids;
@@ -251,11 +380,11 @@ export function focusSet(tree: Tree, focus: Focus): ReadonlySet<string> {
 // Visibility
 // ---------------------------------------------------------------------------
 
-const visibleCache = new WeakMap<Tree, { focus: Focus | null; collapsed: Collapsed; ids: ReadonlySet<string> }>();
+const visibleCache = new WeakMap<Shape, { focus: Focus | null; collapsed: Collapsed; ids: ReadonlySet<string> }>();
 
 /** The people drawn on the canvas for this focus and these folds. */
 export function visibleIds(tree: Tree, focus: Focus | null, collapsed: Collapsed): ReadonlySet<string> {
-  const hit = visibleCache.get(tree);
+  const hit = visibleCache.get(shapeOf(tree));
   if (hit && sameFocus(hit.focus, focus) && hit.collapsed === collapsed) return hit.ids;
 
   let ids: ReadonlySet<string>;
@@ -270,24 +399,24 @@ export function visibleIds(tree: Tree, focus: Focus | null, collapsed: Collapsed
     });
     ids = reached;
   }
-  visibleCache.set(tree, { focus, collapsed, ids });
+  visibleCache.set(shapeOf(tree), { focus, collapsed, ids });
   return ids;
 }
 
-const toggleCache = new WeakMap<Tree, { collapsed: Collapsed; toggles: BranchToggle[] }>();
+const toggleCache = new WeakMap<Shape, { collapsed: Collapsed; toggles: BranchToggle[] }>();
 
 /**
  * Every place the tree can be folded or unfolded right now. A fold that wouldn't hide
  * anybody (an only child's parents, say) isn't offered.
  */
 export function branchToggles(tree: Tree, collapsed: Collapsed): BranchToggle[] {
-  const hit = toggleCache.get(tree);
+  const hit = toggleCache.get(shapeOf(tree));
   if (hit && hit.collapsed === collapsed) return hit.toggles;
 
   const g = graphOf(tree);
   const base = reach(g, collapsed);
-  const shown = countOf(base);
-  const effect = (key: string) => Math.abs(shown - countOf(reach(g, collapsed, key)));
+  const hides = foldCounts(g, collapsed, base);
+  const effect = (key: string) => hides.get(key) ?? 0;
 
   const toggles: BranchToggle[] = [];
   for (const fam of g.allFamilies) {
@@ -310,7 +439,7 @@ export function branchToggles(tree: Tree, collapsed: Collapsed): BranchToggle[] 
     if (count > 0) toggles.push({ key, kind: 'up', ids: [id], collapsed: collapsed.has(key), count });
   });
 
-  toggleCache.set(tree, { collapsed, toggles });
+  toggleCache.set(shapeOf(tree), { collapsed, toggles });
   return toggles;
 }
 
@@ -340,24 +469,29 @@ export function unfoldTo(tree: Tree, collapsed: Collapsed, id: string): Collapse
   const cost = new Float64Array(n).fill(Infinity);
   const via = new Int32Array(n).fill(-1);
   const opened: (string | null)[] = new Array<string | null>(n).fill(null);
-  const deque = [...g.roots];
+  // Fewest folds opened: a breadth-first walk one fold-count at a time (crossing a closed
+  // fold costs 1, anything else 0), so each person is settled at their lowest count.
+  let level = [...g.roots];
+  let after: number[] = [];
   for (const r of g.roots) cost[r] = 0;
-
-  while (deque.length) {
-    const cur = deque.shift()!;
-    const step = (next: number, key: string | null) => {
-      const fold = key !== null && collapsed.has(key);
-      const total = cost[cur] + (fold ? 1 : 0);
-      if (total >= cost[next]) return;
-      cost[next] = total;
-      via[next] = cur;
-      opened[next] = fold ? key : null;
-      if (fold) deque.push(next);
-      else deque.unshift(next);
-    };
-    for (const p of g.partners[cur]) step(p, null);
-    for (const p of g.parents[cur]) step(p, g.upKeys[cur]);
-    for (const fam of g.families[cur]) for (const c of fam.children) step(c, fam.key);
+  for (let depth = 0; level.length; depth++) {
+    for (let i = 0; i < level.length; i++) {
+      const cur = level[i];
+      if (cost[cur] !== depth) continue; // reached more cheaply since it was queued
+      const step = (next: number, key: string | null) => {
+        const fold = key !== null && collapsed.has(key);
+        const total = depth + (fold ? 1 : 0);
+        if (total >= cost[next]) return;
+        cost[next] = total;
+        via[next] = cur;
+        opened[next] = fold ? key : null;
+        (fold ? after : level).push(next);
+      };
+      for (const p of g.partners[cur]) step(p, null);
+      for (const p of g.parents[cur]) step(p, g.upKeys[cur]);
+      for (const fam of g.families[cur]) for (const c of fam.children) step(c, fam.key);
+    }
+    [level, after] = [after, []];
   }
 
   const next = new Set(collapsed);

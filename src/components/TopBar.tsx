@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   CalendarHeart,
   Check,
@@ -19,7 +19,7 @@ import {
   Undo2,
   Upload,
 } from 'lucide-react';
-import type { Person } from '../types';
+import type { Person, Tree } from '../types';
 import { useStore, type ViewMode } from '../store';
 import { exportBackup, exportGedcom, exportImage, pickBackupFile } from '../lib/actions';
 import { lifespan, yearOf } from '../lib/dates';
@@ -87,6 +87,45 @@ function snippet(text: string, word: string): string {
   return (start > 0 ? '…' : '') + flat.slice(start, end).trim() + (end < flat.length ? '…' : '');
 }
 
+interface Searchable {
+  person: Person;
+  name: string;
+  /** In rank order: birth name, relationship, birthplace, years, notes */
+  fields: string[];
+}
+
+const indexes = new WeakMap<Tree, Searchable[]>();
+
+function searchIndex(tree: Tree): Searchable[] {
+  let index = indexes.get(tree);
+  if (!index) {
+    index = Object.values(tree.people).map((p) => ({
+      person: p,
+      name: displayName(p).toLowerCase(),
+      fields: [
+        p.birthName.toLowerCase(),
+        relationSearchText(tree, p.id),
+        p.birthPlace.toLowerCase(),
+        `${yearOf(p.birthDate) ?? ''} ${yearOf(p.deathDate) ?? ''}`,
+        p.notes.toLowerCase(),
+      ],
+    }));
+    indexes.set(tree, index);
+  }
+  return index;
+}
+
+/**
+ * Why a result matched, when it isn't plain. The relationship and years already show in
+ * the result's subtitle; a place or note match needs spelling out, or it looks unexplained.
+ */
+function whyMatched(p: Person, field: number, word: string): string {
+  if (field === 0) return `Born ${p.birthName}`;
+  if (field === 2) return `Born in ${p.birthPlace}`;
+  if (field === 4) return `“${snippet(p.notes, word)}”`;
+  return '';
+}
+
 function SearchBox() {
   const tree = useStore((s) => s.tree);
   const select = useStore((s) => s.select);
@@ -98,41 +137,38 @@ function SearchBox() {
   const naming = useStore((s) => s.naming);
   const kin = relationLabels(tree, naming);
 
+  // With a big tree, matching can lag behind fast typing; the box itself never does.
+  const deferredQuery = useDeferredValue(query);
+  const searching = deferredQuery.trim() !== '';
+
+  // Everyone's searchable text, lowercased once per tree (built when the first word is typed).
+  const index = useMemo(() => (searching ? searchIndex(tree) : []), [tree, searching]);
+
   // Matches names first, then anything else known about a person: relationship
   // ("cousin"), birthplace ("Cardiff"), years ("1960") and notes. Every word must match.
   const results = useMemo(() => {
-    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const words = deferredQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (words.length === 0) return [];
     const hits: { person: Person; rank: number; why: string }[] = [];
-    for (const p of Object.values(tree.people)) {
-      const name = displayName(p).toLowerCase();
-      const relation = relationSearchText(tree, p.id);
-      // In rank order. The relationship and years already show in the result's subtitle;
-      // a place or note match needs spelling out, or the result looks unexplained.
-      const fields: [text: string, why: (word: string) => string][] = [
-        [p.birthName.toLowerCase(), () => `Born ${p.birthName}`],
-        [relation, () => ''],
-        [p.birthPlace.toLowerCase(), () => `Born in ${p.birthPlace}`],
-        [`${yearOf(p.birthDate) ?? ''} ${yearOf(p.deathDate) ?? ''}`, () => ''],
-        [p.notes.toLowerCase(), (w) => `“${snippet(p.notes, w)}”`],
-      ];
+    for (const { person: p, name, fields } of index) {
       let rank = 0;
-      let why = '';
+      let at = -1;
+      let word = '';
       const ok = words.every((w) => {
         if (name.includes(w)) return true;
-        const i = fields.findIndex(([text]) => text.includes(w));
+        const i = fields.findIndex((text) => text.includes(w));
         if (i === -1) return false;
         rank = Math.max(rank, i + 1);
-        why ||= fields[i][1](w);
+        if (at === -1) [at, word] = [i, w];
         return true;
       });
       // A name that starts with the query beats one that merely contains it.
-      if (ok) hits.push({ person: p, rank: rank === 0 && !name.startsWith(words[0]) ? 0.5 : rank, why });
+      if (ok) hits.push({ person: p, rank: rank === 0 && !name.startsWith(words[0]) ? 0.5 : rank, why: at === -1 ? '' : whyMatched(p, at, word) });
     }
     return hits
       .sort((a, b) => a.rank - b.rank || displayName(a.person).localeCompare(displayName(b.person)))
       .slice(0, 8);
-  }, [tree, kin, query]);
+  }, [index, deferredQuery]);
 
   // "/" jumps to search from anywhere.
   useEffect(() => {

@@ -93,13 +93,26 @@ async function write(tree: Tree) {
   else await run('readwrite', (s) => s.put({ tree, savedAt: Date.now() } satisfies Saved, KEY));
 }
 
+/** Changes made in quick succession (undoing a run of edits, say) are saved as one. */
+const QUIET_MS = 250;
+let timer = 0;
+
 /**
- * Saves the tree. Writes happen one at a time; if several changes arrive while one is
- * being written, only the latest is written next.
+ * Saves the tree, shortly after the last change. Writes happen one at a time; if several
+ * changes arrive while one is being written, only the latest is written next. A large tree
+ * takes a while to copy into storage, so this keeps that work off the moment of the edit.
  */
 export function saveTree(tree: Tree) {
   pending = tree;
-  if (writing) return;
+  window.clearTimeout(timer);
+  timer = window.setTimeout(flush, QUIET_MS);
+}
+
+/** Writes any waiting change now (the page is being hidden or closed). */
+function flush() {
+  window.clearTimeout(timer);
+  timer = 0;
+  if (!pending || writing) return;
   writing = true;
   void (async () => {
     while (pending) {
@@ -114,6 +127,13 @@ export function saveTree(tree: Tree) {
     }
     writing = false;
   })();
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flush();
+  });
 }
 
 let askedToPersist = false;

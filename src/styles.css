@@ -462,13 +462,18 @@ textarea.input {
 .child-link,
 .union-line {
   transition: d 0.42s var(--ease);
+}
+
+/* Only lines that are new to the tree fade in - not ones scrolling into view (the canvas
+   draws just what is on screen). */
+.is-fresh {
   animation: fade-in 0.5s ease both;
 }
 
 .links-lit .child-link,
 .links-lit .union-line,
 .links-lit .union-ring {
-  animation-duration: 0.2s;
+  animation: fade-in 0.2s ease both;
 }
 
 /* The selected person's own line steps back when the chain to "me" is drawn over it. */
@@ -488,7 +493,6 @@ textarea.input {
   transition:
     cx 0.42s var(--ease),
     cy 0.42s var(--ease);
-  animation: fade-in 0.5s ease both;
 }
 
 .card-slot {
@@ -522,6 +526,11 @@ textarea.input {
     box-shadow 0.18s,
     border-color 0.18s,
     opacity 0.2s;
+}
+
+/* New people (and unfolded branches) arrive with a little lift; cards that simply come
+   into view as the tree is panned don't. */
+.card.is-fresh {
   animation: card-in 0.36s var(--ease) both;
 }
 
@@ -752,7 +761,7 @@ textarea.input {
   z-index: 3;
 }
 
-.branch-stub {
+.branch-stub.is-fresh {
   animation: fade-in 0.3s ease both;
 }
 
@@ -779,6 +788,9 @@ textarea.input {
     background 0.15s,
     border-color 0.15s,
     color 0.15s;
+}
+
+.branch-toggle.is-fresh {
   animation: pop-in 0.26s var(--ease) both;
 }
 
@@ -857,6 +869,42 @@ textarea.input {
   font-size: 12.5px;
   font-weight: 500;
   backdrop-filter: blur(6px);
+}
+
+/* The whole tree in miniature, with a frame round the part on screen. */
+.minimap {
+  --node: color-mix(in srgb, var(--text-3) 70%, var(--surface));
+  --frame-stroke: var(--accent);
+  --frame-fill: color-mix(in srgb, var(--accent) 12%, transparent);
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  cursor: pointer;
+  transition: right 0.28s var(--ease);
+  animation: fade-in 0.3s ease both;
+}
+
+.minimap canvas {
+  display: block;
+  touch-action: none;
+}
+
+/* Clear of the details panel docked on the right. */
+.app:has(.panel) .minimap {
+  right: 394px;
+}
+
+/* Beside the open panel there's only room for it on a wide window. */
+@media (max-width: 1179px) {
+  .app:has(.panel) .minimap {
+    display: none;
+  }
 }
 
 /* Some branches are folded away: the pill says so and undoes it in one click. */
@@ -2248,6 +2296,11 @@ kbd {
   .stats-pill {
     display: none;
   }
+
+  /* Narrow screens have the panel as a sheet over the bottom, and no room to spare. */
+  .minimap {
+    display: none;
+  }
 }
 
 @media (max-width: 640px) {
@@ -3273,8 +3326,11 @@ kbd {
     inset -1px 0 0 color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
+/* Placed by the timeline (only the rows near the screen are drawn). */
 .tl-row {
-  position: relative;
+  position: absolute;
+  left: 0;
+  right: 0;
   display: flex;
   height: 44px;
   cursor: pointer;

@@ -35,7 +35,9 @@ Your tree lives only in the browser you created it in, so export a backup now an
 | Path | What it does |
 | --- | --- |
 | `src/lib/tree.ts` | Data model operations (add/link/unlink/delete, validation of imported files) |
-| `src/lib/layout.ts` | Generational layout: partner grouping, ordering, positioning, connector paths |
+| `src/lib/layout.ts` | Generational layout: partner grouping, generations, ordering (fewest crossings), positioning, connector paths |
+| `src/lib/shape.ts` | A token for the tree's structure, so caches survive edits that don't move anyone (notes, photos, names) |
+| `src/lib/lineHover.ts` | The hovered or pinned family line, kept outside React so hovering doesn't redraw the canvas |
 | `src/lib/kinship.ts` | Relationship naming relative to the home person (English) |
 | `src/lib/gujarati.ts` | Gujarati relationship names, from the chain of links between two people |
 | `src/lib/naming.ts` | Picks English or Gujarati labels for the rest of the app |
@@ -46,4 +48,4 @@ Your tree lives only in the browser you created it in, so export a backup now an
 | `src/lib/timeline.ts` | Lifetimes on the time axis: guessed ends, row order, overlaps, axis ticks |
 | `src/lib/insights.ts` | Upcoming birthdays/anniversaries and data-consistency checks |
 | `src/store.ts` | App state, undo history, autosave |
-| `src/components/` | Canvas (pan/zoom), timeline, cards, details panel, dialogs, top bar |
+| `src/components/` | Canvas (pan/zoom, draws only what's near the screen), minimap, timeline, cards, details panel, dialogs, top bar |

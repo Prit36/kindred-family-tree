@@ -1,3 +1,4 @@
+import { shapeOf, type Shape } from './shape';
 import type { Tree } from '../types';
 import { gujaratiKinship } from './gujarati';
 import { kinshipFor, relationBetween } from './kinship';
@@ -27,13 +28,13 @@ export function selfLabel(naming: Naming): string {
   return naming === 'gu' ? 'હું' : naming === 'gu-latn' ? 'Hu' : 'You';
 }
 
-const labelCache = new WeakMap<Tree, Map<Naming, Map<string, string>>>();
+const labelCache = new WeakMap<Shape, Map<Naming, Map<string, string>>>();
 
 /** Everyone's relationship to the tree's home person, in the chosen naming (memoised per tree). */
 export function relationLabels(tree: Tree, naming: Naming): Map<string, string> {
   if (naming === 'en') return kinshipFor(tree);
-  let perTree = labelCache.get(tree);
-  if (!perTree) labelCache.set(tree, (perTree = new Map()));
+  let perTree = labelCache.get(shapeOf(tree));
+  if (!perTree) labelCache.set(shapeOf(tree), (perTree = new Map()));
   let out = perTree.get(naming);
   if (out) return out;
   out = new Map();

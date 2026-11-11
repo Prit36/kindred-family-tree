@@ -50,6 +50,8 @@ const ZOOM_STEP = 1.5;
 const FADE = 44;
 /** How long the pointer rests on a bar before its card opens. */
 const TIP_DELAY = 400;
+/** How far past the screen (above and below) rows are drawn ahead of scrolling. */
+const BAND_MARGIN = 600;
 
 const ORDER_KEY = 'kindred.timeline.order';
 
@@ -119,6 +121,8 @@ interface RowProps {
   span: Span;
   nameW: number;
   trackW: number;
+  /** Where the row sits in the list, in pixels from the top of the first row */
+  top: number;
   height: number;
   /** Bar position in track pixels */
   left: number;
@@ -145,6 +149,7 @@ const TimelineRow = memo(function TimelineRow({
   span,
   nameW,
   trackW,
+  top,
   height,
   left,
   width,
@@ -204,7 +209,7 @@ const TimelineRow = memo(function TimelineRow({
     <div
       className={cls}
       role="listitem"
-      style={{ height }}
+      style={{ top, height }}
       data-person-id={p.id}
       onClick={(e) => onPick(p.id, e)}
       onDoubleClick={(e) => {
@@ -416,6 +421,26 @@ export function Timeline() {
     [selIndex, extra],
   );
   const rowHeight = useCallback((i: number) => ROW_H + (i === selIndex ? extra : 0), [selIndex, extra]);
+  /** The row at this height in the list (rows after the selected one sit `extra` lower). */
+  const rowAt = useCallback(
+    (y: number) => {
+      const i = Math.floor(y / ROW_H);
+      return selIndex !== undefined && i > selIndex ? Math.max(selIndex, Math.floor((y - extra) / ROW_H)) : i;
+    },
+    [selIndex, extra],
+  );
+
+  // --- Which rows are drawn -------------------------------------------------------------
+  // Only rows in (or near) the scrolled-to part of the list are in the page. The band is
+  // widened past the screen so a scroll only re-renders once it leaves the band.
+  const [band, setBand] = useState({ top: 0, bottom: 1200 });
+  const syncBand = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const top = el.scrollTop;
+    const bottom = top + el.clientHeight;
+    setBand((b) => (top >= b.top && bottom <= b.bottom ? b : { top: top - BAND_MARGIN, bottom: bottom + BAND_MARGIN }));
+  }, []);
 
   // Latest values for effects and event handlers that shouldn't re-subscribe on every render.
   const live = useRef({
@@ -489,11 +514,15 @@ export function Timeline() {
   // --- Measuring & zoom --------------------------------------------------------
   useLayoutEffect(() => {
     const el = scrollRef.current!;
-    const ro = new ResizeObserver(() => setViewportW(el.clientWidth));
+    const ro = new ResizeObserver(() => {
+      setViewportW(el.clientWidth);
+      syncBand();
+    });
     ro.observe(el);
     setViewportW(el.clientWidth);
+    syncBand();
     return () => ro.disconnect();
-  }, []);
+  }, [syncBand]);
 
   // Zooming keeps the year under the cursor (or the middle of the view) where it was.
   const anchor = useRef<{ year: number; v: number } | null>(null);
@@ -708,13 +737,25 @@ export function Timeline() {
     return out;
   }, [sel, selIndex, rows, rowIndex, xOf]);
 
-  const overlapping = sel ? rows.filter((s) => s !== sel && overlapYears(sel, s) > 0).length : 0;
+  const overlapping = useMemo(
+    () => (sel ? rows.filter((s) => s !== sel && overlapYears(sel, s) > 0).length : 0),
+    [sel, rows],
+  );
+
+  // The rows in the drawn band, plus the selected and compared people's wherever they are
+  // (so keyboard focus and the comparison always have a row to land on).
+  const first = Math.max(0, rowAt(band.top));
+  const last = Math.min(rows.length - 1, rowAt(band.bottom));
+  const cmpIndex = cmp ? rowIndex.get(cmp.person.id) : undefined;
 
   // Built once per change (not per mouse move) so the memoised rows can skip re-rendering.
   const homeId = tree.homeId;
-  const rowProps = useMemo(
-    () =>
-      rows.map((s, i): RowProps => {
+  const rowProps = useMemo(() => {
+    const drawn: number[] = [];
+    for (const i of [selIndex, cmpIndex]) if (i !== undefined && (i < first || i > last)) drawn.push(i);
+    for (let i = first; i <= last; i++) drawn.push(i);
+    return drawn.map((i): RowProps => {
+        const s = rows[i];
         const isSel = s === sel;
         let overlap: RowProps['overlap'] = null;
         if (sel && !isSel) {
@@ -726,6 +767,7 @@ export function Timeline() {
           span: s,
           nameW,
           trackW,
+          top: rowTop(i),
           height: rowHeight(i),
           left: xOf(s.start),
           width: (s.end - s.start) * ppy,
@@ -744,9 +786,8 @@ export function Timeline() {
           onPick,
           onEdit,
         };
-      }),
-    [rows, sel, cmp, homeId, kin, ppy, nameW, trackW, xOf, rowHeight, life, pins, linked, compact, onPick, onEdit],
-  );
+      });
+  }, [rows, sel, selIndex, cmp, cmpIndex, first, last, homeId, kin, ppy, nameW, trackW, xOf, rowTop, rowHeight, life, pins, linked, compact, onPick, onEdit]);
 
   // --- Hover readout -----------------------------------------------------------------
   const readout = (clientX: number, target: HTMLElement) => {
@@ -901,7 +942,10 @@ export function Timeline() {
         onPointerMove={onPointerMove}
         onPointerDown={onPointerDown}
         onPointerLeave={onLeave}
-        onScroll={tip ? hideTip : undefined}
+        onScroll={() => {
+          syncBand();
+          if (tip) hideTip();
+        }}
         onClick={() => select(null)}
       >
         {rows.length === 0 ? (
