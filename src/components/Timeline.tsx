@@ -834,11 +834,8 @@ export function Timeline() {
                   <X size={14} />
                 </button>
               </span>
-              {!comparing && <span className="tl-hint">Shift+click someone to compare</span>}
             </>
-          ) : (
-            <span className="tl-hint">Click someone to see their life events and who was alive with them</span>
-          )}
+          ) : null}
         </div>
 
         {!sel && rows.length > 0 && (
@@ -1026,7 +1023,6 @@ export function Timeline() {
         <div className="tl-undated">
           <span className="tl-undated-title">
             {countPeople(undated.length)} without dates
-            <small>Double-click to add a year</small>
           </span>
           <ul className="tl-undated-list">
             {undated.map((p) => (
@@ -1139,7 +1135,6 @@ function HoverCard({ tip, rows, rowIndex, events, pins, sel, relationOf, childCo
     const age = ageOf(p);
     const kids = childCount(p.id);
     const relation = relationOf(p.id);
-    const guessed = !span.startKnown || !span.endKnown;
     body = (
       <>
         <div className="tl-card-head">
@@ -1185,7 +1180,6 @@ function HoverCard({ tip, rows, rowIndex, events, pins, sel, relationOf, childCo
             <AlongsideText base={sel} other={span} />
           </p>
         )}
-        {guessed && <p className="tl-card-note">The faded end of the bar is a guess, since that date isn't recorded.</p>}
       </>
     );
   } else if (tip.kind === 'births') {

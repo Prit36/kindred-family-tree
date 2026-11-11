@@ -56,14 +56,6 @@ export function upcomingDates(tree: Tree, today = new Date(), days = 30): Upcomi
   return out.sort((a, b) => a.daysAway - b.daysAway || displayName(a.person).localeCompare(displayName(b.person)));
 }
 
-/** Living people whose birthdays can't be shown because the day or month is missing. */
-export function missingBirthdays(tree: Tree): number {
-  return Object.values(tree.people).filter((p) => {
-    if (p.deceased || p.deathDate || isPlaceholder(p)) return false;
-    const { m, d } = parseDate(p.birthDate);
-    return !m || !d;
-  }).length;
-}
 
 // ---------------------------------------------------------------------------
 // Checks: likely mistakes in the data

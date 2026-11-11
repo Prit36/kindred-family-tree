@@ -124,11 +124,6 @@ export const PersonCard = memo(function PersonCard({
           {showRelation && <div className="card-relation">{relation}</div>}
           {isHome && <div className="card-relation">You</div>}
           {life && <div className="card-life">{life}</div>}
-          {placeholder && (
-            <div className="card-life" data-no-export="">
-              Double-click to fill in
-            </div>
-          )}
         </div>
         {isHome && (
           <span className="card-home" title="Relationships are shown relative to this person">

@@ -71,7 +71,6 @@ export function PersonPanel() {
   const partners = partnersOf(tree, person.id);
   const siblings = siblingsOf(tree, person.id).sort(compareByBirth);
   const children = childrenOf(tree, person.id).sort(compareByBirth);
-  const hasFamily = parents.length + partners.length + siblings.length + children.length > 0;
 
   const born = [formatDate(person.birthDate), person.birthPlace].filter(Boolean).join(' · ');
   const died = person.deceased ? formatDate(person.deathDate) || 'Deceased' : '';
@@ -471,12 +470,6 @@ export function PersonPanel() {
             </>
           )}
         </section>
-
-        {hasFamily && (
-          <p className="panel-tip">
-            <kbd>Shift</kbd>+click a card to see how they relate to {shortName(person)}
-          </p>
-        )}
       </div>
     </aside>
   );

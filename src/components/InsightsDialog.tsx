@@ -4,7 +4,6 @@ import { useStore, type InsightsTab } from '../store';
 import {
   checkTree,
   loadDismissed,
-  missingBirthdays,
   saveDismissed,
   upcomingDates,
   type Issue,
@@ -46,7 +45,6 @@ export function InsightsDialog({ tab: initialTab }: { tab: InsightsTab }) {
   const [dismissed, setDismissed] = useState(loadDismissed);
 
   const upcoming = useMemo(() => upcomingDates(tree), [tree]);
-  const missing = useMemo(() => missingBirthdays(tree), [tree]);
   const allIssues = useMemo(() => checkTree(tree), [tree]);
   const issues = allIssues.filter((i) => !dismissed.has(i.key));
   const hidden = allIssues.length - issues.length;
@@ -126,12 +124,6 @@ export function InsightsDialog({ tab: initialTab }: { tab: InsightsTab }) {
                   </li>
                 ))}
               </ul>
-            )}
-            {missing > 0 && (
-              <p className="insights-note">
-                {missing} living {missing === 1 ? 'person has' : 'people have'} no full birth date (day and month), so{' '}
-                {missing === 1 ? 'their birthday' : 'their birthdays'} can't be shown.
-              </p>
             )}
           </div>
         ) : (

@@ -88,14 +88,6 @@ function ShortcutsDialog({ onClose }: { onClose: () => void }) {
             </dl>
           </section>
         ))}
-        <p className="shortcuts-note">
-          In a big tree, <strong>Sides</strong> (bottom left) lists your father's side, your mother's side and each family
-          that married in, in the colours their cards are tinted with - click one to show only that side. The small{' '}
-          <strong>−</strong> buttons on the connecting lines fold a branch away; the <strong>+</strong> badge left behind
-          brings it back. Rest on any connecting line to see who it joins: couples' lines are solid when married, dashed for
-          partners and dotted when divorced. You can also drop a photo onto anyone's card, or a backup
-          file anywhere to import it.
-        </p>
       </div>
     </Modal>
   );

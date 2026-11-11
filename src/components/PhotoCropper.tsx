@@ -192,7 +192,7 @@ export function PhotoCropper({ source: initialSource, view: initial, title = 'Po
   const percent = Math.round(view.zoom * 100);
 
   return createPortal(
-    <Modal title={title} subtitle="Drag to move it, scroll or pinch to zoom. Only the circle is kept." onClose={onCancel} width={460}>
+    <Modal title={title} onClose={onCancel} width={460}>
       <div
         className="form cropper"
         // A new photo can be dropped straight onto the cropper.

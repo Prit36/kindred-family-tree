@@ -333,14 +333,11 @@ export function PhotoViewer({ person, onClose, onAdjust, onChange }: Props) {
       <header className="viewer-bar">
         <div className="viewer-title">
           <h2>{name}</h2>
-          <p>
-            {ready?.full
-              ? `${ready.width} × ${ready.height}`
-              : ready
-                ? 'Cropped copy'
-                : 'Loading…'}
-            <span className="viewer-hint"> · Scroll to zoom, drag to move, double-click for actual size</span>
-          </p>
+          {ready?.full && (
+            <p>
+              {ready.width} × {ready.height}
+            </p>
+          )}
         </div>
         <div className="viewer-tools">
           <button
