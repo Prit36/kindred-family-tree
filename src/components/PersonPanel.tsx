@@ -3,14 +3,12 @@ import {
   Camera,
   ChevronRight,
   Expand,
-  Focus,
   House,
   Lock,
   Pencil,
   Plus,
   Trash,
   Unlink,
-  Users,
   X,
 } from 'lucide-react';
 import type { Person, Relation, UnionStatus } from '../types';
@@ -37,10 +35,10 @@ import {
 import { Avatar } from './Avatar';
 
 /** Ways to show only part of the tree around someone, narrowest first. */
-const SCOPES: { scope: FocusScope; label: string; tip: string }[] = [
-  { scope: 'line', label: 'Line', tip: 'their ancestors and descendants (B)' },
+const SCOPES: { scope: FocusScope; label: string; tip: string; key?: string }[] = [
+  { scope: 'line', label: 'Line', tip: 'their ancestors and descendants', key: 'B' },
   { scope: 'close', label: 'Close', tip: 'their parents, siblings, children and partners' },
-  { scope: 'family', label: 'Family', tip: 'every blood relative - aunts, uncles, cousins (Shift+B)' },
+  { scope: 'family', label: 'Family', tip: 'every blood relative - aunts, uncles, cousins', key: 'Shift+B' },
 ];
 
 const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) => a.size === b.size && [...a].every((id) => b.has(id));
@@ -89,7 +87,7 @@ export function PersonPanel() {
   // Each way of focusing only earns its place when it would clear people out of the way,
   // and show something the narrower ones don't.
   const total = Object.keys(tree.people).length;
-  const scopes: { scope: FocusScope; label: string; tip: string; size: number }[] = [];
+  const scopes: ((typeof SCOPES)[number] & { size: number })[] = [];
   const seen: ReadonlySet<string>[] = [];
   for (const option of SCOPES) {
     const ids = focusSet(tree, { id: person.id, scope: option.scope });
@@ -319,44 +317,34 @@ export function PersonPanel() {
         </div>
 
         <section className="panel-section">
+          {/* The heading shares its line with [Line 13 | Close 14 | Family 25]: how much of the
+              tree to keep around this person, and how many people each keeps. Pressing the
+              active one again shows everyone. */}
           <div className="panel-section-head">
             <h3>Family</h3>
-          </div>
-          {scopes.length > 0 && (
-            <>
-              <div className="rel-head">
-                <h4 className="focus-head">
-                  <Focus size={13} aria-hidden="true" />
-                  Show only
-                </h4>
-                {focusedScope && (
-                  <button type="button" className="rel-add" onClick={clearFocus} data-tip="Back to the whole tree (B)">
-                    <Users size={13} /> Show everyone
-                  </button>
-                )}
-              </div>
-              <div className="focus-options" role="group" aria-label={`Show only part of the tree around ${shortName(person)}`}>
-                {scopes.map(({ scope, label, tip, size }) => {
+            {scopes.length > 0 && (
+              <div className="segmented focus-options" role="group" aria-label="Show only">
+                {scopes.map(({ scope, label, tip, key, size }) => {
                   const on = focusedScope === scope;
+                  const count = `${size} ${size === 1 ? 'person' : 'people'}`;
                   return (
                     <button
                       key={scope}
                       type="button"
                       className="focus-option"
                       aria-pressed={on}
-                      data-tip={on ? 'Show everyone again' : `Show only ${tip}`}
+                      aria-label={`Show only ${label.toLowerCase()}, ${count}`}
+                      data-tip={on ? 'Show everyone again (B)' : `Show only ${tip}${key ? ` (${key})` : ''}`}
                       onClick={() => (on ? clearFocus() : focusOn(person.id, scope))}
                     >
-                      <span className="focus-option-label">{label}</span>
-                      <span className="focus-option-count">
-                        {size} {size === 1 ? 'person' : 'people'}
-                      </span>
+                      {label}
+                      <span className="focus-option-count">{size}</span>
                     </button>
                   );
                 })}
               </div>
-            </>
-          )}
+            )}
+          </div>
 
           {groupHead('parent', 'Parents')}
           {parents.length > 0 && (

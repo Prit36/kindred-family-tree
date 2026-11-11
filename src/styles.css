@@ -1384,20 +1384,19 @@ kbd {
 }
 
 .panel-section {
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 1px solid var(--border);
+  margin-top: 16px;
 }
 
+/* FAMILY and its switch on one line, with as much space below as above. */
 .panel-section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 16px;
 }
 
-.panel-section-head h3 {
+.panel-section .panel-section-head h3 {
   margin-bottom: 0;
 }
 
@@ -4477,66 +4476,53 @@ kbd {
   transform: none;
 }
 
-.focus-head {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+
+/* "FAMILY      [Line 13 | Close 14 | Family 25]" - wraps under the heading only when it must. */
+.panel-section-head:has(.focus-options) {
+  flex-wrap: wrap;
+  row-gap: 6px;
 }
 
-/* One tile per way of narrowing the tree: its name, and how many people it keeps. */
+/* A compact switch, sized to sit beside a section heading rather than lead a row. */
 .focus-options {
-  display: grid;
-  grid-auto-columns: minmax(0, 1fr);
-  grid-auto-flow: column;
-  gap: 6px;
-  margin-bottom: 4px;
+  flex: 0 1 auto;
+  margin-left: auto;
+  padding: 2px;
+  border-radius: 9px;
 }
 
-.focus-option {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  min-width: 0;
-  padding: 7px 11px 8px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface-2);
-  text-align: left;
-  transition:
-    background 0.15s,
-    border-color 0.15s;
-}
-
-.focus-option:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-3);
-}
-
-.focus-option-label {
-  color: var(--text);
-  font-size: 13.5px;
-  font-weight: 600;
+.segmented .focus-option {
+  display: inline-flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 7px;
+  font-size: 12px;
 }
 
 .focus-option-count {
-  color: var(--text-2);
-  font-size: 12.5px;
+  color: var(--text-3);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
-.focus-option[aria-pressed='true'] {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px var(--accent);
+.focus-option[aria-pressed='true'] .focus-option-count {
+  color: var(--accent);
 }
 
-.focus-option[aria-pressed='true'] .focus-option-label {
+.segmented .focus-option:hover:not([aria-pressed='true']) {
+  color: var(--text);
+}
+
+.segmented .focus-option[aria-pressed='true'] {
+  background: var(--surface);
   color: var(--accent-strong);
+  box-shadow: 0 1px 3px rgba(40, 30, 10, 0.14);
 }
 
-/* Keep the outer tiles' tooltips inside the panel. */
+/* Keep the outer segments' tooltips inside the panel. */
 .focus-option:first-child[data-tip]::after {
   left: 0;
   transform: translate(0, -3px);
