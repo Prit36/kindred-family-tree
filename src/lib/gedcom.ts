@@ -6,8 +6,8 @@ import { blankInput, displayName, sanitizeTree, uid } from './tree';
  * GEDCOM 5.5.1, the format every genealogy program (Ancestry, FamilySearch, MyHeritage,
  * Gramps…) can read and write.
  *
- * Kindred's model is smaller than GEDCOM's, so importing keeps what fits — names, sex,
- * birth and death, parents, couples — and folds the rest that's worth keeping (occupation,
+ * Kindred's model is smaller than GEDCOM's, so importing keeps what fits - names, sex,
+ * birth and death, parents, couples - and folds the rest that's worth keeping (occupation,
  * death place, marriage dates, approximate dates) into each person's notes.
  * Photos aren't exported; the JSON backup is the lossless format.
  */

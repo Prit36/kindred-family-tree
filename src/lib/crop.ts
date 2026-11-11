@@ -58,8 +58,8 @@ export function panBy(img: ImageSize, view: CropView, fx: number, fy: number): C
 }
 
 /**
- * Zooms to `zoom`, keeping the point (fx, fy) — measured from the crop's centre in
- * crop-diameters — fixed under the cursor or fingers.
+ * Zooms to `zoom`, keeping the point (fx, fy) - measured from the crop's centre in
+ * crop-diameters - fixed under the cursor or fingers.
  */
 export function zoomAt(img: ImageSize, view: CropView, zoom: number, fx = 0, fy = 0): CropView {
   const next = clamp(zoom, 1, maxZoom(img));

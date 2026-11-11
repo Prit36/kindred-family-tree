@@ -168,7 +168,7 @@ const TimelineRow = memo(function TimelineRow({
   const full = age ? `${years}  ·  ${age}` : years;
 
   // The label goes inside the bar when it fits (the age only if there's room for it too),
-  // else beside the bar (after it, or before it; with the age if that fits too) — and when
+  // else beside the bar (after it, or before it; with the age if that fits too) - and when
   // there's no room anywhere, inside anyway, cut short.
   const inset = span.startKnown ? 10 : FADE - 8;
   const room = width - inset - (span.endKnown ? 10 : FADE - 8);

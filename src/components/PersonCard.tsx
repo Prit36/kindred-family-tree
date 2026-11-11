@@ -107,7 +107,7 @@ export const PersonCard = memo(function PersonCard({
           </span>
         )}
         {person.notes && (
-          <span className="card-note" title="Has notes — select to read">
+          <span className="card-note" title="Has notes - select to read">
             <ScrollText size={13} />
           </span>
         )}

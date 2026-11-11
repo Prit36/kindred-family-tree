@@ -317,7 +317,7 @@ function InsightsButton() {
   const tree = useStore((s) => s.tree);
   const openDialog = useStore((s) => s.openDialog);
   const today = useMemo(() => upcomingDates(tree, new Date(), 0), [tree]);
-  const label = today.length > 0 ? `Calendar & checks — ${today.length} today` : 'Calendar & checks';
+  const label = today.length > 0 ? `Calendar & checks - ${today.length} today` : 'Calendar & checks';
   return (
     <button
       type="button"

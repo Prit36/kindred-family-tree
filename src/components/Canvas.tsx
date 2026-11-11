@@ -68,7 +68,7 @@ export function Canvas() {
   const total = Object.keys(tree.people).length;
   const hiddenCount = total - visible.size;
 
-  // Keep whoever the user is looking at pinned in place when the tree changes — or, when a
+  // Keep whoever the user is looking at pinned in place when the tree changes - or, when a
   // branch is folded, the card it was folded at.
   const previous = useRef<{ layout: TreeLayout; selectedId: string | null; focusId: string | null } | null>(null);
   const foldedAt = useRef<string | null>(null);
@@ -102,7 +102,7 @@ export function Canvas() {
   }, [shown, selectedId]);
 
   // The chain of people between the selected person and "me" (or whoever they're being
-  // compared with) — it's what makes a label like "Cousin once removed" make sense.
+  // compared with) - it's what makes a label like "Cousin once removed" make sense.
   // It's traced through the people on show; if the other end is hidden there's no chain to draw.
   const pathFrom = compareId && shown.people[compareId] ? compareId : shown.homeId;
   const path = useMemo(() => {

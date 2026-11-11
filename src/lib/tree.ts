@@ -39,7 +39,7 @@ export function shortName(p: Person | undefined): string {
   return p.firstName.trim() || p.lastName.trim() || 'Unknown';
 }
 
-/** The surname someone was born with — what their parents and siblings most likely share. */
+/** The surname someone was born with - what their parents and siblings most likely share. */
 export function familyName(p: Person | undefined): string {
   if (!p) return '';
   return p.birthName.trim() || p.lastName.trim();
@@ -200,7 +200,7 @@ function setParents(tree: Tree, childId: string, parentIds: string[]): Tree {
 }
 
 /**
- * Links a parent. `alsoChildIds` are siblings who should gain the same parent — without
+ * Links a parent. `alsoChildIds` are siblings who should gain the same parent - without
  * that, giving one of two single-parent siblings a second parent splits them apart.
  */
 export function linkParent(tree: Tree, childId: string, parentId: string, alsoChildIds: string[] = []): Tree {
@@ -216,7 +216,7 @@ export function linkParent(tree: Tree, childId: string, parentId: string, alsoCh
 }
 
 /**
- * Siblings who share this person's only parent and have no second parent either —
+ * Siblings who share this person's only parent and have no second parent either -
  * the people a newly added second parent most likely belongs to as well.
  */
 export function singleParentSiblings(tree: Tree, id: string): Person[] {

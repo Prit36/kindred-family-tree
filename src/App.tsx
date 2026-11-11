@@ -48,10 +48,10 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
   {
     title: 'The selected person',
     rows: [
-      [['Enter'], 'Edit — or double-click their card'],
+      [['Enter'], 'Edit - or double-click their card'],
       [['P'], 'View their photo full size'],
       [['Del'], 'Delete'],
-      [['B'], 'Show only their branch — press again for the whole tree'],
+      [['B'], 'Show only their branch - press again for the whole tree'],
       [['Shift', 'click'], 'See how someone else is related to them'],
     ],
   },
@@ -225,7 +225,7 @@ function Dialogs() {
   }
 }
 
-/** "Noah is Arthur's great-grandson" — shown while a second person is Shift+clicked. */
+/** "Noah is Arthur's great-grandson" - shown while a second person is Shift+clicked. */
 function CompareBanner() {
   const tree = useStore((s) => s.tree);
   const selectedId = useStore((s) => s.selectedId);
@@ -250,7 +250,7 @@ function CompareBanner() {
           </>
         ) : connected ? (
           <>
-            <strong>{shortName(other)}</strong> and <strong>{shortName(base)}</strong> are connected by marriage — follow
+            <strong>{shortName(other)}</strong> and <strong>{shortName(base)}</strong> are connected by marriage - follow
             the highlighted line
           </>
         ) : (
@@ -281,7 +281,7 @@ function CompareBanner() {
   );
 }
 
-/** "Showing only Arthur's branch" — while the rest of the tree is hidden. */
+/** "Showing only Arthur's branch" - while the rest of the tree is hidden. */
 function FocusBanner() {
   const tree = useStore((s) => s.tree);
   const focusId = useStore((s) => s.focusId);
@@ -474,7 +474,7 @@ export default function App() {
           <ImageUp size={16} />
           {empty
             ? 'Drop a backup or GEDCOM file to import it'
-            : 'Drop a photo on a card — or a backup or GEDCOM file anywhere to import it'}
+            : 'Drop a photo on a card - or a backup or GEDCOM file anywhere to import it'}
         </div>
       )}
     </div>

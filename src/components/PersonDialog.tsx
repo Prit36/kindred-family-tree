@@ -171,7 +171,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
     spec.type === 'first'
       ? 'You can add parents, siblings, a partner and children from here.'
       : placeholderChildren.length > 0
-        ? `Parent of ${listNames(placeholderChildren)}. Add whatever you know — even just a name.`
+        ? `Parent of ${listNames(placeholderChildren)}. Add whatever you know - even just a name.`
         : undefined;
 
   const onPhoto = async (file: File | undefined) => {
@@ -258,7 +258,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
       case 'sibling': {
         const res = linkSibling(next, spec.anchorId, targetId);
         next = res.tree;
-        if (res.placeholders) toast('Added placeholder parents — select them to fill in their details');
+        if (res.placeholders) toast('Added placeholder parents - select them to fill in their details');
         break;
       }
     }
@@ -403,7 +403,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
 
               <div className="field">
                 <span className="field-label">
-                  Born <small>— just the year is fine</small>
+                  Born <small>- just the year is fine</small>
                 </span>
                 <DateInput label="Born" value={draft.birthDate} onChange={(v) => set({ birthDate: v })} />
               </div>
@@ -420,7 +420,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
                 <div className="field-row">
                   <label className="field">
                     <span className="field-label">
-                      Surname at birth <small>— if it changed</small>
+                      Surname at birth <small>- if it changed</small>
                     </span>
                     <input
                       className="input"
@@ -508,7 +508,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
             <input type="checkbox" checked={shareParent} onChange={(e) => setShareParent(e.target.checked)} />
             <span>
               Also {listNames(soloSiblings)}'s parent
-              <small> — keeps {shortName(anchor)} and {soloSiblings.length === 1 ? 'them' : 'the others'} full siblings</small>
+              <small> - keeps {shortName(anchor)} and {soloSiblings.length === 1 ? 'them' : 'the others'} full siblings</small>
             </span>
           </label>
         )}
@@ -518,7 +518,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
             <Info size={15} />
             <span>
               Siblings are linked through their parents. {shortName(anchor)} has none yet, so two placeholder parents
-              will be added — you can fill them in later.
+              will be added - you can fill them in later.
             </span>
           </p>
         )}

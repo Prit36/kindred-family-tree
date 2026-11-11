@@ -161,7 +161,7 @@ export function PersonPanel() {
               className="photo-btn"
               onClick={() => pickPhotoFor(person.id)}
               aria-label="Add photo"
-              data-tip="Add a photo — or drop one here"
+              data-tip="Add a photo - or drop one here"
             >
               <Avatar person={person} size={84} />
               <span className="photo-badge">
@@ -206,7 +206,7 @@ export function PersonPanel() {
           <button type="button" className="hint hint-action" onClick={() => openDialog({ type: 'edit', personId: person.id })}>
             <Pencil size={15} />
             <span>
-              This is a placeholder that keeps siblings linked. <strong>Fill in what you know</strong> — even just a
+              This is a placeholder that keeps siblings linked. <strong>Fill in what you know</strong> - even just a
               name.
             </span>
           </button>
@@ -348,7 +348,7 @@ export function PersonPanel() {
                             toast(
                               `${shortName(person)} and ${shortName(p)} are both parents of ${
                                 shared.length === 1 ? shortName(shared[0]) : `${shared.length} children`
-                              }. Remove that parent link first — or mark them as divorced.`,
+                              }. Remove that parent link first - or mark them as divorced.`,
                             )
                           }
                         >

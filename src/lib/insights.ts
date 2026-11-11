@@ -110,7 +110,7 @@ export function checkTree(tree: Tree, today = new Date()): Issue[] {
       issues.push({
         key: `too-old:${p.id}`,
         severity: 'warning',
-        message: `${name(p)} would be ${today.getFullYear() - born} — should they be marked as deceased?`,
+        message: `${name(p)} would be ${today.getFullYear() - born} - should they be marked as deceased?`,
         personIds: [p.id],
       });
     }
@@ -199,7 +199,7 @@ export function checkTree(tree: Tree, today = new Date()): Issue[] {
         issues.push({
           key: `duplicate:${x}:${y}`,
           severity: 'warning',
-          message: `There are two people called ${name(a)}${ya || yb ? ` (born ${ya ?? '?'} and ${yb ?? '?'})` : ''} — the same person entered twice?`,
+          message: `There are two people called ${name(a)}${ya || yb ? ` (born ${ya ?? '?'} and ${yb ?? '?'})` : ''} - the same person entered twice?`,
           personIds: [a.id, b.id],
         });
       }

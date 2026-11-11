@@ -122,7 +122,7 @@ function loadTheme(): Theme {
 let nonce = 1;
 let toastId = 1;
 
-/** True when two trees share nobody — the view needs re-fitting after swapping between them. */
+/** True when two trees share nobody - the view needs re-fitting after swapping between them. */
 const unrelated = (a: Tree, b: Tree) => !Object.keys(a.people).some((id) => b.people[id]);
 
 type ViewState = Pick<State, 'selectedId' | 'compareId' | 'focusId' | 'collapsed'>;
@@ -206,7 +206,7 @@ export const useStore = create<State>((set, get) => ({
     if (id && tree.people[id] && !visibleIds(tree, focusId, collapsed).has(id)) {
       if (focusId) {
         // Say why the view just changed.
-        toast(`${shortName(tree.people[id])} isn't in ${shortName(tree.people[focusId])}'s branch — showing the whole tree again`);
+        toast(`${shortName(tree.people[id])} isn't in ${shortName(tree.people[focusId])}'s branch - showing the whole tree again`);
         focusId = null;
       }
       if (!visibleIds(tree, null, collapsed).has(id)) collapsed = unfoldTo(tree, collapsed, id);
@@ -318,7 +318,7 @@ onSaveResult((ok) => {
     warnedAboutStorage = false;
   } else if (!warnedAboutStorage) {
     warnedAboutStorage = true;
-    useStore.getState().toast("Couldn't save — browser storage is full. Export a backup and remove some photos.", {
+    useStore.getState().toast("Couldn't save - browser storage is full. Export a backup and remove some photos.", {
       tone: 'error',
     });
   }

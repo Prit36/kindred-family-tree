@@ -11,7 +11,7 @@ import { ancestorIds, descendantIds, partnersOf, siblingsOf } from './tree';
  * - **Collapsing** folds a branch away at a connector. `down:<parents>` stops at a couple
  *   instead of continuing to their children; `up:<person>` stops at a person instead of
  *   continuing to their parents. Whoever can no longer be reached from the home person is
- *   hidden — so folding below a couple on your own direct line keeps your line and tucks
+ *   hidden - so folding below a couple on your own direct line keeps your line and tucks
  *   away the other children's branches.
  *
  * Collapsing is ignored while a branch is focused; the folds come back afterwards.
@@ -123,7 +123,7 @@ function graphOf(tree: Tree): Graph {
 
 /**
  * Everyone reachable from the roots. A collapsed `down` key blocks the step from parents
- * to children, a collapsed `up` key the step from a person to their parents — only in
+ * to children, a collapsed `up` key the step from a person to their parents - only in
  * that direction, so the folded side stays reachable from people on it.
  * `flip` treats one key as toggled, to measure what it hides.
  */
@@ -311,7 +311,7 @@ export function unfoldTo(tree: Tree, collapsed: Collapsed, id: string): Collapse
 }
 
 /**
- * The tree with only the visible people and couples — what the layout is computed from.
+ * The tree with only the visible people and couples - what the layout is computed from.
  * People keep their full `parentIds`; links to someone hidden simply aren't drawn.
  */
 export function subTree(tree: Tree, visible: ReadonlySet<string>): Tree {

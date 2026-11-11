@@ -42,7 +42,7 @@ export async function loadPhoto(file: File): Promise<PhotoSource> {
     return await fromBlob(file);
   } catch {
     throw new Error(
-      heic ? "This browser can't open HEIC photos — try a JPEG or PNG" : "That image couldn't be read",
+      heic ? "This browser can't open HEIC photos - try a JPEG or PNG" : "That image couldn't be read",
     );
   }
 }

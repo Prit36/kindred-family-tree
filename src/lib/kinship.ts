@@ -5,7 +5,7 @@ import { partnersOf } from './tree';
 
 interface Up {
   depth: number;
-  /** Gender of the first parent on the way up — tells paternal from maternal. */
+  /** Gender of the first parent on the way up - tells paternal from maternal. */
   side: Gender | null;
 }
 

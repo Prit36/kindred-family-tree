@@ -7,7 +7,7 @@ interface Props {
   label: string;
 }
 
-/** A date where the day and month are optional — often only the year is known. */
+/** A date where the day and month are optional - often only the year is known. */
 export function DateInput({ value, onChange, label }: Props) {
   const [parts, setParts] = useState(() => {
     const p = parseDate(value);

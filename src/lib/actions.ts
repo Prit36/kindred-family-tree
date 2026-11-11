@@ -45,7 +45,7 @@ export function exportGedcom() {
     const url = URL.createObjectURL(blob);
     download(url, `${slug(tree.name)}.ged`);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast('GEDCOM file downloaded — photos aren’t included, so keep a backup too');
+    toast('GEDCOM file downloaded - photos aren’t included, so keep a backup too');
   } catch {
     toast("Couldn't create the GEDCOM file", { tone: 'error' });
   }
@@ -91,7 +91,7 @@ export function loadSample() {
   const hadPeople = Object.keys(current.people).length > 0;
   commit(sampleTree());
   fitView();
-  toast('Sample family loaded — explore, then start your own', hadPeople ? { action: undoAction() } : undefined);
+  toast('Sample family loaded - explore, then start your own', hadPeople ? { action: undoAction() } : undefined);
 }
 
 export function startOver() {
@@ -179,7 +179,7 @@ onStoreFailure(() => {
   warnedAboutOriginals = true;
   useStore
     .getState()
-    .toast("Couldn't keep the full-size photo in this browser — only the cropped version will be saved", {
+    .toast("Couldn't keep the full-size photo in this browser - only the cropped version will be saved", {
       tone: 'error',
     });
 });

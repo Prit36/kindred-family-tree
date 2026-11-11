@@ -18,7 +18,7 @@ export interface Span {
   startKnown: boolean;
   /** False when someone died at an unknown date (or no birth is known) and `end` is a guess. */
   endKnown: boolean;
-  /** Still alive — `end` is today. */
+  /** Still alive - `end` is today. */
   living: boolean;
 }
 
@@ -188,7 +188,7 @@ export function together(base: Span, other: Span): Together {
   return { kind: 'apart', years: otherLater ? other.start - base.end : base.start - other.end, otherLater };
 }
 
-/** "since 1988", "from 1936 to about 2005", "in 2010" — when two lives overlapped, for a sentence. */
+/** "since 1988", "from 1936 to about 2005", "in 2010" - when two lives overlapped, for a sentence. */
 export function togetherWhen(t: Extract<Together, { kind: 'overlap' }>): string {
   const from = `${t.fromGuess ? 'about ' : ''}${Math.floor(t.from)}`;
   if (t.ongoing) return `since ${from}`;

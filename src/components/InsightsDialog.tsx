@@ -138,7 +138,7 @@ export function InsightsDialog({ tab: initialTab }: { tab: InsightsTab }) {
           <div className="insights-body" role="tabpanel">
             {issues.length === 0 ? (
               <p className="insights-empty insights-ok">
-                <CircleCheck size={18} /> Nothing looks wrong — dates and relationships are consistent.
+                <CircleCheck size={18} /> Nothing looks wrong - dates and relationships are consistent.
               </p>
             ) : (
               <ul className="insights-list">
@@ -156,7 +156,7 @@ export function InsightsDialog({ tab: initialTab }: { tab: InsightsTab }) {
                       <button
                         type="button"
                         className="icon-btn insights-dismiss"
-                        aria-label="Not a problem — hide this"
+                        aria-label="Not a problem - hide this"
                         data-tip="Not a problem"
                         onClick={() => dismiss(issue)}
                       >

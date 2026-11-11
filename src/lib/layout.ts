@@ -92,7 +92,7 @@ function stemFrom(nodes: Record<string, NodePos>, union: UnionLine | undefined, 
 }
 
 /**
- * Where a family's children hang from in a finished layout — also for parents whose
+ * Where a family's children hang from in a finished layout - also for parents whose
  * children are currently collapsed away and so have no line of their own.
  */
 export function familyStem(layout: TreeLayout, parents: string[]): Stem | null {

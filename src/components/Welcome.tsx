@@ -21,7 +21,7 @@ export function Welcome() {
         </svg>
         <h1>Start your family tree</h1>
         <p>
-          Add yourself first, then grow the tree outward — parents, siblings, your partner and their family, children.
+          Add yourself first, then grow the tree outward - parents, siblings, your partner and their family, children.
           Everything is saved on this device.
         </p>
         <div className="welcome-actions">
