@@ -38,13 +38,13 @@ function loadSidesPrefs(): SidesPrefs {
     const raw: unknown = JSON.parse(localStorage.getItem(SIDES_KEY) ?? 'null');
     if (raw && typeof raw === 'object') {
       const { colour, open } = raw as Partial<SidesPrefs>;
-      return { colour: colour !== false, open: open !== false };
+      return { colour: colour === true, open: open === true };
     }
   } catch {
     /* defaults */
   }
-  // The list starts open where there's room for it beside the tree.
-  return { colour: true, open: window.innerWidth >= 860 };
+  // Off by default: the list of sides and the colour tints are opt-in.
+  return { colour: false, open: false };
 }
 
 function loadMode(): ViewMode {
