@@ -16,7 +16,7 @@ import type { CropView } from './lib/crop';
 import { releasePhoto, type PhotoSource } from './lib/files';
 import { focusSet, type FocusScope } from './lib/branches';
 import { familySides, focusTitle, sideForFocus } from './lib/sides';
-import { relationBetween } from './lib/kinship';
+import { NAMINGS, relationName } from './lib/naming';
 import { deletePerson, displayName, pathBetween, shortName } from './lib/tree';
 import { Avatar } from './components/Avatar';
 import { Canvas } from './components/Canvas';
@@ -40,6 +40,7 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
       [['←', '→'], 'Go to the next person in the same generation'],
       [['/'], 'Search by name, place, year or relationship'],
       [['T'], 'Switch between the tree and the timeline'],
+      [['L'], 'Name relationships in English, ગુજરાતી or Gujarati in English letters'],
       [['H'], 'Jump back to yourself'],
       [['F'], 'Fit the whole tree on screen'],
       [['+', '−'], 'Zoom in and out'],
@@ -231,9 +232,12 @@ function CompareBanner() {
 
   const base = selectedId ? tree.people[selectedId] : undefined;
   const other = compareId ? tree.people[compareId] : undefined;
+
+  const naming = useStore((s) => s.naming);
   if (!base || !other) return null;
 
-  const label = relationBetween(tree, base.id, other.id);
+  const name = relationName(tree, base.id, other.id, naming);
+  const label = name?.label ?? '';
   const connected = label || pathBetween(tree, base.id, other.id);
 
   return (
@@ -243,7 +247,9 @@ function CompareBanner() {
         {label ? (
           <>
             <strong>{shortName(other)}</strong> is <strong>{shortName(base)}</strong>'s{' '}
-            <em>{label.charAt(0).toLowerCase() + label.slice(1)}</em>
+            <em data-tip={name?.meaning || undefined}>
+              {naming === 'en' ? label.charAt(0).toLowerCase() + label.slice(1) : label}
+            </em>
           </>
         ) : connected ? (
           <>
@@ -471,6 +477,13 @@ export default function App() {
       } else if (e.key.toLowerCase() === 't') {
         const { mode, setMode, tree } = useStore.getState();
         if (Object.keys(tree.people).length > 0) setMode(mode === 'tree' ? 'timeline' : 'tree');
+      } else if (e.key.toLowerCase() === 'l') {
+        // English → ગુજરાતી → Gujarati in English letters → English
+        const { naming, setNaming } = useStore.getState();
+        const order = NAMINGS.map((n) => n.value);
+        const next = NAMINGS[(order.indexOf(naming) + 1) % order.length];
+        setNaming(next.value);
+        useStore.getState().toast(`Relationship names: ${next.label}`);
       } else if (e.key.toLowerCase() === 'b') {
         // B shows the selected person's direct line, Shift+B their whole family; pressing it
         // again (or with nobody selected) goes back to the whole tree.

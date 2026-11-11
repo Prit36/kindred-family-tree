@@ -28,6 +28,8 @@ export interface FamilySide {
   title: string;
   /** "Robert", "Wife", "Daniel's ex-wife" - or '' when the title says it all */
   subtitle: string;
+  /** Whether the subtitle is how `rootId` is related to you (so it can be named in Gujarati too) */
+  subtitleIsRelation?: boolean;
   /** People coloured as this side */
   members: string[];
   /** Index into the side colours (see `--side-N` in the stylesheet), or -1 for grey */
@@ -183,6 +185,7 @@ function computeSides(tree: Tree): FamilySides {
           key: `family:${partner.id}`,
           title: `${possessive(shortName(partner))} family`,
           subtitle: relation || `${possessive(shortName(tree.people[memberId]))} partner`,
+          subtitleIsRelation: Boolean(relation),
           // A family married into close family is a side of its own; one that married
           // into a parent's side (or another family) shares that side's colour.
           tone: nested ? host.tone : nextTone,

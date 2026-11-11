@@ -17,7 +17,7 @@ import {
 } from '../lib/layout';
 import { branchToggles, focusSet, subTree, visibleIds } from '../lib/branches';
 import { familySides } from '../lib/sides';
-import { kinshipFor } from '../lib/kinship';
+import { relationLabels } from '../lib/naming';
 import { ancestorIds, childrenOf, descendantIds, isPlaceholder, pathBetween, shortName } from '../lib/tree';
 import { addRelative } from '../lib/actions';
 import { downloadTreePng } from '../lib/files';
@@ -120,7 +120,8 @@ export function Canvas() {
     foldedAt.current = null;
   });
 
-  const kin = kinshipFor(tree);
+  const naming = useStore((s) => s.naming);
+  const kin = relationLabels(tree, naming);
   const sides = familySides(tree);
   // Hovering a side in the list lights it up and dims everyone else.
   const peeked = useMemo(() => (peek ? focusSet(tree, peek) : null), [tree, peek]);

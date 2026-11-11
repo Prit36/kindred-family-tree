@@ -15,6 +15,7 @@ Then open http://localhost:5173. `npm run build` produces a static site in `dist
 
 - **Add yourself**, then select any card and use the **+** bubbles (up = parent, down = child, left = sibling, right = partner) or the buttons in the side panel.
 - Relationship labels (Father, Sister-in-law, Cousin once removed…) are worked out relative to the "home" person. Use **This is me** on anyone to change it.
+- **Gujarati relationship names.** The language button in the top bar (or `L`) names relationships in English, in ગુજરાતી, or in Gujarati written in English letters. Gujarati tells apart what English lumps together - મોટા બાપુ / કાકા (father's elder / younger brother), ફોઈ / ફુઆ, મામા / મામી, માસી / માસા, જેઠ / દિયર, જેઠાણી / દેરાણી, નણંદ / નણદોઈ, સાળો / સાળી / સાળાવેલી / સાઢુભાઈ, ભત્રીજો / ભાણેજ, પૌત્ર / દોહિત્ર, વેવાઈ / વેવાણ - and anyone without a word of their own is named through the chain ("કાકાનો દીકરો", "પતિના મામા"). Elder and younger come from birth dates; without them the general word is used. The details panel shows the other spelling and the English meaning ("Kaka · Father's younger brother"), and search finds people by any of the three.
 - Selecting someone highlights their direct line - ancestors and descendants - and, more strongly, the chain of people connecting them to you. The same chain is listed under their name in the side panel.
 - **Shift+click** a second card to see how those two people are related to each other.
 - **Sides of the family.** Kindred splits the tree into your close family, your father's side, your mother's side and each family that married in (your wife's parents and siblings, your brother's wife's family…), and tints every card with its side's colour. **Sides** (bottom left) lists them: rest on one to light it up, click it to show only that side plus the people linking it to you. Families that married into an aunt or cousin are tucked under that side. The details panel says which side someone is on, and **Show only** narrows the tree around them to their direct line (`B`), close family, or every blood relative (`Shift+B`).
@@ -35,7 +36,9 @@ Your tree lives only in the browser you created it in, so export a backup now an
 | --- | --- |
 | `src/lib/tree.ts` | Data model operations (add/link/unlink/delete, validation of imported files) |
 | `src/lib/layout.ts` | Generational layout: partner grouping, ordering, positioning, connector paths |
-| `src/lib/kinship.ts` | Relationship naming relative to the home person |
+| `src/lib/kinship.ts` | Relationship naming relative to the home person (English) |
+| `src/lib/gujarati.ts` | Gujarati relationship names, from the chain of links between two people |
+| `src/lib/naming.ts` | Picks English or Gujarati labels for the rest of the app |
 | `src/lib/sides.ts` | Sides of the family (close family, each parent's side, families that married in) |
 | `src/lib/branches.ts` | Which part of the tree is drawn: focus (line, close family, family, side) and folded branches |
 | `src/lib/treeStore.ts` | Saving and loading the tree in IndexedDB (with the one-off move from localStorage) |

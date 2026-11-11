@@ -43,8 +43,19 @@ function glanceLabel(relation: string): string {
   return relation.replace(/^(Paternal|Maternal) (\w)/, (_, _side, c: string) => c.toUpperCase());
 }
 
+const GUJARATI = /[઀-૿]/;
+const graphemes = new Intl.Segmenter();
+
+/** How many Latin letters wide the text is, roughly: a Gujarati syllable (કા) takes about one and a half. */
+function widthOf(text: string): number {
+  if (!GUJARATI.test(text)) return text.length;
+  let n = 0;
+  for (const { segment } of graphemes.segment(text)) n += GUJARATI.test(segment) ? 1.5 : 1;
+  return n;
+}
+
 /** A font size that lets the text fill the card's width without overflowing it. */
-const fitFont = (text: string, ratio: number) => Math.min(GLANCE_MAX, Math.floor(GLANCE_W / Math.max(1, text.length * ratio)));
+const fitFont = (text: string, ratio: number) => Math.min(GLANCE_MAX, Math.floor(GLANCE_W / Math.max(1, widthOf(text) * ratio)));
 
 const QUICK_ADD: { relation: Relation; side: string; label: string }[] = [
   { relation: 'parent', side: 'top', label: 'Add parent' },
@@ -74,8 +85,8 @@ export const PersonCard = memo(function PersonCard({
 }: Props) {
   const name = displayName(person);
   const life = lifespan(person);
-  const showRelation = relation && !isHome;
-  const glance = isHome ? 'You' : glanceLabel(relation);
+  // The home person's relation is what they're called: "You", or "તમે" in Gujarati.
+  const glance = isHome ? relation || 'You' : glanceLabel(relation);
   const first = person.firstName.trim() || name;
 
   const cls = [
@@ -104,7 +115,7 @@ export const PersonCard = memo(function PersonCard({
         role="button"
         tabIndex={0}
         aria-pressed={selected}
-        aria-label={`${name}${showRelation ? `, ${relation}` : ''}`}
+        aria-label={`${name}${relation ? `, ${relation}` : ''}`}
         onClick={(e) => (e.shiftKey ? onCompare(person.id) : onSelect(person.id))}
         onDoubleClick={() => onEdit(person.id)}
         onKeyDown={(e) => {
@@ -121,8 +132,7 @@ export const PersonCard = memo(function PersonCard({
           <div className="card-name" title={name}>
             {name}
           </div>
-          {showRelation && <div className="card-relation">{relation}</div>}
-          {isHome && <div className="card-relation">You</div>}
+          {(relation || isHome) && <div className="card-relation">{relation || 'You'}</div>}
           {life && <div className="card-life">{life}</div>}
         </div>
         {isHome && (

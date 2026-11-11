@@ -16,7 +16,7 @@ import type { Person } from '../types';
 import { useStore } from '../store';
 import { focusSet } from '../lib/branches';
 import { ageOf, formatDate, yearOf } from '../lib/dates';
-import { kinshipFor } from '../lib/kinship';
+import { relationLabels } from '../lib/naming';
 import {
   ageAt,
   axisTicks,
@@ -331,7 +331,8 @@ export function Timeline() {
   const [tip, setTip] = useState<Tip | null>(null);
 
   const now = useMemo(() => nowYear(), []);
-  const kin = kinshipFor(tree);
+  const naming = useStore((s) => s.naming);
+  const kin = relationLabels(tree, naming);
 
   // A focused branch narrows the timeline too; folded branches are a tree-only thing.
   const ids = useMemo(
@@ -734,7 +735,7 @@ export function Timeline() {
           isHome: s.person.id === homeId,
           muted: Boolean(sel) && !isSel && s !== cmp,
           overlap,
-          relation: s.person.id === homeId ? 'You' : (kin.get(s.person.id) ?? ''),
+          relation: kin.get(s.person.id) ?? '',
           events: isSel ? life.events : NO_EVENTS,
           // The selected row shows its children's births as labelled events instead.
           pins: isSel ? NO_PINS : (pins.get(s.person.id) ?? NO_PINS),
@@ -1051,7 +1052,7 @@ export function Timeline() {
           events={life.events}
           pins={pins}
           sel={sel}
-          relationOf={(id) => (id === homeId ? 'You' : (kin.get(id) ?? ''))}
+          relationOf={(id) => kin.get(id) ?? ''}
           childCount={(id) => childrenOf(tree, id).length}
         />
       )}

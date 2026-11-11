@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   CalendarHeart,
+  Check,
   ChartGantt,
   Download,
   Ellipsis,
   FileText,
   Image,
   Keyboard,
+  Languages,
   Moon,
   Network,
   Redo2,
@@ -22,7 +24,7 @@ import { useStore, type ViewMode } from '../store';
 import { exportBackup, exportGedcom, exportImage, pickBackupFile } from '../lib/actions';
 import { lifespan, yearOf } from '../lib/dates';
 import { upcomingDates } from '../lib/insights';
-import { kinshipFor } from '../lib/kinship';
+import { NAMINGS, relationLabels, relationSearchText } from '../lib/naming';
 import { displayName } from '../lib/tree';
 import { Avatar } from './Avatar';
 
@@ -93,7 +95,8 @@ function SearchBox() {
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const kin = kinshipFor(tree);
+  const naming = useStore((s) => s.naming);
+  const kin = relationLabels(tree, naming);
 
   // Matches names first, then anything else known about a person: relationship
   // ("cousin"), birthplace ("Cardiff"), years ("1960") and notes. Every word must match.
@@ -103,7 +106,7 @@ function SearchBox() {
     const hits: { person: Person; rank: number; why: string }[] = [];
     for (const p of Object.values(tree.people)) {
       const name = displayName(p).toLowerCase();
-      const relation = (p.id === tree.homeId ? 'you me' : (kin.get(p.id) ?? '')).toLowerCase();
+      const relation = relationSearchText(tree, p.id);
       // In rank order. The relationship and years already show in the result's subtitle;
       // a place or note match needs spelling out, or the result looks unexplained.
       const fields: [text: string, why: (word: string) => string][] = [
@@ -207,7 +210,7 @@ function SearchBox() {
                 <span className="rel-text">
                   <span className="rel-name">{displayName(p)}</span>
                   <span className="rel-sub">
-                    {[p.id === tree.homeId ? 'You' : kin.get(p.id), lifespan(p)].filter(Boolean).join(' · ')}
+                    {[kin.get(p.id), lifespan(p)].filter(Boolean).join(' · ')}
                   </span>
                   {why && <span className="rel-sub search-why">{why}</span>}
                 </span>
@@ -281,6 +284,70 @@ function MainMenu() {
           {item('Keyboard shortcuts', <Keyboard size={16} />, () => openDialog({ type: 'shortcuts' }))}
           {item('Load sample family', <Sparkles size={16} />, () => openDialog({ type: 'sample' }))}
           {item('Start over', <RotateCcw size={16} />, () => openDialog({ type: 'reset' }), { disabled: empty, danger: true })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The words relationships are named in: English, ગુજરાતી, or Gujarati in English letters. */
+function NamingMenu() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const naming = useStore((s) => s.naming);
+  const setNaming = useStore((s) => s.setNaming);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="menu" ref={ref}>
+      <button
+        type="button"
+        className="icon-btn"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Relationship names"
+        data-tip={open ? undefined : 'Relationship names (L)'}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Languages size={17} />
+      </button>
+      {open && (
+        <div className="menu-pop naming-pop" role="menu" aria-label="Relationship names">
+          <h3>Relationship names</h3>
+          {NAMINGS.map((n) => (
+            <button
+              key={n.value}
+              type="button"
+              role="menuitemradio"
+              aria-checked={naming === n.value}
+              className="menu-item naming-item"
+              onClick={() => {
+                setNaming(n.value);
+                setOpen(false);
+              }}
+            >
+              <span className="naming-text">
+                <span>{n.label}</span>
+                <span className="naming-example">{n.example}</span>
+              </span>
+              <Check size={16} className="naming-check" />
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -363,6 +430,7 @@ export function TopBar() {
         {!empty && <ViewSwitch />}
         {!empty && <span className="divider" />}
         {!empty && <InsightsButton />}
+        {!empty && <NamingMenu />}
         <button
           type="button"
           className="icon-btn"

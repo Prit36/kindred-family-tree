@@ -1,6 +1,7 @@
 import { Heart, HeartCrack, HeartHandshake, Users } from 'lucide-react';
 import type { Tree, UnionStatus } from '../types';
-import { kinshipFor } from '../lib/kinship';
+import { useStore } from '../store';
+import { relationLabels } from '../lib/naming';
 import { displayName, shortName } from '../lib/tree';
 import { compareByBirth } from '../lib/dates';
 
@@ -25,8 +26,9 @@ const GENDER_ORDER = { male: 0, female: 1, other: 2 } as const;
  * "Children of Robert & Helen: Alex (You), Daniel (Brother), Emma (Sister)".
  */
 export function ConnectorTip({ tree, connector }: { tree: Tree; connector: Connector }) {
-  const kin = kinshipFor(tree);
-  const relation = (id: string) => (id === tree.homeId ? 'You' : (kin.get(id) ?? ''));
+  const naming = useStore((s) => s.naming);
+  const kin = relationLabels(tree, naming);
+  const relation = (id: string) => kin.get(id) ?? '';
   const who = (id: string) => (
     <span className="ctip-person" key={id}>
       <strong>{shortName(tree.people[id])}</strong>

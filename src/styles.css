@@ -3,8 +3,9 @@
    ========================================================================== */
 
 :root {
-  --font-ui: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Fraunces Variable', 'Iowan Old Style', Georgia, serif;
+  /* Gujarati relationship names (કાકા, માસી) fall through to Noto Sans Gujarati. */
+  --font-ui: 'Inter Variable', 'Noto Sans Gujarati Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Fraunces Variable', 'Noto Sans Gujarati Variable', 'Iowan Old Style', Georgia, serif;
 
   --bg: #f5f1e8;
   --dot: rgba(88, 72, 44, 0.17);
@@ -1110,6 +1111,45 @@ textarea.input {
 .menu-item.is-danger,
 .menu-item.is-danger svg {
   color: var(--danger);
+}
+
+/* Relationship names: English / ગુજરાતી / Gujarati in English letters */
+.naming-pop {
+  width: 272px;
+}
+
+.naming-pop h3 {
+  margin: 6px 10px 6px;
+  color: var(--text-3);
+  font: 600 11px/1.5 var(--font-ui);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.naming-item {
+  height: auto;
+  padding: 8px 10px;
+}
+
+.naming-item .naming-text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+
+.naming-item .naming-example {
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+.naming-item .naming-check {
+  flex: none;
+  color: var(--accent);
+}
+
+.naming-item[aria-checked='false'] .naming-check {
+  visibility: hidden;
 }
 
 /* ==========================================================================

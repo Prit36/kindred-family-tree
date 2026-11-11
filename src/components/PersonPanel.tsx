@@ -19,7 +19,7 @@ import { addRelative, pickPhotoFor, viewPhoto } from '../lib/actions';
 import { focusSet, sameFocus, type FocusScope } from '../lib/branches';
 import { familySides } from '../lib/sides';
 import { ageOf, compareByBirth, formatDate, lifespan } from '../lib/dates';
-import { kinshipFor } from '../lib/kinship';
+import { relationLabels, relationName, selfLabel } from '../lib/naming';
 import {
   childrenOf,
   displayName,
@@ -56,14 +56,17 @@ export function PersonPanel() {
   const tree = useStore((s) => s.tree);
   const selectedId = useStore((s) => s.selectedId);
   const focus = useStore((s) => s.focus);
+  const naming = useStore((s) => s.naming);
   const { select, commit, openDialog, toast, undo, focusOn, clearFocus } = useStore.getState();
 
   const person = selectedId ? tree.people[selectedId] : undefined;
   if (!person) return null;
 
-  const kin = kinshipFor(tree);
+  const kin = relationLabels(tree, naming);
   const isHome = tree.homeId === person.id;
-  const relation = isHome ? 'You' : kin.get(person.id);
+  const relation = kin.get(person.id);
+  // A Gujarati name's meaning in English, on hover: "Father's younger brother".
+  const meaning = !isHome && tree.homeId ? (relationName(tree, tree.homeId, person.id, naming)?.meaning ?? '') : '';
   const age = ageOf(person);
   const placeholder = isPlaceholder(person);
 
@@ -198,7 +201,7 @@ export function PersonPanel() {
             {(relation || side) && (
               <div className="panel-chips">
                 {relation && (
-                  <span className={`chip${isHome ? ' chip-home' : ''}`}>
+                  <span className={`chip${isHome ? ' chip-home' : ''}`} data-tip={meaning || undefined}>
                     {isHome && <House size={12} strokeWidth={2.4} />}
                     {relation}
                   </span>
@@ -253,7 +256,7 @@ export function PersonPanel() {
           <nav className="chain" aria-label="How you're connected">
             {chain.map((id, i) => {
               const last = i === chain.length - 1;
-              const label = i === 0 ? 'You' : shortName(tree.people[id]);
+              const label = i === 0 ? selfLabel(naming) : shortName(tree.people[id]);
               return (
                 <Fragment key={id}>
                   {i > 0 && <ChevronRight size={12} aria-hidden="true" />}

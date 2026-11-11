@@ -3,6 +3,7 @@ import { ChevronRight, Users, X } from 'lucide-react';
 import { useStore } from '../store';
 import { sameFocus } from '../lib/branches';
 import { familySides, type FamilySide } from '../lib/sides';
+import { relationLabels } from '../lib/naming';
 
 const countPeople = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`;
 
@@ -15,6 +16,11 @@ export function SidesLegend() {
   const tree = useStore((s) => s.tree);
   const focus = useStore((s) => s.focus);
   const prefs = useStore((s) => s.sides);
+  const naming = useStore((s) => s.naming);
+  const kin = relationLabels(tree, naming);
+  // A married-in family's subtitle is how its root is related to you, named as everywhere else.
+  const subtitleOf = (side: FamilySide) =>
+    (side.subtitleIsRelation && side.rootId && kin.get(side.rootId)) || side.subtitle;
   const { focusOn, clearFocus, setPeek, setSides } = useStore.getState();
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 
@@ -112,9 +118,9 @@ export function SidesLegend() {
                     }}
                   >
                     <span className="side-swatch" data-tone={side.tone} aria-hidden="true" />
-                    <span className="side-text" title={[side.title, side.subtitle].filter(Boolean).join(' · ')}>
+                    <span className="side-text" title={[side.title, subtitleOf(side)].filter(Boolean).join(' · ')}>
                       <span className="side-title">{side.title}</span>
-                      {side.subtitle && <span className="side-sub">{side.subtitle}</span>}
+                      {subtitleOf(side) && <span className="side-sub">{subtitleOf(side)}</span>}
                     </span>
                     <span className="side-count" aria-label={countPeople(side.members.length)}>
                       {side.members.length}

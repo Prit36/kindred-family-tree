@@ -13,6 +13,7 @@ import {
   type FocusScope,
 } from './lib/branches';
 import { focusTitle } from './lib/sides';
+import type { Naming } from './lib/naming';
 import { emptyTree, shortName } from './lib/tree';
 import { onSaveResult, requestPersistence, saveTree } from './lib/treeStore';
 
@@ -26,6 +27,16 @@ export type ViewMode = 'tree' | 'timeline';
 
 const MODE_KEY = 'kindred.mode';
 const SIDES_KEY = 'kindred.sides';
+const NAMING_KEY = 'kindred.naming';
+
+function loadNaming(): Naming {
+  try {
+    const v = localStorage.getItem(NAMING_KEY);
+    return v === 'gu' || v === 'gu-latn' ? v : 'en';
+  } catch {
+    return 'en';
+  }
+}
 
 /** Whether cards are coloured by side of the family, and whether the list of sides is open. */
 interface SidesPrefs {
@@ -105,6 +116,8 @@ interface State {
   view: ViewRequest;
   theme: Theme;
   mode: ViewMode;
+  /** The words relationships are named in: English, or Gujarati in its own script or in Latin letters. */
+  naming: Naming;
 
   /** Apply a change to the tree and record it for undo. */
   commit: (tree: Tree) => void;
@@ -133,6 +146,7 @@ interface State {
   fitView: () => void;
   toggleTheme: () => void;
   setMode: (mode: ViewMode) => void;
+  setNaming: (naming: Naming) => void;
 }
 
 /** Folds are remembered between visits, as long as they still belong to this tree. */
@@ -201,6 +215,7 @@ export const useStore = create<State>((set, get) => ({
   view: { kind: 'fit', nonce: 0 },
   theme: loadTheme(),
   mode: loadMode(),
+  naming: loadNaming(),
 
   commit: (tree) => {
     const { tree: current, past } = get();
@@ -342,6 +357,15 @@ export const useStore = create<State>((set, get) => ({
     // Whoever is selected stays in sight in the view being switched to.
     const { selectedId } = get();
     set({ mode, view: selectedId ? { kind: 'reveal', id: selectedId, nonce: nonce++ } : get().view });
+  },
+
+  setNaming: (naming) => {
+    try {
+      localStorage.setItem(NAMING_KEY, naming);
+    } catch {
+      /* the choice just won't persist */
+    }
+    set({ naming });
   },
 }));
 
