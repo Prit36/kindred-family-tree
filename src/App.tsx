@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeftRight, Focus, ImageUp, X } from 'lucide-react';
+import { ArrowLeftRight, Focus, ImageUp, Users, X } from 'lucide-react';
 import { useStore } from './store';
 import {
   adjustPhoto,
@@ -318,34 +318,38 @@ function FocusBanner() {
   return (
     <div className="compare focus-banner" role="status">
       <span className="focus-icon" data-tone={side?.tone}>
-        <Focus size={15} />
+        <Focus size={16} />
       </span>
-      <span className="compare-text">
-        Showing only{' '}
+      <span className="focus-summary">
         <button type="button" className="focus-name" onClick={() => select(person.id, true)} data-tip={`Go to ${shortName(person)}`}>
           {title}
-        </button>{' '}
+        </button>
         <span className="focus-count">
-          {shown} of {total} people
+          Showing {shown} of {total} people
         </span>
       </span>
       {scopes.length > 1 && (
-        <div className="segmented focus-scopes" role="radiogroup" aria-label={`How much around ${shortName(person)} to show`}>
-          {scopes.map(({ scope, label, tip }) => (
-            <button
-              key={scope}
-              type="button"
-              role="radio"
-              aria-checked={scope === focus.scope}
-              data-tip={tip}
-              onClick={() => scope !== focus.scope && focusOn(person.id, scope)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <>
+          <span className="focus-divider" aria-hidden="true" />
+          <div className="segmented focus-scopes" role="radiogroup" aria-label={`How much around ${shortName(person)} to show`}>
+            {scopes.map(({ scope, label, tip }) => (
+              <button
+                key={scope}
+                type="button"
+                role="radio"
+                aria-checked={scope === focus.scope}
+                data-tip={tip}
+                onClick={() => scope !== focus.scope && focusOn(person.id, scope)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </>
       )}
+      <span className="focus-divider" aria-hidden="true" />
       <button type="button" className="btn focus-exit" onClick={clearFocus} data-tip="Back to the whole tree (B)">
+        <Users size={15} />
         Show everyone
       </button>
     </div>

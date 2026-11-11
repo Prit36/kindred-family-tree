@@ -10,6 +10,7 @@ import {
   Plus,
   Trash,
   Unlink,
+  Users,
   X,
 } from 'lucide-react';
 import type { Person, Relation, UnionStatus } from '../types';
@@ -222,6 +223,30 @@ export function PersonPanel() {
                 )}
               </div>
             )}
+            {(born || died || age !== null) && (
+              <dl className="facts">
+                {born && (
+                  <div>
+                    <dt>Born</dt>
+                    <dd>{born}</dd>
+                  </div>
+                )}
+                {died && (
+                  <div>
+                    <dt>Died</dt>
+                    <dd>{died}</dd>
+                  </div>
+                )}
+                {age !== null && (
+                  <div>
+                    <dt>{person.deceased ? 'Lived' : 'Age'}</dt>
+                    <dd>
+                      {age} {age === 1 ? 'year' : 'years'}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            )}
           </div>
         </header>
 
@@ -254,31 +279,6 @@ export function PersonPanel() {
               name.
             </span>
           </button>
-        )}
-
-        {(born || died || age !== null) && (
-          <dl className="facts">
-            {born && (
-              <div>
-                <dt>Born</dt>
-                <dd>{born}</dd>
-              </div>
-            )}
-            {died && (
-              <div>
-                <dt>Died</dt>
-                <dd>{died}</dd>
-              </div>
-            )}
-            {age !== null && (
-              <div>
-                <dt>{person.deceased ? 'Lived' : 'Age'}</dt>
-                <dd>
-                  {age} {age === 1 ? 'year' : 'years'}
-                </dd>
-              </div>
-            )}
-          </dl>
         )}
 
         {person.notes && <p className="panel-notes">{person.notes}</p>}
@@ -321,29 +321,39 @@ export function PersonPanel() {
             <h3>Family</h3>
           </div>
           {scopes.length > 0 && (
-            <div className="focus-row">
-              <span className="focus-row-label">
-                <Focus size={15} />
-                Show only
-              </span>
-              <div className="segmented focus-scopes" role="group" aria-label={`Show only part of the tree around ${shortName(person)}`}>
+            <>
+              <div className="rel-head">
+                <h4 className="focus-head">
+                  <Focus size={13} aria-hidden="true" />
+                  Show only
+                </h4>
+                {focusedScope && (
+                  <button type="button" className="rel-add" onClick={clearFocus} data-tip="Back to the whole tree (B)">
+                    <Users size={13} /> Show everyone
+                  </button>
+                )}
+              </div>
+              <div className="focus-options" role="group" aria-label={`Show only part of the tree around ${shortName(person)}`}>
                 {scopes.map(({ scope, label, tip, size }) => {
                   const on = focusedScope === scope;
                   return (
                     <button
                       key={scope}
                       type="button"
+                      className="focus-option"
                       aria-pressed={on}
                       data-tip={on ? 'Show everyone again' : `Show only ${tip}`}
                       onClick={() => (on ? clearFocus() : focusOn(person.id, scope))}
                     >
-                      {label}
-                      <span className="focus-scope-count">{size}</span>
+                      <span className="focus-option-label">{label}</span>
+                      <span className="focus-option-count">
+                        {size} {size === 1 ? 'person' : 'people'}
+                      </span>
                     </button>
                   );
                 })}
               </div>
-            </div>
+            </>
           )}
 
           {groupHead('parent', 'Parents')}
