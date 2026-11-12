@@ -1,4 +1,3 @@
-import { toPng } from 'html-to-image';
 import type { Tree } from '../types';
 import { cropRect, type CropView } from './crop';
 import { exportOriginals, getOriginal, putOriginal } from './photoStore';
@@ -155,12 +154,15 @@ export interface ExportBox {
 }
 
 /** Renders the whole tree (not just what is on screen) to a PNG data URL. */
-export function renderTreePng(world: HTMLElement, box: ExportBox): Promise<string> {
+export async function renderTreePng(world: HTMLElement, box: ExportBox): Promise<string> {
+  const { toPng } = await import('html-to-image');
   const margin = 80;
   const width = Math.ceil(box.width + margin * 2);
   const height = Math.ceil(box.height + margin * 2);
   const background = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#ffffff';
-  const pixelRatio = Math.max(0.5, Math.min(2, 8000 / Math.max(width, height)));
+  // Bound both dimensions and total pixels. A minimum scale defeats the cap for
+  // wide pedigrees and can allocate a canvas containing billions of pixels.
+  const pixelRatio = Math.min(2, 8000 / Math.max(width, height), Math.sqrt(16_000_000 / (width * height)));
   return toPng(world, {
     width,
     height,

@@ -1,6 +1,7 @@
 import { shapeOf, type Shape } from './shape';
 import type { Gender, Tree, UnionStatus } from '../types';
 import { indexOf, partnerIn, unionsOf } from './tree';
+import { LruMap } from './lru';
 
 /**
  * Gujarati relationship names (સંબંધ), worked out from the chain of people linking two
@@ -102,7 +103,7 @@ class Heap {
  * to a child and straight back up to that child's other parent is never allowed: that
  * other parent is a partner, reached directly.
  */
-function shortestPaths(tree: Tree, egoId: string): Map<string, Edge[]> {
+function* shortestPaths(tree: Tree, egoId: string): Generator<[string, Edge[]]> {
   const { children } = indexOf(tree);
   // State key: person id + whether we arrived by going down to them.
   const dist = new Map<string, number>();
@@ -139,7 +140,6 @@ function shortestPaths(tree: Tree, egoId: string): Map<string, Edge[]> {
     }
   }
 
-  const out = new Map<string, Edge[]>();
   for (const id of Object.keys(tree.people)) {
     const a = dist.get(`${id}|0`) ?? Infinity;
     const b = dist.get(`${id}|1`) ?? Infinity;
@@ -150,9 +150,8 @@ function shortestPaths(tree: Tree, egoId: string): Map<string, Edge[]> {
       path.push(link.edge);
       key = link.key;
     }
-    out.set(id, path.reverse());
+    yield [id, path.reverse()];
   }
-  return out;
 }
 
 /** -1 when `a` was born before `b`, 1 when after, 0 when that can't be told. */
@@ -489,19 +488,26 @@ function describe(steps: Step[]): GuTerm {
 }
 
 const cache = new WeakMap<Shape, Map<string, Map<string, GuTerm>>>();
+const homeCache = new WeakMap<Shape, Map<string, GuTerm>>();
 
 /** Gujarati names for how everyone connected to `egoId` is related to them (memoised per tree). */
 export function gujaratiKinship(tree: Tree, egoId: string | null): Map<string, GuTerm> {
   if (!egoId || !tree.people[egoId]) return new Map();
-  let perTree = cache.get(shapeOf(tree));
-  if (!perTree) cache.set(shapeOf(tree), (perTree = new Map()));
-  let out = perTree.get(egoId);
+  const shape = shapeOf(tree);
+  let perTree = cache.get(shape);
+  if (!perTree) cache.set(shape, (perTree = new LruMap(8, (terms) => {
+    let chars = 0;
+    for (const term of terms.values()) chars += term.gu.length + term.latin.length + term.en.length;
+    return chars;
+  }, 2_000_000)));
+  let out = egoId === tree.homeId ? homeCache.get(shape) : perTree.get(egoId);
   if (out) return out;
   out = new Map();
   for (const [id, edges] of shortestPaths(tree, egoId)) {
     if (id === egoId || edges.length === 0) continue;
     out.set(id, describe(toSteps(tree, egoId, edges)));
   }
-  perTree.set(egoId, out);
+  if (egoId === tree.homeId) homeCache.set(shape, out);
+  else perTree.set(egoId, out);
   return out;
 }

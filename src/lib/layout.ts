@@ -652,27 +652,35 @@ export function computeLayout(tree: Tree, anchor?: LayoutAnchor): TreeLayout {
     };
 
     /** Where a group wants to be so its members sit packed with their siblings under their parents. */
+    // Each family's packing depends on positions before this row moves. Share it across
+    // siblings in that row; sorting the same family for every child is quadratic.
+    let packing = new Map<Family, Map<string, number>>();
     const underParents = (rowIndex: number) => (g: string) => {
       const shifts: number[] = [];
       for (const m of members.get(g)!) {
         const fam = childFamily.get(m);
         if (!fam || rowOf(fam.parents[0]) >= rowIndex) continue;
-        const siblings = fam.children
-          .filter((c) => rowOf(c) === rowIndex)
-          .sort((a, b) => centerOf(a) - centerOf(b));
-        let cursor = 0;
-        let previous: string | null = null;
-        const packed = new Map<string, number>();
-        for (const s of siblings) {
-          const sg = groupOf(s);
-          if (sg !== previous) {
-            if (previous !== null) cursor += groupWidth(previous) + SIBLING_GAP;
-            previous = sg;
+        let offsets = packing.get(fam);
+        if (!offsets) {
+          const siblings = fam.children
+            .filter((c) => rowOf(c) === rowIndex)
+            .sort((a, b) => centerOf(a) - centerOf(b));
+          let cursor = 0;
+          let previous: string | null = null;
+          const packed = new Map<string, number>();
+          for (const s of siblings) {
+            const sg = groupOf(s);
+            if (sg !== previous) {
+              if (previous !== null) cursor += groupWidth(previous) + SIBLING_GAP;
+              previous = sg;
+            }
+            packed.set(s, cursor + offsetIn(s));
           }
-          packed.set(s, cursor + offsetIn(s));
+          const spanCenter = (packed.get(siblings[0])! + packed.get(siblings[siblings.length - 1])!) / 2;
+          offsets = new Map(siblings.map((s) => [s, packed.get(s)! - spanCenter]));
+          packing.set(fam, offsets);
         }
-        const spanCenter = (packed.get(siblings[0])! + packed.get(siblings[siblings.length - 1])!) / 2;
-        shifts.push(anchorX(fam) + packed.get(m)! - spanCenter - centerOf(m));
+        shifts.push(anchorX(fam) + offsets.get(m)! - centerOf(m));
       }
       return shifts.length ? x.get(g)! + mean(shifts) : null;
     };
@@ -689,7 +697,10 @@ export function computeLayout(tree: Tree, anchor?: LayoutAnchor): TreeLayout {
     };
 
     for (let pass = 0; pass < 8; pass++) {
-      for (let r = 1; r < rows.length; r++) placeRow(r, underParents(r));
+      for (let r = 1; r < rows.length; r++) {
+        packing = new Map();
+        placeRow(r, underParents(r));
+      }
       for (let r = rows.length - 2; r >= 0; r--) placeRow(r, overChildren(r));
     }
 

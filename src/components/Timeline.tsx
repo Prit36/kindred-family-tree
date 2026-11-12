@@ -20,6 +20,8 @@ import { relationLabels } from '../lib/naming';
 import {
   ageAt,
   axisTicks,
+  countAlive,
+  indexLifetimes,
   nowYear,
   overlapYears,
   timelineRows,
@@ -357,7 +359,8 @@ export function Timeline() {
   const trackW = Math.ceil(years * ppy + PAD * 2);
   const xOf = useCallback((year: number) => PAD + (year - from) * ppy, [from, ppy]);
   const yearAt = (trackX: number) => from + (trackX - PAD) / ppy;
-  const { ticks } = axisTicks(from, to, ppy);
+  const { ticks } = useMemo(() => axisTicks(from, to, ppy), [from, to, ppy]);
+  const lifetimes = useMemo(() => indexLifetimes(rows), [rows]);
 
   const selIndex = selectedId ? rowIndex.get(selectedId) : undefined;
   const sel = selIndex !== undefined ? rows[selIndex] : null;
@@ -798,21 +801,41 @@ export function Timeline() {
     if (year < from || year > to) return setHover(null);
     setHover({ year, row: target.closest<HTMLElement>('.tl-row')?.dataset.personId ?? null });
   };
+  const readoutRef = useRef(readout);
+  readoutRef.current = readout;
+  const hoverFrame = useRef(0);
+  const pendingHover = useRef<{ x: number; target: HTMLElement } | null>(null);
+  const cancelHover = useCallback(() => {
+    cancelAnimationFrame(hoverFrame.current);
+    hoverFrame.current = 0;
+    pendingHover.current = null;
+  }, []);
+  useEffect(() => cancelHover, [cancelHover, rows, ppy, nameW]);
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'touch') return; // a finger here is scrolling
-    readout(e.clientX, e.target as HTMLElement);
+    pendingHover.current = { x: e.clientX, target: e.target as HTMLElement };
+    if (!hoverFrame.current) hoverFrame.current = requestAnimationFrame(() => {
+      hoverFrame.current = 0;
+      const pending = pendingHover.current;
+      pendingHover.current = null;
+      if (pending) readoutRef.current(pending.x, pending.target);
+    });
     trackTip(e.target as HTMLElement, e.clientX);
   };
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === 'touch') readout(e.clientX, e.target as HTMLElement);
+    if (e.pointerType === 'touch') {
+      cancelHover();
+      readout(e.clientX, e.target as HTMLElement);
+    }
   };
   const onLeave = () => {
+    cancelHover();
     setHover(null);
     hideTip();
   };
 
   const hoverYear = hover?.year ?? null;
-  const alive = hoverYear !== null ? rows.filter((s) => s.start <= hoverYear && s.end >= hoverYear).length : 0;
+  const alive = hoverYear !== null ? countAlive(lifetimes, hoverYear) : 0;
   // Everyone's age at the year under the pointer (only rows on screen are drawn).
   const hoverAges = useMemo(() => {
     const el = scrollRef.current;
@@ -820,14 +843,16 @@ export function Timeline() {
     const top = el.scrollTop - ROW_H;
     const bottom = el.scrollTop + el.clientHeight;
     const out: { i: number; age: number }[] = [];
-    for (let i = 0; i < rows.length; i++) {
+    const first = Math.max(0, rowAt(top));
+    const last = Math.min(rows.length - 1, rowAt(bottom));
+    for (let i = first; i <= last; i++) {
       const y = rowTop(i);
       if (y < top || y > bottom) continue;
       const age = ageAt(rows[i], hoverYear);
       if (age !== null) out.push({ i, age });
     }
     return out;
-  }, [hoverYear, rows, rowTop]);
+  }, [hoverYear, rows, rowTop, rowAt, band]);
 
   const home = tree.homeId ? tree.people[tree.homeId] : undefined;
   const bodyH = rows.length * ROW_H + extra;

@@ -170,9 +170,18 @@ export function descendantIds(tree: Tree, id: string): Set<string> {
 export function bloodRelatives(tree: Tree, id: string): Set<string> {
   const out = new Set<string>();
   if (!tree.people[id]) return out;
-  for (const r of [id, ...ancestorIds(tree, id)]) {
-    out.add(r);
-    for (const d of descendantIds(tree, r)) out.add(d);
+  const children = indexOf(tree).children;
+  // Keep the original ancestor/depth-first order: sides use it to break ties
+  // between families. Already visited descendants never need walking again.
+  for (const root of [id, ...ancestorIds(tree, id)]) {
+    out.add(root);
+    const stack = [...(children.get(root) ?? [])];
+    while (stack.length) {
+      const child = stack.pop()!;
+      if (out.has(child)) continue;
+      out.add(child);
+      stack.push(...(children.get(child) ?? []));
+    }
   }
   return out;
 }
@@ -437,18 +446,25 @@ export function sanitizeTree(raw: unknown): Tree {
     p.parentIds = [...new Set(p.parentIds)].filter((pid) => people[pid] && pid !== p.id).slice(0, 2);
   }
   // Break any ancestry cycles a hand-edited file might contain.
-  for (const p of Object.values(people)) {
-    const seen = new Set<string>();
-    const stack = [...p.parentIds];
+  const state = new Map<string, number>();
+  for (const id of Object.keys(people)) {
+    if (state.has(id)) continue;
+    const stack: { id: string; next: number }[] = [{ id, next: 0 }];
+    state.set(id, 1);
     while (stack.length) {
-      const cur = stack.pop()!;
-      if (cur === p.id) {
-        p.parentIds = [];
-        break;
+      const top = stack[stack.length - 1];
+      const p = people[top.id];
+      if (top.next >= p.parentIds.length) {
+        state.set(top.id, 2);
+        stack.pop();
+        continue;
       }
-      if (seen.has(cur)) continue;
-      seen.add(cur);
-      stack.push(...people[cur].parentIds);
+      const parent = p.parentIds[top.next++];
+      if (state.get(parent) === 1) p.parentIds = [];
+      else if (!state.has(parent)) {
+        state.set(parent, 1);
+        stack.push({ id: parent, next: 0 });
+      }
     }
   }
 
@@ -469,7 +485,7 @@ export function sanitizeTree(raw: unknown): Tree {
     }
   }
 
-  let tree: Tree = {
+  const tree: Tree = {
     version: 1,
     name: str(src.name) || 'My Family',
     people,
@@ -477,7 +493,12 @@ export function sanitizeTree(raw: unknown): Tree {
     homeId: typeof src.homeId === 'string' && people[src.homeId] ? src.homeId : null,
   };
   for (const p of Object.values(people)) {
-    if (p.parentIds.length === 2) tree = ensureUnion(tree, p.parentIds[0], p.parentIds[1]);
+    if (p.parentIds.length !== 2) continue;
+    const [a, b] = p.parentIds;
+    const key = [a, b].sort().join('|');
+    if (pairSeen.has(key)) continue;
+    pairSeen.add(key);
+    unions.push({ id: uid(), a, b, status: 'married' });
   }
   return tree;
 }

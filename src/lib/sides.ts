@@ -166,6 +166,7 @@ function computeSides(tree: Tree): FamilySides {
     sideByKey.set(s.key, s);
     queue.push(...s.members);
   };
+  const visitedPartners = new Set<string>();
   for (let q = 0; q < queue.length; q++) {
     const memberId = queue[q];
     for (const { person: partner } of partnersOf(tree, memberId)) {
@@ -175,6 +176,10 @@ function computeSides(tree: Tree): FamilySides {
         );
         place(partner.id, sideByKey.get(sideOf.get(shared ?? memberId)!)!);
       }
+      // Membership only grows: a partner's blood family needs visiting once, even
+      // when remarriage or shared ancestors reach that partner from several people.
+      if (visitedPartners.has(partner.id)) continue;
+      visitedPartners.add(partner.id);
       const relatives = [...bloodRelatives(tree, partner.id)].filter((id) => !sideOf.has(id));
       if (relatives.length === 0) continue;
       const host = sideByKey.get(sideOf.get(partner.id)!)!;

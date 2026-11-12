@@ -1,6 +1,6 @@
 import type { Person, Tree } from '../types';
 import { formatDate, isBefore, parseDate, yearOf } from './dates';
-import { displayName, isPlaceholder, shortName } from './tree';
+import { childrenOf, displayName, isPlaceholder, shortName } from './tree';
 
 // ---------------------------------------------------------------------------
 // Coming up: birthdays and anniversaries
@@ -157,7 +157,7 @@ export function checkTree(tree: Tree, today = new Date()): Issue[] {
     }
 
     if (isPlaceholder(p)) {
-      const children = people.filter((c) => c.parentIds.includes(p.id) && !isPlaceholder(c));
+      const children = childrenOf(tree, p.id).filter((c) => !isPlaceholder(c));
       if (children.length > 0) {
         issues.push({
           key: `placeholder:${p.id}`,
@@ -176,7 +176,9 @@ export function checkTree(tree: Tree, today = new Date()): Issue[] {
     const last = norm(p.birthName || p.lastName);
     if (!first || !last) continue;
     const key = `${first}|${last}`;
-    byName.set(key, [...(byName.get(key) ?? []), p]);
+    let group = byName.get(key);
+    if (!group) byName.set(key, (group = []));
+    group.push(p);
   }
   for (const group of byName.values()) {
     for (let i = 0; i < group.length; i++) {

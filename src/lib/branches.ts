@@ -1,6 +1,7 @@
 import { shapeOf, type Shape } from './shape';
 import type { Tree } from '../types';
-import { ancestorIds, descendantIds, partnersOf, siblingsOf } from './tree';
+import { ancestorIds, descendantIds, indexOf, partnersOf, siblingsOf } from './tree';
+import { LruMap } from './lru';
 import { sideMembers } from './sides';
 
 /**
@@ -347,10 +348,19 @@ export function branchOf(tree: Tree, id: string): Set<string> {
  */
 function withDescendantsAndPartners(tree: Tree, roots: Iterable<string>): Set<string> {
   const out = new Set<string>();
+  const stack: string[] = [];
   for (const r of roots) {
-    if (!tree.people[r]) continue;
+    if (!tree.people[r] || out.has(r)) continue;
     out.add(r);
-    for (const d of descendantIds(tree, r)) out.add(d);
+    stack.push(r);
+  }
+  const children = indexOf(tree).children;
+  while (stack.length) {
+    for (const id of children.get(stack.pop()!) ?? []) {
+      if (out.has(id)) continue;
+      out.add(id);
+      stack.push(id);
+    }
   }
   for (const id of [...out]) for (const { person } of partnersOf(tree, id)) out.add(person.id);
   return out;
@@ -361,7 +371,7 @@ const focusCache = new WeakMap<Shape, Map<string, ReadonlySet<string>>>();
 /** The people a focus keeps on screen. */
 export function focusSet(tree: Tree, focus: Focus): ReadonlySet<string> {
   let perTree = focusCache.get(shapeOf(tree));
-  if (!perTree) focusCache.set(shapeOf(tree), (perTree = new Map()));
+  if (!perTree) focusCache.set(shapeOf(tree), (perTree = new LruMap(16)));
   const key = `${focus.scope}:${focus.id}`;
   let ids = perTree.get(key);
   if (ids) return ids;

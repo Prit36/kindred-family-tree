@@ -1,7 +1,8 @@
 /**
- * Full-size originals of people's photos, kept in IndexedDB. The tree (saved to
- * localStorage, which only holds a few megabytes) keeps just the small cropped square
- * and the id of the original it came from, so originals don't count against that limit.
+ * Full-size originals of people's photos, kept in a separate IndexedDB store. The
+ * tree keeps just the small cropped square and the id of the original it came from.
+ * Committed originals are released from the pending cache; failed writes stay in
+ * memory so the current session can still display and export unsaved photos.
  *
  * Originals are immutable: a new photo gets a new id, and re-cropping keeps the old one.
  * Ones nobody refers to any more are cleared out on the next visit (`pruneOriginals`),
@@ -17,7 +18,7 @@ interface Entry {
   created: number;
 }
 
-/** Originals saved during this visit, so they show up straight away and even without IndexedDB. */
+/** Pending writes and unsaved originals. Committed blobs are read back from IndexedDB. */
 const recent = new Map<string, Promise<Blob>>();
 
 let opening: Promise<IDBDatabase> | null = null;
@@ -59,10 +60,17 @@ export function onStoreFailure(handler: (err: unknown) => void) {
  * Stores an original under `id`. Takes a promise because encoding it is asynchronous,
  * and readers asking for it in the meantime should wait rather than miss it.
  */
-export function putOriginal(id: string, blob: Promise<Blob>): void {
+export function putOriginal(id: string, blob: Promise<Blob>): Promise<void> {
   recent.set(id, blob);
-  blob
-    .then((b) => request('readwrite', (s) => s.put({ blob: b, created: Date.now() } satisfies Entry, id)))
+  return blob
+    .then((b) => request('readwrite', (s) => s.put({ blob: b, created: Date.now() } satisfies Entry, id)), (err: unknown) => {
+      if (recent.get(id) === blob) recent.delete(id);
+      throw err;
+    })
+    .then(() => {
+      // A newer write under the same id must remain available until it commits.
+      if (recent.get(id) === blob) recent.delete(id);
+    })
     .catch((err: unknown) => onFailure?.(err));
 }
 

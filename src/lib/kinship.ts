@@ -1,6 +1,7 @@
 import { shapeOf, type Shape } from './shape';
 import type { Gender, Tree, Union } from '../types';
 import { partnersOf } from './tree';
+import { LruMap } from './lru';
 
 /** Describes how everyone in the tree is related to the "home" person. */
 
@@ -126,7 +127,7 @@ const betweenCache = new WeakMap<Shape, Map<string, Map<string, string>>>();
 export function relationBetween(tree: Tree, fromId: string, otherId: string): string {
   if (fromId === tree.homeId) return kinshipFor(tree).get(otherId) ?? '';
   let perTree = betweenCache.get(shapeOf(tree));
-  if (!perTree) betweenCache.set(shapeOf(tree), (perTree = new Map()));
+  if (!perTree) betweenCache.set(shapeOf(tree), (perTree = new LruMap(8)));
   let m = perTree.get(fromId);
   if (!m) perTree.set(fromId, (m = kinshipMap(tree, fromId)));
   return m.get(otherId) ?? '';

@@ -105,24 +105,29 @@ export function timelineRows(tree: Tree, ids: Iterable<string>, order: TimelineO
     ordered = [];
     const seen = new Set<string>();
     const hasParents = (p: Person) => p.parentIds.some((pid) => included.has(pid));
-    const visit = (p: Person) => {
-      if (seen.has(p.id)) return;
-      seen.add(p.id);
-      ordered.push(p);
-      // Partners with no parents of their own here would otherwise float at the top.
-      const partners = partnersOf(tree, p.id)
-        .map((x) => x.person)
-        .filter((q) => included.has(q.id) && !seen.has(q.id) && !hasParents(q))
-        .sort(byAge);
-      for (const q of partners) {
-        seen.add(q.id);
-        ordered.push(q);
+    const visit = (root: Person) => {
+      const stack = [root];
+      while (stack.length) {
+        const p = stack.pop()!;
+        if (seen.has(p.id)) continue;
+        seen.add(p.id);
+        ordered.push(p);
+        // Partners with no parents of their own here would otherwise float at the top.
+        const partners = partnersOf(tree, p.id)
+          .map((x) => x.person)
+          .filter((q) => included.has(q.id) && !seen.has(q.id) && !hasParents(q))
+          .sort(byAge);
+        for (const q of partners) {
+          seen.add(q.id);
+          ordered.push(q);
+        }
+        const kids = new Map<string, Person>();
+        for (const parent of [p, ...partners]) {
+          for (const c of childrenOf(tree, parent.id)) if (included.has(c.id)) kids.set(c.id, c);
+        }
+        const children = [...kids.values()].sort(byAge);
+        for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
       }
-      const kids = new Map<string, Person>();
-      for (const parent of [p, ...partners]) {
-        for (const c of childrenOf(tree, parent.id)) if (included.has(c.id)) kids.set(c.id, c);
-      }
-      for (const c of [...kids.values()].sort(byAge)) visit(c);
     };
     const sorted = [...people].sort(byAge);
     for (const p of sorted) if (!hasParents(p)) visit(p);
@@ -201,6 +206,36 @@ export function togetherWhen(t: Extract<Together, { kind: 'overlap' }>): string 
 export function ageAt(span: Span, year: number): number | null {
   if (!span.startKnown || year < span.start || year > span.end) return null;
   return Math.floor(year - span.start + 1e-6);
+}
+
+export interface LifetimeIndex {
+  starts: number[];
+  ends: number[];
+}
+
+/** Sorted endpoints turn each hover readout into two binary searches. */
+export function indexLifetimes(rows: readonly Span[]): LifetimeIndex {
+  const valid = rows.filter((s) => s.start <= s.end);
+  return {
+    starts: valid.map((s) => s.start).sort((a, b) => a - b),
+    ends: valid.map((s) => s.end).sort((a, b) => a - b),
+  };
+}
+
+export function countAlive(index: LifetimeIndex, year: number): number {
+  if (Number.isNaN(year)) return 0;
+  const bound = (values: number[], inclusive: boolean) => {
+    let lo = 0;
+    let hi = values.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (values[mid] < year || (inclusive && values[mid] === year)) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  };
+  // A person is alive at both endpoints, including zero-length lifetimes.
+  return bound(index.starts, true) - bound(index.ends, false);
 }
 
 export interface Tick {
