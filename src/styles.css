@@ -1199,11 +1199,13 @@ textarea.input {
 .naming-item[aria-checked='false'] .naming-check {
   visibility: hidden;
 }
-
 /* ==========================================================================
    Details panel
    ========================================================================== */
 
+/* Who they are (head), their life and family (body), what you can do (foot). The
+   family is drawn as a small tree, one line per generation, so it keeps to a fixed
+   height however big the family is. */
 .panel {
   position: absolute;
   top: 72px;
@@ -1220,38 +1222,33 @@ textarea.input {
   animation: panel-in 0.28s var(--ease) both;
 }
 
-.panel-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1;
-}
-
-.panel-scroll {
-  flex: 1;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: 26px 20px 20px;
-  scrollbar-width: thin;
-}
-
-.panel-head {
+.pp-head {
+  position: relative;
+  flex: none;
   display: flex;
   align-items: center;
   gap: 16px;
-  /* Clear of the close button in the corner */
-  padding-right: 28px;
+  padding: 24px 20px 18px;
 }
 
-.panel-id {
+.pp-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.pp-id {
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
+  /* Clear of the close button in the corner */
+  padding-right: 22px;
 }
 
-.panel-name {
+.pp-name {
   font-family: var(--font-display);
   font-size: 24px;
   font-weight: 600;
@@ -1260,7 +1257,7 @@ textarea.input {
   overflow-wrap: anywhere;
 }
 
-.panel-aka {
+.pp-aka {
   margin-top: -4px;
   color: var(--text-2);
   font-family: var(--font-display);
@@ -1268,41 +1265,699 @@ textarea.input {
   font-size: 14.5px;
 }
 
-/* You > Robert > Arthur > Susan */
-.chain {
+/* "Maternal grandmother · ■ Mother's side" */
+.pp-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  margin: 14px 0 0 -6px;
-  gap: 2px 3px;
-  max-width: 100%;
-  color: var(--text-3);
-  font-size: 12.5px;
+  gap: 2px 8px;
 }
 
-.chain-step {
+.pp-rel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent-strong);
+  font-size: 13.5px;
+  font-weight: 650;
+}
+
+.pp-rel[data-tip]::after {
+  left: 0;
+  transform: translate(0, -3px);
+}
+
+.pp-rel[data-tip]:hover::after {
+  transform: none;
+}
+
+.pp-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: -2px -6px;
   padding: 2px 6px;
   border: 0;
   border-radius: 7px;
   background: transparent;
   color: var(--text-2);
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 550;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
-.chain-step:hover {
+.pp-side .side-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2.5px;
+}
+
+.pp-side:hover:not(:disabled) {
   background: var(--surface-3);
   color: var(--text);
 }
 
-.chain-here {
-  padding: 2px 6px;
+.pp-side.is-active {
+  background: color-mix(in srgb, var(--side) 16%, var(--surface));
   color: var(--text);
+}
+
+.pp-side:disabled {
+  cursor: default;
+}
+
+.pp-side[data-tip]::after {
+  left: 0;
+  transform: translate(0, -3px);
+}
+
+.pp-side[data-tip]:hover::after,
+.pp-side[data-tip]:focus-visible::after {
+  transform: none;
+}
+
+/* "via Helen > Arthur" - the people between you and them */
+.pp-via {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 1px;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.pp-via-label {
+  margin-right: 1px;
+}
+
+.pp-via-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.pp-via-step button {
+  padding: 1px 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 550;
+}
+
+.pp-via-step button:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.pp-body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 2px 20px 18px;
+  scrollbar-width: thin;
+}
+
+/* --- Life line: birth to today (or death), a dot for each child born ------------- */
+
+.pp-life {
+  margin-bottom: 18px;
+}
+
+.pp-life-bar {
+  position: relative;
+  height: 16px;
+  margin: 0 6px 9px;
+}
+
+.pp-life-track {
+  position: absolute;
+  top: 7px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.pp-life-end {
+  position: absolute;
+  top: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  translate: -50% 0;
+}
+
+.pp-life-end.is-start {
+  left: 0;
+  background: var(--accent);
+}
+
+/* Still living: an open ring at today */
+.pp-life-end.is-finish {
+  left: 100%;
+  border: 2px solid var(--accent);
+  background: var(--surface);
+}
+
+.pp-life.is-past .pp-life-track {
+  background: var(--border-strong);
+}
+
+.pp-life.is-past .pp-life-end {
+  border-color: var(--text-3);
+  background: var(--text-3);
+}
+
+.pp-life-mark {
+  --tone: var(--other);
+  position: absolute;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 2px solid var(--tone);
+  border-radius: 50%;
+  background: var(--surface);
+  translate: -50% 0;
+  transition: scale 0.15s var(--ease);
+}
+
+.pp-life-mark.g-male {
+  --tone: var(--male);
+}
+
+.pp-life-mark.g-female {
+  --tone: var(--female);
+}
+
+.pp-life-mark:hover,
+.pp-life-mark:focus-visible {
+  scale: 1.3;
+  background: var(--tone);
+}
+
+.pp-life-mark[data-tip]::after {
+  scale: calc(1 / 1.3);
+}
+
+.pp-life-mark.tip-start[data-tip]::after {
+  left: -4px;
+  transform: translate(0, -3px);
+}
+
+.pp-life-mark.tip-end[data-tip]::after {
+  left: auto;
+  right: -4px;
+  transform: translate(0, -3px);
+}
+
+.pp-life-mark.tip-start[data-tip]:hover::after,
+.pp-life-mark.tip-end[data-tip]:hover::after {
+  transform: none;
+}
+
+.pp-life-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px;
+}
+
+.pp-life-cell {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pp-life-cell.is-middle {
+  align-items: center;
+  text-align: center;
+}
+
+.pp-life-cell.is-end {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.pp-life-value,
+.pp-life-sub {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pp-life-value {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pp-life-sub {
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+.pp-body .hint-action {
+  margin: 0 0 16px;
+}
+
+.pp-notes {
+  margin-bottom: 18px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border-strong);
+  color: var(--text-2);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The first thing to give way when the panel runs short */
+.pp-notes.is-clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* "FAMILY      [Line 13 | Close 14 | Family 25]" - wraps under the heading only when it must. */
+.pp-family-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  min-height: 30px;
+  margin-bottom: 10px;
+}
+
+.pp-family-head h3 {
+  font-size: 12px;
   font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+/* --- The family tree: parents / siblings, them and partners / children ----------- */
+
+.pp-tree {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  /* A little wider than the text above it: every pixel counts on a busy line. */
+  margin: 0 -10px;
+  padding: 14px 6px 12px;
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+
+.pp-tree-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  fill: none;
+  stroke: var(--link);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* One generation per line. Anything that would wrap is folded into a stack instead. */
+.pp-gen {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+/* Siblings, them and their partners share the busiest line */
+.pp-gen.is-mid {
+  gap: 2px;
+}
+
+/* Room between two parents for the line joining them */
+.pp-gen.is-up {
+  gap: 28px;
+}
+
+.pp-node {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 58px;
+  min-width: 0;
+  max-width: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pp-node-main {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 2px 5px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  text-align: center;
+  transition: background 0.15s;
+}
+
+.pp-node-main:hover {
+  background: var(--surface-3);
+}
+
+.pp-anchor {
+  display: block;
+  line-height: 0;
+  border-radius: 50%;
+}
+
+.pp-tree .avatar {
+  box-shadow:
+    0 0 0 2px var(--surface-2),
+    0 0 0 3.5px var(--tone);
+}
+
+.pp-node-main:hover .avatar {
+  box-shadow:
+    0 0 0 2px var(--surface-3),
+    0 0 0 3.5px var(--tone);
+}
+
+.pp-node-name,
+.pp-node-sub {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pp-node-name {
+  margin-top: 6px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 17px;
+}
+
+.pp-node-sub {
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The last thing to give way on a short screen */
+.panel.is-compact .pp-node-sub {
+  display: none;
+}
+
+/* The person this panel is about */
+.pp-node.is-self {
+  padding: 4px 2px 5px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+}
+
+.pp-node.is-self .avatar {
+  box-shadow:
+    0 0 0 2px var(--accent-soft),
+    0 0 0 3.5px var(--accent);
+}
+
+.pp-node.is-self .pp-node-name {
+  color: var(--accent-strong);
+}
+
+.pp-node.is-self .pp-node-sub {
+  color: color-mix(in srgb, var(--accent-strong) 75%, var(--surface));
+}
+
+/* "Remove link", on the avatar's shoulder when the node is hovered */
+.pp-unlink {
+  position: absolute;
+  top: 0;
+  right: calc(50% - 29px);
+  z-index: 2;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border-strong);
+  color: var(--text-3);
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    color 0.15s;
+}
+
+.pp-node:hover .pp-unlink,
+.pp-unlink:focus-visible {
+  opacity: 1;
+}
+
+.icon-btn.pp-unlink:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--danger);
+}
+
+.icon-btn.pp-unlink.is-locked:hover {
+  color: var(--text-2);
+}
+
+/* A generation folded into overlapping faces: "6 siblings" */
+.pp-node.pp-stack {
+  flex: none;
+  max-width: none;
+  padding: 4px 2px 5px;
+}
+
+.pp-stack-faces {
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
+  border-radius: 0;
+}
+
+.pp-stack-face {
+  position: relative;
+  margin-left: -12px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  transition: translate 0.15s var(--ease);
+}
+
+.pp-stack-face:hover,
+.pp-stack-face:focus-visible {
+  z-index: 1;
+  translate: 0 -3px;
+}
+
+.pp-stack-more {
+  display: grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  margin-left: -6px;
+  padding: 0 7px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  box-shadow: 0 0 0 2px var(--surface-2);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+/* The line between partners: double when married, single for partners, dashed once divorced */
+.pp-link {
+  position: relative;
+  flex: none;
+  align-self: flex-start;
+  width: 50px;
+  height: 30px;
+}
+
+.pp-link-line {
+  position: absolute;
+  top: 22px;
+  left: -14px;
+  right: -14px;
+  height: 5px;
+  border-top: 1.5px solid var(--link);
+  border-bottom: 1.5px solid var(--link);
+}
+
+.pp-link[data-status='partner'] .pp-link-line {
+  top: 24px;
+  height: 0;
+  border-bottom: 0;
+}
+
+.pp-link[data-status='divorced'] .pp-link-line {
+  top: 24px;
+  height: 0;
+  border-top-style: dashed;
+  border-bottom: 0;
+}
+
+.pp-link-status {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  translate: -50% 0;
+  max-width: 76px;
+  height: 19px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 550;
+  text-align: center;
+  text-align-last: center;
+  appearance: none;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.pp-link-status:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.pp-link-status:focus-visible {
+  outline-offset: 0;
+}
+
+/* Tooltips in the tree open upwards, and hug the row's ends so they stay in view. */
+.pp-tree [data-tip]::after {
+  top: auto;
+  bottom: calc(100% + 6px);
+  transform: translate(-50%, 3px);
+}
+
+.pp-tree [data-tip]:hover::after,
+.pp-tree [data-tip]:focus-visible::after {
+  transform: translate(-50%, 0);
+}
+
+.pp-gen > :first-child [data-tip]::after {
+  left: 0;
+  transform: translate(0, 3px);
+}
+
+.pp-gen > :last-child [data-tip]::after,
+.pp-tree .pp-unlink[data-tip]::after {
+  left: auto;
+  right: 0;
+  transform: translate(0, 3px);
+}
+
+.pp-gen > :first-child [data-tip]:hover::after,
+.pp-gen > :first-child [data-tip]:focus-visible::after,
+.pp-gen > :last-child [data-tip]:hover::after,
+.pp-gen > :last-child [data-tip]:focus-visible::after,
+.pp-tree .pp-unlink[data-tip]:hover::after,
+.pp-tree .pp-unlink[data-tip]:focus-visible::after {
+  transform: none;
+}
+
+/* --- Footer --------------------------------------------------------------------- */
+
+.pp-foot {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.pp-foot [data-tip]::after {
+  top: auto;
+  bottom: calc(100% + 8px);
+  transform: translate(-50%, 3px);
+}
+
+.pp-foot [data-tip]:hover::after,
+.pp-foot [data-tip]:focus-visible::after {
+  transform: translate(-50%, 0);
+}
+
+.pp-me {
+  width: 36px;
+  padding: 0;
+}
+
+.pp-add-btn {
+  gap: 6px;
+  padding-right: 10px;
+}
+
+.pp-add-btn > svg:first-child {
+  color: var(--accent);
+}
+
+.pp-add-chevron {
+  color: var(--text-3);
+  transition: rotate 0.15s var(--ease);
+}
+
+.pp-add-btn[aria-expanded='true'] {
+  background: var(--surface-2);
+}
+
+.pp-add-btn[aria-expanded='true'] .pp-add-chevron {
+  rotate: 180deg;
+}
+
+/* Opens upwards from the footer. */
+.pp-add-pop {
+  top: auto;
+  right: auto;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: 200px;
+  z-index: 20;
+}
+
+/* Hugging the panel's right edge: keep its tooltip inside. */
+.pp-foot .btn-danger-ghost[data-tip]::after {
+  left: auto;
+  right: 0;
+  transform: translate(0, 3px);
+}
+
+.pp-foot .btn-danger-ghost[data-tip]:hover::after,
+.pp-foot .btn-danger-ghost[data-tip]:focus-visible::after {
+  transform: none;
 }
 
 .hint-action {
   width: 100%;
-  margin-top: 16px;
   border: 0;
   text-align: left;
   transition: filter 0.15s;
@@ -1311,7 +1966,6 @@ textarea.input {
 .hint-action:hover {
   filter: brightness(0.97);
 }
-
 
 kbd {
   display: inline-block;
@@ -1326,251 +1980,7 @@ kbd {
   text-align: center;
 }
 
-/* Born / Died / Age, under the name - beside the photo, where there's room for it. */
-.facts {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 2px 10px;
-  margin-top: 2px;
-}
-
-.facts > div {
-  display: contents;
-}
-
-.facts dt {
-  color: var(--text-3);
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.facts dd {
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
-  overflow-wrap: anywhere;
-}
-
-.panel-notes {
-  margin-top: 14px;
-  padding: 0 4px;
-  color: var(--text-2);
-  font-family: var(--font-display);
-  font-size: 15px;
-  font-style: italic;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.panel-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.panel-actions [data-tip]::after {
-  top: auto;
-  bottom: calc(100% + 8px);
-}
-
-/* Hugging the panel's right edge: keep its tooltip inside. */
-.panel-actions .btn-danger-ghost[data-tip]::after {
-  left: auto;
-  right: 0;
-  transform: translate(0, 3px);
-}
-
-.panel-actions .btn-danger-ghost[data-tip]:hover::after {
-  transform: none;
-}
-
-/* "Focus branch", in the Family section's header */
-.focus-btn {
-  flex: none;
-  height: 30px;
-  padding: 0 6px 0 10px;
-  font-size: 13px;
-}
-
-.focus-btn > svg {
-  color: var(--accent);
-}
-
-.focus-btn:hover,
-.focus-btn.is-active {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-}
-
-.focus-btn-count {
-  padding: 2px 7px;
-  border-radius: 99px;
-  background: var(--surface-3);
-  color: var(--text-2);
-  font-size: 12px;
-  font-weight: 550;
-  font-variant-numeric: tabular-nums;
-}
-
-.focus-btn.is-active .focus-btn-count {
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
-/* It sits at the panel's right edge: open the tooltip leftwards. */
-.focus-btn[data-tip]::after {
-  left: auto;
-  right: 0;
-  transform: translate(0, -3px);
-}
-
-.focus-btn[data-tip]:hover::after,
-.focus-btn[data-tip]:focus-visible::after {
-  transform: none;
-}
-
-.panel-section {
-  margin-top: 16px;
-}
-
-/* FAMILY and its switch on one line, with as much space below as above. */
-.panel-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.panel-section .panel-section-head h3 {
-  margin-bottom: 0;
-}
-
-.panel-section h3 {
-  margin-bottom: 10px;
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-2);
-}
-
-.panel-section h4 {
-  margin: 12px 0 4px;
-  font-size: 12.5px;
-  font-weight: 550;
-  color: var(--text-3);
-}
-
-.panel-section h3 + h4 {
-  margin-top: 0;
-}
-
-.rel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 12px 0 4px;
-}
-
-.panel-section-head + .rel-head {
-  margin-top: 0;
-}
-
-.rel-head h4 {
-  margin: 0;
-}
-
-/* Sits on the heading's line without making it taller. */
-.rel-add {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin: -4px -6px -4px 0;
-  padding: 4px 8px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--accent);
-  font-size: 12.5px;
-  font-weight: 600;
-  transition: background 0.15s;
-}
-
-.rel-add:hover {
-  background: var(--accent-soft);
-}
-
-.rel-add[data-tip]::after {
-  left: auto;
-  right: 0;
-  transform: translate(0, -3px);
-}
-
-.rel-add[data-tip]:hover::after,
-.rel-add[data-tip]:focus-visible::after {
-  transform: none;
-}
-
-.rel-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin: 0 -8px;
-}
-
-.rel-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 7px 8px;
-  border: 0;
-  border-radius: 11px;
-  background: transparent;
-  text-align: left;
-}
-
-.rel-main:hover {
-  background: var(--surface-2);
-}
-
-.rel-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 4px;
-  margin: 0 -8px;
-}
-
-.rel-grid .rel-row {
-  position: relative;
-  min-width: 0;
-  margin: 0;
-}
-
-.rel-grid .rel-action {
-  position: absolute;
-  top: 50%;
-  right: 4px;
-  translate: 0 -50%;
-  background: var(--surface);
-  box-shadow: 0 0 0 1px var(--border);
-  opacity: 0;
-  transition:
-    opacity 0.15s,
-    background 0.15s,
-    color 0.15s;
-}
-
-.rel-grid .rel-row:hover .rel-action,
-.rel-grid .rel-action:focus-visible {
-  opacity: 1;
-}
-
+/* Search results in the top bar share the name / detail pair. */
 .rel-text {
   min-width: 0;
   display: flex;
@@ -1590,37 +2000,6 @@ kbd {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.rel-action {
-  flex: none;
-  width: 30px;
-  height: 30px;
-  color: var(--text-3);
-}
-
-.rel-action.is-locked {
-  color: var(--text-3);
-  opacity: 0.7;
-}
-
-.rel-action[data-tip]::after {
-  left: auto;
-  right: 0;
-  transform: translate(0, -3px);
-}
-
-.rel-action[data-tip]:hover::after {
-  transform: none;
-}
-
-.status-select {
-  flex: none;
-  width: auto;
-  height: 30px;
-  padding: 0 6px;
-  border-radius: 8px;
-  font-size: 12.5px;
 }
 
 /* ==========================================================================
@@ -2267,7 +2646,8 @@ kbd {
     right: 8px;
     bottom: 8px;
     width: auto;
-    max-height: 56dvh;
+    /* Only as tall as its content; at most up to just below the top bar and canvas controls. */
+    max-height: calc(100dvh - 128px);
     animation-name: toast-in;
   }
 
@@ -4494,12 +4874,6 @@ kbd {
 
 /* --- Details panel: which side someone is on, and "Show only" ------------------- */
 
-.panel-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
 .side-chip {
   border: 1px solid color-mix(in srgb, var(--side) 45%, transparent);
   background: color-mix(in srgb, var(--side) 12%, var(--surface));
@@ -4530,13 +4904,6 @@ kbd {
 .side-chip[data-tip]:hover::after,
 .side-chip[data-tip]:focus-visible::after {
   transform: none;
-}
-
-
-/* "FAMILY      [Line 13 | Close 14 | Family 25]" - wraps under the heading only when it must. */
-.panel-section-head:has(.focus-options) {
-  flex-wrap: wrap;
-  row-gap: 6px;
 }
 
 /* A compact switch, sized to sit beside a section heading rather than lead a row. */
