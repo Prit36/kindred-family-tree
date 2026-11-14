@@ -22,12 +22,32 @@ const THEME_KEY = 'kindred.theme';
 const HISTORY_LIMIT = 100;
 
 export type Theme = 'light' | 'dark';
-/** The family as a tree, or everyone's lifetimes on a time axis. */
-export type ViewMode = 'tree' | 'timeline';
+/** The family as a tree, everyone's lifetimes on a time axis, or one person's descendants as a fan. */
+export type ViewMode = 'tree' | 'timeline' | 'fan';
 
 const MODE_KEY = 'kindred.mode';
 const SIDES_KEY = 'kindred.sides';
 const NAMING_KEY = 'kindred.naming';
+const FAN_KEY = 'kindred.fan';
+
+/** Whose descendants the fan shows, and whether it follows only the sons' line. */
+export interface FanPrefs {
+  rootId: string | null;
+  sonsOnly: boolean;
+}
+
+function loadFanPrefs(): FanPrefs {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(FAN_KEY) ?? 'null');
+    if (raw && typeof raw === 'object') {
+      const { rootId, sonsOnly } = raw as Partial<FanPrefs>;
+      return { rootId: typeof rootId === 'string' ? rootId : null, sonsOnly: sonsOnly === true };
+    }
+  } catch {
+    /* defaults */
+  }
+  return { rootId: null, sonsOnly: false };
+}
 
 function loadNaming(): Naming {
   try {
@@ -60,7 +80,8 @@ function loadSidesPrefs(): SidesPrefs {
 
 function loadMode(): ViewMode {
   try {
-    return localStorage.getItem(MODE_KEY) === 'timeline' ? 'timeline' : 'tree';
+    const v = localStorage.getItem(MODE_KEY);
+    return v === 'timeline' || v === 'fan' ? v : 'tree';
   } catch {
     return 'tree';
   }
@@ -118,6 +139,8 @@ interface State {
   mode: ViewMode;
   /** The words relationships are named in: English, or Gujarati in its own script or in Latin letters. */
   naming: Naming;
+  /** The descendants fan: whose family it shows. */
+  fan: FanPrefs;
 
   /** Apply a change to the tree and record it for undo. */
   commit: (tree: Tree) => void;
@@ -147,6 +170,7 @@ interface State {
   toggleTheme: () => void;
   setMode: (mode: ViewMode) => void;
   setNaming: (naming: Naming) => void;
+  setFan: (prefs: Partial<FanPrefs>) => void;
 }
 
 /** Folds are remembered between visits, as long as they still belong to this tree. */
@@ -216,6 +240,7 @@ export const useStore = create<State>((set, get) => ({
   theme: loadTheme(),
   mode: loadMode(),
   naming: loadNaming(),
+  fan: loadFanPrefs(),
 
   commit: (tree) => {
     const { tree: current, past } = get();
@@ -355,8 +380,23 @@ export const useStore = create<State>((set, get) => ({
       /* the view just won't persist */
     }
     // Whoever is selected stays in sight in the view being switched to.
-    const { selectedId } = get();
+    const { selectedId, tree } = get();
+    // Opening the descendants fan with someone selected who has children shows their family.
+    if (mode === 'fan' && selectedId && tree.people[selectedId]) {
+      const hasChildren = Object.values(tree.people).some((p) => p.parentIds.includes(selectedId));
+      if (hasChildren && get().fan.rootId !== selectedId) get().setFan({ rootId: selectedId });
+    }
     set({ mode, view: selectedId ? { kind: 'reveal', id: selectedId, nonce: nonce++ } : get().view });
+  },
+
+  setFan: (prefs) => {
+    const fan = { ...get().fan, ...prefs };
+    try {
+      localStorage.setItem(FAN_KEY, JSON.stringify(fan));
+    } catch {
+      /* the choice just won't persist */
+    }
+    set({ fan });
   },
 
   setNaming: (naming) => {

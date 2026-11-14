@@ -20,6 +20,7 @@ import { NAMINGS, relationName } from './lib/naming';
 import { deletePerson, displayName, pathBetween, shortName } from './lib/tree';
 import { Avatar } from './components/Avatar';
 import { Canvas } from './components/Canvas';
+import { FanView } from './components/FanView';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { InsightsDialog } from './components/InsightsDialog';
 import { Modal } from './components/Modal';
@@ -40,6 +41,7 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
       [['←', '→'], 'Go to the next person in the same generation'],
       [['/'], 'Search by name, place, year or relationship'],
       [['T'], 'Switch between the tree and the timeline'],
+      [['D'], "Show the selected person's descendants as a tree of generations"],
       [['L'], 'Name relationships in English, ગુજરાતી or Gujarati in English letters'],
       [['H'], 'Jump back to yourself'],
       [['F'], 'Fit the whole tree on screen'],
@@ -56,6 +58,15 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
       [['B'], 'Show only their direct line - press again for the whole tree'],
       [['Shift', 'B'], 'Show only their family: every blood relative, aunts to cousins'],
       [['Shift', 'click'], 'See how someone else is related to them'],
+    ],
+  },
+  {
+    title: 'Descendants',
+    rows: [
+      [['↑', '↓'], 'Out to a child, in to the parent'],
+      [['←', '→'], 'Along the same generation'],
+      [['C'], 'Put the selected person at the foot of the tree - or double-click them'],
+      [['F'], 'Fit the whole family on screen'],
     ],
   },
   {
@@ -443,6 +454,7 @@ export default function App() {
   const empty = useStore((s) => Object.keys(s.tree.people).length === 0);
   const dialogOpen = useStore((s) => s.dialog !== null);
   const timeline = useStore((s) => s.mode === 'timeline') && !empty;
+  const fan = useStore((s) => s.mode === 'fan') && !empty;
   const dragging = useFileDrop();
 
   useEffect(() => {
@@ -476,7 +488,10 @@ export default function App() {
         openDialog({ type: 'shortcuts' });
       } else if (e.key.toLowerCase() === 't') {
         const { mode, setMode, tree } = useStore.getState();
-        if (Object.keys(tree.people).length > 0) setMode(mode === 'tree' ? 'timeline' : 'tree');
+        if (Object.keys(tree.people).length > 0) setMode(mode === 'timeline' ? 'tree' : 'timeline');
+      } else if (e.key.toLowerCase() === 'd') {
+        const { mode, setMode, tree } = useStore.getState();
+        if (Object.keys(tree.people).length > 0) setMode(mode === 'fan' ? 'tree' : 'fan');
       } else if (e.key.toLowerCase() === 'l') {
         // English → ગુજરાતી → Gujarati in English letters → English
         const { naming, setNaming } = useStore.getState();
@@ -509,10 +524,11 @@ export default function App() {
   }, []);
 
   return (
-    <div className={`app${timeline ? ' is-timeline' : ''}`}>
+    <div className={`app${timeline ? ' is-timeline' : ''}${fan ? ' is-fan' : ''}`}>
       {/* The tree stays mounted under the timeline so it keeps its place. */}
       <Canvas />
       {timeline && <Timeline />}
+      {fan && <FanView />}
       <TopBar />
       {empty && <Welcome />}
       <Banners />

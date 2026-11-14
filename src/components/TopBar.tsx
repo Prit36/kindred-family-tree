@@ -16,6 +16,7 @@ import {
   Search,
   Sparkles,
   Sun,
+  TreeDeciduous,
   Undo2,
   Upload,
 } from 'lucide-react';
@@ -345,17 +346,18 @@ function NamingMenu() {
   );
 }
 
-/** Tree or timeline. */
+/** Tree, descendants fan or timeline. */
 function ViewSwitch() {
   const mode = useStore((s) => s.mode);
   const setMode = useStore((s) => s.setMode);
+  const keys: Record<ViewMode, string> = { tree: 'T', timeline: 'T', fan: 'D' };
   const option = (value: ViewMode, label: string, icon: ReactNode) => (
     <button
       type="button"
       role="radio"
       aria-checked={mode === value}
       aria-label={label}
-      data-tip={mode === value ? undefined : `${label} (T)`}
+      data-tip={mode === value ? undefined : `${label} (${keys[value]})`}
       onClick={() => setMode(value)}
     >
       {icon}
@@ -365,6 +367,7 @@ function ViewSwitch() {
   return (
     <div className="segmented view-switch" role="radiogroup" aria-label="View">
       {option('tree', 'Tree', <Network size={15} />)}
+      {option('fan', 'Descendants', <TreeDeciduous size={15} />)}
       {option('timeline', 'Timeline', <ChartGantt size={15} />)}
     </div>
   );

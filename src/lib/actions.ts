@@ -24,6 +24,16 @@ export async function exportBackup() {
 
 export async function exportImage() {
   const { toast, mode, setMode } = useStore.getState();
+  // In the descendants view the picture is of the fan.
+  if (mode === 'fan' && canvasHandle.exportFanPng) {
+    try {
+      await canvasHandle.exportFanPng();
+      toast('Image downloaded');
+    } catch {
+      toast("Couldn't create the image", { tone: 'error' });
+    }
+    return;
+  }
   // The image is of the tree, which is hidden behind the timeline: show it first.
   if (mode !== 'tree') {
     setMode('tree');

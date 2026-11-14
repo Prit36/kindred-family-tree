@@ -32,6 +32,7 @@
   --other-soft: #ece6f6;
 
   --link: #c2b69f;
+  --bark: #8a6748;
   --danger: #b4443c;
   --danger-soft: #f9e5e2;
   --tip-bg: #2b2620;
@@ -72,6 +73,7 @@
   --other-soft: #2f2842;
 
   --link: #5f5748;
+  --bark: #8d7055;
   --danger: #e8837a;
   --danger-soft: #41231f;
   --tip-bg: #efe9dc;
@@ -3471,12 +3473,14 @@ kbd {
 }
 
 /* The tree is kept (hidden) under the timeline so it doesn't lose its place. */
-.app.is-timeline .viewport {
+.app.is-timeline .viewport,
+.app.is-fan .viewport {
   visibility: hidden;
 }
 
 /* Banners float at the bottom over the timeline, clear of its toolbar. */
-.app.is-timeline .compare-wrap {
+.app.is-timeline .compare-wrap,
+.app.is-fan .compare-wrap {
   top: auto;
   bottom: 26px;
   flex-direction: column-reverse;
@@ -5338,4 +5342,558 @@ kbd {
 
 .menu-item.pp-link-row:disabled {
   opacity: 0.65;
+}
+
+
+/* ==========================================================================
+   Descendants: one person at the foot of a tree, their family as its canopy
+   ========================================================================== */
+
+.fan {
+  position: absolute;
+  top: 72px;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  animation: fade-in 0.2s var(--ease) both;
+}
+
+.fan.is-panel-open {
+  right: 392px;
+}
+
+.fan-toolbar {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 54px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.fan-stats {
+  min-width: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fan-spacer {
+  flex: 1;
+}
+
+.fan-lineage {
+  flex: none;
+}
+
+.fan-lineage button {
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.fan-zoom {
+  flex: none;
+  box-shadow: none;
+}
+
+/* Whose family: a pill with their photo, name and who they are to you */
+.fan-picker {
+  position: relative;
+  flex: none;
+}
+
+.fan-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 40px;
+  padding: 0 10px 0 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 99px;
+  background: var(--surface);
+  font-weight: 600;
+  font-size: 14px;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.fan-picker-btn:hover,
+.fan-picker-btn[aria-expanded='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.fan-picker-name {
+  max-width: 220px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fan-picker-rel {
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fan-picker-chev {
+  color: var(--text-3);
+}
+
+.fan-picker-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 360px;
+  max-height: min(520px, 70vh);
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  animation: drop-in 0.16s var(--ease) both;
+}
+
+.fan-picker-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-3);
+}
+
+.fan-picker-search input {
+  flex: 1;
+  height: 40px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 14px;
+}
+
+.fan-picker-heading {
+  padding: 8px 10px 4px;
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.fan-picker-list {
+  overflow-y: auto;
+}
+
+.fan-picker-check {
+  flex: none;
+  margin-left: auto;
+  color: var(--accent);
+}
+
+/* The stage: pan and zoom over a dotted ground, as the tree canvas does */
+.fan-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--dot) 1.3px, transparent 1.4px);
+  background-size: 28px 28px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.fan-stage:active {
+  cursor: grabbing;
+}
+
+.fan-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.fan-svg {
+  position: absolute;
+  overflow: visible;
+  font-family: var(--font-ui);
+}
+
+/* Bark: the trunk, its roots and every branch */
+.fan-bark {
+  fill: color-mix(in srgb, var(--bark) 88%, var(--surface));
+}
+
+.fan-bark-grain {
+  fill: none;
+  stroke: color-mix(in srgb, var(--bark) 60%, var(--text));
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.35;
+}
+
+.fan-root-line {
+  fill: none;
+  stroke: color-mix(in srgb, var(--bark) 80%, var(--surface));
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.fan-ground {
+  fill: color-mix(in srgb, var(--bark) 16%, transparent);
+}
+
+.fan-twig {
+  fill: none;
+  stroke: color-mix(in srgb, var(--bark) 62%, var(--surface));
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: opacity 0.15s;
+}
+
+.fan-twig.is-bough {
+  stroke: color-mix(in srgb, var(--bark) 88%, var(--surface));
+}
+
+.fan-twig.is-lit {
+  stroke: color-mix(in srgb, var(--side) 80%, var(--bark));
+}
+
+.fan-twig.is-dim {
+  opacity: 0.35;
+}
+
+/* Leaves: a slice per person, in their branch's colour, lighter towards the edge */
+.fan-slice path:first-child {
+  fill: color-mix(in srgb, var(--side) var(--mix), var(--surface));
+  stroke: color-mix(in srgb, var(--side) 55%, var(--surface));
+  stroke-width: 1;
+  cursor: pointer;
+  transition:
+    fill 0.15s,
+    opacity 0.15s;
+}
+
+.fan-slice:hover path:first-child {
+  fill: color-mix(in srgb, var(--side) calc(var(--mix) + 14%), var(--surface));
+}
+
+.fan-slice.is-deceased path:first-child {
+  fill: color-mix(in srgb, color-mix(in srgb, var(--side) 70%, var(--text-3)) var(--mix), var(--surface));
+}
+
+.fan-hatch {
+  pointer-events: none;
+}
+
+.fan-hatch-line {
+  stroke: var(--side);
+  stroke-width: 1.2;
+  opacity: 0.26;
+}
+
+.fan-slice.is-lit path:first-child {
+  stroke: var(--side);
+  stroke-width: 1.75;
+}
+
+.fan-slice.is-on-line path:first-child {
+  stroke: var(--side);
+  stroke-width: 2.5;
+}
+
+.fan-slice.is-selected path:first-child {
+  fill: color-mix(in srgb, var(--side) calc(var(--mix) + 22%), var(--surface));
+  stroke: var(--text);
+  stroke-width: 3;
+}
+
+.fan-slice.is-compared path:first-child {
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-dasharray: 6 4;
+}
+
+.fan-slice.is-dim {
+  opacity: 0.3;
+}
+
+.fan-name {
+  fill: var(--text);
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+.fan-sub {
+  fill: var(--text-2);
+  font-weight: 500;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+.fan-labels .is-dim {
+  opacity: 0.3;
+}
+
+.fan-ring-label {
+  fill: var(--text-2);
+  font-size: 15px;
+  font-weight: 600;
+  dominant-baseline: central;
+}
+
+.fan-ring-count {
+  fill: var(--text-3);
+  font-weight: 500;
+}
+
+/* The person the tree is of, where the trunk meets the canopy */
+.fan-root {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px;
+  border: 3px solid color-mix(in srgb, var(--bark) 80%, var(--surface));
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-lift);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    box-shadow 0.15s,
+    border-color 0.15s;
+}
+
+.fan-root:hover {
+  border-color: var(--accent);
+}
+
+.fan-root.is-selected {
+  border-color: var(--text);
+  box-shadow:
+    0 0 0 4px var(--accent-ring),
+    var(--shadow-lift);
+}
+
+.fan-root-name {
+  max-width: 100%;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fan-root-rel {
+  margin-top: -2px;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Nobody above them yet */
+.fan-add-child {
+  position: absolute;
+  left: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  box-shadow: var(--shadow-card);
+}
+
+/* Their parents: the roots, a step further back */
+.fan-parents {
+  position: absolute;
+  left: 0;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+}
+
+.fan-parent {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 14px 0 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 99px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: border-color 0.15s;
+}
+
+.fan-parent:hover {
+  border-color: var(--accent);
+}
+
+.fan-parent > span {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+
+.fan-parent-rel {
+  color: var(--text-2);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.fan-parent[data-tip]::after {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+/* The branches: one per child of the root person */
+.fan-legend {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 2;
+  width: 236px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: var(--shadow-card);
+  cursor: default;
+}
+
+.fan-legend button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+}
+
+.fan-legend button:hover,
+.fan-legend button.is-lit {
+  background: color-mix(in srgb, var(--side) 12%, var(--surface));
+}
+
+.fan-swatch {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--side) 55%, var(--surface));
+  box-shadow: inset 0 0 0 1.5px var(--side);
+}
+
+.fan-swatch.is-hatched {
+  background: repeating-linear-gradient(45deg, var(--text-3) 0 1.5px, transparent 1.5px 5px);
+  box-shadow: inset 0 0 0 1.5px var(--border-strong);
+}
+
+.fan-legend-name {
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fan-legend-rel {
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.fan-legend-count {
+  margin-left: auto;
+  color: var(--text-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fan-legend-key {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 4px 0 0;
+  padding: 8px 8px 4px;
+  border-top: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+/* Hover card: a touch of the branch's colour */
+.fan-card[data-tone] {
+  border-color: color-mix(in srgb, var(--side) 45%, var(--border));
+}
+
+.fan-card-rel {
+  font-weight: 600;
+  color: color-mix(in srgb, var(--side, var(--accent)) 70%, var(--text));
+}
+
+/* A picture of the fan shows it as a whole: nothing lit or dimmed. */
+.fan-world[data-exporting] .is-dim {
+  opacity: 1;
+}
+
+@media (max-width: 900px) {
+  .fan-stats {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .fan-legend {
+    display: none;
+  }
+
+  .fan.is-panel-open {
+    right: 12px;
+  }
 }
