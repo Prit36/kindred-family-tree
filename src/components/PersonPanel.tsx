@@ -661,6 +661,7 @@ function Details({ person }: { person: Person }) {
             <House size={15} />
           </button>
         )}
+        <LinksMenu person={person} />
         <button
           type="button"
           className="btn btn-danger-ghost"
@@ -730,12 +731,179 @@ function treeLines(root: HTMLElement): string {
 
 /** "+ Add" in the footer: a parent, partner, sibling or child, opening upwards. */
 function AddMenu({ options, onPick }: { options: AddOption[]; onPick: (relation: Relation) => void }) {
+  return (
+    <FootMenu
+      className="pp-add-btn"
+      label="Add a relative"
+      tip="Add a relative"
+      button={
+        <>
+          <Plus size={15} /> Add <ChevronDown size={14} className="pp-add-chevron" />
+        </>
+      }
+      popClass="pp-add-pop"
+    >
+      {(close) =>
+        options.map(({ relation, label, icon }) => (
+          <button
+            key={relation}
+            type="button"
+            role="menuitem"
+            className="menu-item"
+            onClick={() => {
+              close();
+              onPick(relation);
+            }}
+          >
+            {icon}
+            {label}
+          </button>
+        ))
+      }
+    </FootMenu>
+  );
+}
+
+interface LinkRow {
+  key: string;
+  person: Person;
+  role: string;
+  /** Why it can't be removed from here, or '' */
+  locked: string;
+  remove: () => void;
+  /** What removing it does, when that's more than the link itself */
+  tip?: string;
+}
+
+const byGender = (p: Person, male: string, female: string, other: string) =>
+  p.gender === 'male' ? male : p.gender === 'female' ? female : other;
+
+/** Every link this person has to someone else, as rows that each remove one. */
+function linkRows(tree: Tree, person: Person, done: (message: string, next: Tree) => void): LinkRow[] {
+  const rows: LinkRow[] = [];
+  for (const p of parentsOf(tree, person.id).sort(compareByBirth)) {
+    rows.push({
+      key: `parent:${p.id}`,
+      person: p,
+      role: byGender(p, 'Father', 'Mother', 'Parent'),
+      locked: '',
+      remove: () => done(`${shortName(p)} is no longer linked as a parent`, unlinkParent(tree, person.id, p.id)),
+    });
+  }
+  for (const { person: p, union } of partnersOf(tree, person.id)) {
+    const shared = sharedChildren(tree, person.id, p.id);
+    const role = byGender(p, 'Husband', 'Wife', 'Partner');
+    rows.push({
+      key: `partner:${p.id}`,
+      person: p,
+      role: union.status === 'divorced' ? `Ex-${role.toLowerCase()}` : role,
+      locked: shared.length
+        ? `Parents of ${shared.length === 1 ? shortName(shared[0]) : `${shared.length} children`} together`
+        : '',
+      remove: () => done(`${shortName(p)} is no longer linked as a partner`, removeUnion(tree, union.id)),
+    });
+  }
+  for (const s of siblingsOf(tree, person.id).sort(compareByBirth)) {
+    const sharedParents = s.parentIds.filter((id) => person.parentIds.includes(id) && tree.people[id]);
+    rows.push({
+      key: `sibling:${s.id}`,
+      person: s,
+      role: byGender(s, 'Brother', 'Sister', 'Sibling'),
+      locked: '',
+      tip: `Also unlinks ${shortName(s)} from ${sharedParents.map((id) => shortName(tree.people[id])).join(' and ')}`,
+      remove: () =>
+        done(
+          `${shortName(s)} is no longer linked as a sibling`,
+          sharedParents.reduce((t, id) => unlinkParent(t, s.id, id), tree),
+        ),
+    });
+  }
+  for (const c of childrenOf(tree, person.id).sort(compareByBirth)) {
+    rows.push({
+      key: `child:${c.id}`,
+      person: c,
+      role: byGender(c, 'Son', 'Daughter', 'Child'),
+      locked: '',
+      remove: () => done(`${shortName(c)} is no longer linked as a child`, unlinkParent(tree, c.id, person.id)),
+    });
+  }
+  return rows;
+}
+
+/** The unlink button in the footer: every link this person has, each one removable. */
+function LinksMenu({ person }: { person: Person }) {
+  const tree = useStore((s) => s.tree);
+  const { commit, toast, undo } = useStore.getState();
+  const rows = linkRows(tree, person, (message, next) => {
+    commit(next);
+    toast(message, { action: { label: 'Undo', run: undo } });
+  });
+  if (!rows.length) return null;
+  return (
+    <FootMenu
+      className="pp-links-btn"
+      wrapClass="pp-links"
+      label={`Remove one of ${shortName(person)}'s links`}
+      tip="Remove a link"
+      button={<Unlink size={15} />}
+      popClass="pp-links-pop"
+    >
+      {(close) => (
+        <>
+          <h3 className="pp-links-title">Remove a link</h3>
+          <div className="pp-links-list">
+            {rows.map((row) => (
+              <button
+                key={row.key}
+                type="button"
+                role="menuitem"
+                className="menu-item pp-link-row"
+                disabled={Boolean(row.locked)}
+                title={row.locked || row.tip || undefined}
+                onClick={() => {
+                  close();
+                  row.remove();
+                }}
+              >
+                <Avatar person={row.person} size={28} />
+                <span className="pp-link-row-text">
+                  <span className="pp-link-row-name">{displayName(row.person)}</span>
+                  <span className="pp-link-row-role">{row.locked || row.role}</span>
+                </span>
+                {row.locked ? <Lock size={13} /> : <Unlink size={14} className="pp-link-row-icon" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </FootMenu>
+  );
+}
+
+/** A footer button with a menu that opens upwards from it. */
+function FootMenu({
+  className,
+  wrapClass,
+  label,
+  tip,
+  button,
+  popClass,
+  children,
+}: {
+  className: string;
+  wrapClass?: string;
+  label: string;
+  tip: string;
+  button: ReactNode;
+  popClass: string;
+  children: (close: () => void) => ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    ref.current?.querySelector<HTMLButtonElement>('.menu-item')?.focus();
+    ref.current?.querySelector<HTMLButtonElement>('.menu-item:not(:disabled)')?.focus();
     const onDown = (e: MouseEvent) => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
@@ -748,7 +916,7 @@ function AddMenu({ options, onPick }: { options: AddOption[]; onPick: (relation:
       }
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
-        const items = [...(ref.current?.querySelectorAll<HTMLButtonElement>('.menu-item') ?? [])];
+        const items = [...(ref.current?.querySelectorAll<HTMLButtonElement>('.menu-item:not(:disabled)') ?? [])];
         const at = items.indexOf(document.activeElement as HTMLButtonElement);
         items[(at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
       }
@@ -762,34 +930,21 @@ function AddMenu({ options, onPick }: { options: AddOption[]; onPick: (relation:
   }, [open]);
 
   return (
-    <div className="menu" ref={ref}>
+    <div className={`menu${wrapClass ? ` ${wrapClass}` : ''}`} ref={ref}>
       <button
         type="button"
-        className="btn pp-add-btn"
+        className={`btn ${className}`}
         aria-haspopup="menu"
         aria-expanded={open}
-        data-tip={open ? undefined : 'Add a relative'}
+        aria-label={label}
+        data-tip={open ? undefined : tip}
         onClick={() => setOpen((o) => !o)}
       >
-        <Plus size={15} /> Add <ChevronDown size={14} className="pp-add-chevron" />
+        {button}
       </button>
       {open && (
-        <div className="menu-pop pp-add-pop" role="menu" aria-label="Add a relative">
-          {options.map(({ relation, label, icon }) => (
-            <button
-              key={relation}
-              type="button"
-              role="menuitem"
-              className="menu-item"
-              onClick={() => {
-                setOpen(false);
-                onPick(relation);
-              }}
-            >
-              {icon}
-              {label}
-            </button>
-          ))}
+        <div className={`menu-pop ${popClass}`} role="menu" aria-label={label}>
+          {children(() => setOpen(false))}
         </div>
       )}
     </div>

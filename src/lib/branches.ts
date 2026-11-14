@@ -312,7 +312,8 @@ function foldCounts(g: Graph, collapsed: Collapsed, base: Uint8Array): Map<strin
  * - `close`: their parents and everyone descended from them (siblings, nieces and nephews),
  *   their own descendants, and partners.
  * - `side`: one side of the home person's family (lib/sides.ts) - the one this person is
- *   the root of, like "Father's side" for your father - plus the people linking it to you.
+ *   the root of, like "Father's side" for your father - drawn with your close family and
+ *   the line linking it to you.
  */
 export type FocusScope = 'line' | 'family' | 'close' | 'side';
 

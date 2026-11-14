@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Camera, ChevronDown, Crop, Expand, Info } from 'lucide-react';
 import type { Gender, Person, PersonInput, Relation, Tree, UnionStatus } from '../types';
 import { useStore, type Dialog } from '../store';
-import { isBefore, lifespan } from '../lib/dates';
+import { isBefore } from '../lib/dates';
 import type { CropView } from '../lib/crop';
 import { keepOriginal, loadPhoto, loadStoredPhoto, releasePhoto, type PhotoSource } from '../lib/files';
 import {
@@ -31,6 +31,7 @@ import { DateInput } from './DateInput';
 import { Modal } from './Modal';
 import { PhotoCropper } from './PhotoCropper';
 import { PhotoViewer } from './PhotoViewer';
+import { PersonPicker } from './PersonPicker';
 
 type PersonDialogSpec = Extract<Dialog, { type: 'first' | 'add' | 'edit' }>;
 
@@ -118,6 +119,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
   const [status, setStatus] = useState<UnionStatus>('married');
   const [photoError, setPhotoError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   // The photo being cropped. Every photo loaded while the dialog is open is freed when it closes.
   const [cropping, setCropping] = useState<{ source: PhotoSource; view?: CropView } | null>(null);
   const [viewing, setViewing] = useState(false);
@@ -236,6 +238,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
       return;
     }
 
+    if (mode === 'existing' && !tree.people[existingId]) return;
     let next = tree;
     let targetId = existingId;
     if (mode === 'new') {
@@ -270,6 +273,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
   return (
     <Modal title={title} subtitle={subtitle} onClose={closeDialog} width={600}>
       <form
+        ref={formRef}
         onSubmit={submit}
         className="form"
         // A photo can be dropped anywhere on the form.
@@ -290,7 +294,6 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
               aria-selected={mode === 'existing'}
               onClick={() => {
                 setMode('existing');
-                if (!existingId) setExistingId(candidates[0].id);
               }}
             >
               Already in the tree
@@ -298,23 +301,14 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
           </div>
         )}
 
-        {mode === 'existing' ? (
-          <label className="field">
-            <span className="field-label">Person</span>
-            <select
-              className="input"
-              value={existingId}
-              autoFocus
-              onChange={(e) => setExistingId(e.target.value)}
-            >
-              {candidates.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {displayName(p)}
-                  {lifespan(p) ? ` (${lifespan(p)})` : ''}
-                </option>
-              ))}
-            </select>
-          </label>
+        {mode === 'existing' && spec.type === 'add' ? (
+          <PersonPicker
+            candidates={candidates}
+            anchorId={spec.anchorId}
+            value={existingId}
+            onChange={setExistingId}
+            onConfirm={() => formRef.current?.requestSubmit()}
+          />
         ) : (
           <>
             <div className="name-row">
@@ -560,8 +554,20 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
           <button type="button" className="btn" onClick={closeDialog}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={mode === 'new' && Boolean(deathError)}>
-            {spec.type === 'edit' ? 'Save' : spec.type === 'first' ? 'Start my tree' : 'Add to tree'}
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={mode === 'new' ? Boolean(deathError) : !tree.people[existingId]}
+          >
+            {spec.type === 'edit'
+              ? 'Save'
+              : spec.type === 'first'
+                ? 'Start my tree'
+                : mode === 'existing'
+                  ? tree.people[existingId]
+                    ? `Link ${shortName(tree.people[existingId])}`
+                    : 'Choose someone'
+                  : 'Add to tree'}
           </button>
         </footer>
       </form>

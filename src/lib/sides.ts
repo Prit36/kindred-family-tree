@@ -245,16 +245,41 @@ function computeSides(tree: Tree): FamilySides {
 }
 
 /**
- * What showing one side on its own puts on screen: the side's own people, and the chain
- * linking its root to you (your father for his side, your wife for her family) so it's
- * clear where it joins on. Families that married into the side aren't included.
+ * What showing one side on its own puts on screen:
+ *
+ * - **Your close family**, always. You, your parents and your siblings belong to every
+ *   side at once - your mother is as much a part of your father's side as you are - so
+ *   each side is drawn hanging off them.
+ * - **The side's own people** (as coloured).
+ * - **Everyone related to its root by blood**, wherever they're coloured, with their
+ *   partners: your sister-in-law's family includes her children, your cousin's wife's
+ *   family includes the cousin's children, and when your parents are related, each side
+ *   shows the relatives they share.
+ * - **The line linking it to you**, with both parents at every generation it passes
+ *   through - never one grandparent without the other.
+ *
+ * Families that married into the side aren't included; they're listed (and shown) on
+ * their own.
  */
 export function sideMembers(tree: Tree, rootId: string): Set<string> {
   const sides = familySides(tree);
   const side = sides.sides.find((s) => s.rootId === rootId && s.key !== 'close' && s.key !== 'unconnected');
   if (!side) return new Set(tree.people[rootId] ? [rootId] : []);
   const out = new Set(side.members);
-  for (const id of (tree.homeId && pathBetween(tree, tree.homeId, rootId)) || [rootId]) out.add(id);
+  for (const id of sides.byKey.get('close')?.members ?? []) out.add(id);
+  for (const id of bloodRelatives(tree, rootId)) {
+    out.add(id);
+    for (const { person } of partnersOf(tree, id)) out.add(person.id);
+  }
+  const path = (tree.homeId && pathBetween(tree, tree.homeId, rootId)) || [rootId];
+  path.forEach((id, i) => {
+    out.add(id);
+    // A step between parent and child brings the child's other parent along.
+    const next = path[i + 1];
+    if (!next) return;
+    const child = tree.people[next]?.parentIds.includes(id) ? next : tree.people[id]?.parentIds.includes(next) ? id : null;
+    if (child) for (const p of tree.people[child].parentIds) if (tree.people[p]) out.add(p);
+  });
   return out;
 }
 
