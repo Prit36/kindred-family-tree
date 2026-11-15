@@ -314,7 +314,9 @@ function FocusBanner() {
   const total = Object.keys(tree.people).length;
   const sides = familySides(tree);
   const side = sideForFocus(sides, focus);
-  const title = focusTitle(tree, focus);
+  const raw = focusTitle(tree, focus);
+  // "your close family" reads as a heading here.
+  const title = raw.charAt(0).toUpperCase() + raw.slice(1);
   // Other ways to narrow the tree around the same person, if they'd show something different.
   const scopes = SCOPES.filter(({ scope }) => {
     if (scope === focus.scope) return true;
@@ -334,7 +336,7 @@ function FocusBanner() {
           {title}
         </button>
         <span className="focus-count">
-          Showing {shown} of {total} people
+          {shown.toLocaleString()} of {total.toLocaleString()}
         </span>
       </span>
       {scopes.length > 1 && (

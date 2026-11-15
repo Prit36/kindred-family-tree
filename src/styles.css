@@ -7,6 +7,27 @@
   --font-ui: 'Inter Variable', 'Noto Sans Gujarati Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Fraunces Variable', 'Noto Sans Gujarati Variable', 'Iowan Old Style', Georgia, serif;
 
+  /* One compact type scale for the app's chrome, matched to its 28-34px controls and
+     tight padding. Text drawn on the canvas (cards, fan, timeline bars) zooms with the
+     view and keeps its own sizes. */
+  --fs-micro: 11px;   /* counts, badges, keys, small caps headings */
+  --fs-meta: 12px;    /* secondary lines, field labels, chips */
+  --fs-body: 13px;    /* everything else: controls, menus, inputs, panel text */
+  --fs-strong: 14px;  /* emphasis inside body text */
+  --fs-title: 16px;   /* a person's name in the panel, the tree's name */
+  --fs-heading: 18px; /* dialog titles */
+
+  /* Sizes every piece of chrome shares, so neighbours line up. A floating surface's
+     corner is its controls' corner plus its padding, so the curves nest. */
+  --h-control: 30px;  /* buttons, selects and switches in bars, panels and popovers */
+  --h-field: 32px;    /* form inputs, dialog buttons, menu rows */
+  --h-bar: 38px;      /* a floating bar: 30px controls, 3px padding, 1px border */
+  --r-control: 6px;
+  --r-float: 10px;    /* header, bars, popovers, banners, the details panel */
+  --r-dialog: 12px;
+  --lh-body: 1.45;
+  --lh-tight: 1.3;    /* a title with a line under it */
+
   --bg: #f5f1e8;
   --dot: rgba(88, 72, 44, 0.17);
   --surface: #fffdf9;
@@ -111,8 +132,8 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-ui);
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
@@ -162,11 +183,11 @@ ul {
   top: calc(100% + 8px);
   left: 50%;
   transform: translate(-50%, -3px);
-  padding: 6px 9px;
-  border-radius: 8px;
+  padding: 5px 8px;
+  border-radius: var(--r-control);
   background: var(--tip-bg);
   color: var(--tip-text);
-  font: 500 12px/1 var(--font-ui);
+  font: 500 var(--fs-meta)/1 var(--font-ui);
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
@@ -192,13 +213,13 @@ ul {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  height: 32px;
-  padding: 0 10px;
+  height: var(--h-field);
+  padding: 0 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--r-control);
   background: var(--surface);
   font-weight: 550;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   white-space: nowrap;
   transition:
     background 0.15s,
@@ -255,17 +276,17 @@ ul {
 .btn-lg {
   height: 44px;
   padding: 0 20px;
-  border-radius: 12px;
-  font-size: 14.5px;
+  border-radius: 8px;
+  font-size: var(--fs-strong);
 }
 
 .icon-btn {
   display: inline-grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: var(--h-control);
+  height: var(--h-control);
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--r-control);
   background: transparent;
   color: var(--text-2);
   transition:
@@ -292,7 +313,7 @@ ul {
   background: none;
   color: var(--accent);
   font-weight: 550;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .link-btn:hover {
@@ -301,10 +322,10 @@ ul {
 
 .input {
   width: 100%;
-  height: 34px;
+  height: var(--h-field);
   padding: 0 8px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--r-control);
   background: var(--surface);
   transition:
     border-color 0.15s,
@@ -332,7 +353,7 @@ textarea.input {
 .segmented {
   display: flex;
   padding: 2px;
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--surface-3);
 }
 
@@ -340,11 +361,11 @@ textarea.input {
   flex: 1;
   height: 28px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--r-control);
   background: transparent;
   color: var(--text-2);
   font-weight: 550;
-  font-size: 13px;
+  font-size: var(--fs-body);
   transition:
     background 0.15s,
     color 0.15s;
@@ -365,7 +386,7 @@ textarea.input {
   border-radius: 99px;
   background: var(--accent-soft);
   color: var(--accent-strong);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   font-weight: 600;
 }
 
@@ -860,9 +881,9 @@ textarea.input {
 .control-group {
   display: flex;
   gap: 0;
-  padding: 2px;
+  padding: 3px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--r-float);
   background: var(--surface);
   box-shadow: var(--shadow-card);
 }
@@ -873,14 +894,18 @@ textarea.input {
 }
 
 .stats-pill {
-  padding: 5px 8px;
-  border-radius: 99px;
-  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  padding: 0 12px;
+  border-radius: var(--r-float);
+  background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   font-weight: 500;
-  backdrop-filter: blur(6px);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--h-bar);
+  box-shadow: var(--shadow-card);
 }
 
 /* Some branches are folded away: the pill says so and undoes it in one click. */
@@ -925,7 +950,7 @@ textarea.input {
   z-index: 20;
   padding: 3px 5px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-float);
   background: var(--surface);
   box-shadow: var(--shadow-card);
 }
@@ -942,10 +967,10 @@ textarea.input {
   height: 30px;
   padding: 0 4px;
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius: var(--r-control);
   background: transparent;
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: var(--fs-title);
   font-weight: 600;
   letter-spacing: -0.01em;
   text-overflow: ellipsis;
@@ -968,7 +993,7 @@ textarea.input {
   display: flex;
   align-items: center;
   width: 100%;
-  height: 34px;
+  height: var(--h-field);
 }
 
 .search-icon {
@@ -1008,7 +1033,7 @@ textarea.input {
   border-radius: 6px;
   background: var(--surface-2);
   color: var(--text-3);
-  font: 600 11px var(--font-ui);
+  font: 600 var(--fs-micro) var(--font-ui);
   pointer-events: none;
 }
 
@@ -1025,7 +1050,7 @@ textarea.input {
   right: 0;
   padding: 6px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--r-float);
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   animation: drop-in 0.16s var(--ease) both;
@@ -1034,11 +1059,11 @@ textarea.input {
 .search-result {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
   width: 100%;
-  padding: 7px 9px;
+  padding: 6px 8px;
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--r-control);
   background: transparent;
   text-align: left;
 }
@@ -1050,7 +1075,7 @@ textarea.input {
 .search-empty {
   padding: 10px 12px;
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .search-why {
@@ -1069,7 +1094,7 @@ textarea.input {
   width: max-content;
   padding: 4px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-float);
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   animation: drop-in 0.16s var(--ease) both;
@@ -1092,13 +1117,13 @@ textarea.input {
   gap: 8px;
   width: 100%;
   height: auto;
-  padding: 6px 9px;
+  padding: 5px 8px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--r-control);
   background: transparent;
   text-align: left;
   font-weight: 500;
-  min-height: 34px;
+  min-height: var(--h-field);
   line-height: 1.4;
 }
 
@@ -1127,16 +1152,16 @@ textarea.input {
 }
 
 .naming-pop h3 {
-  margin: 6px 10px 6px;
+  margin: 4px 8px 4px;
   color: var(--text-3);
-  font: 600 11px/1.5 var(--font-ui);
+  font: 600 var(--fs-micro)/1.5 var(--font-ui);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .naming-item {
   height: auto;
-  padding: 8px 10px;
+  padding: 6px 8px;
 }
 
 .naming-item .naming-text {
@@ -1147,7 +1172,7 @@ textarea.input {
 
 .naming-item .naming-example {
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   font-weight: 400;
 }
 
@@ -1175,7 +1200,7 @@ textarea.input {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-float);
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   z-index: 10;
@@ -1188,8 +1213,8 @@ textarea.input {
   flex: none;
   display: grid;
   align-items: center;
-  gap: 6px 16px;
-  padding: 16px 16px 10px;
+  gap: 6px 12px;
+  padding: 14px 14px 8px;
   grid-template-columns: 48px minmax(0, 1fr) 28px;
 }
 
@@ -1198,8 +1223,8 @@ textarea.input {
   grid-column: 3;
   grid-row: 1;
   align-self: start;
-  width: 28px;
-  height: 28px;
+  width: var(--h-control);
+  height: var(--h-control);
 }
 
 .pp-id {
@@ -1217,9 +1242,9 @@ textarea.input {
 
 .pp-name {
   font-family: var(--font-ui);
-  font-size: 18px;
+  font-size: var(--fs-title);
   font-weight: 650;
-  line-height: 1.3;
+  line-height: var(--lh-tight);
   letter-spacing: -0.01em;
   overflow-wrap: break-word;
   padding-right: 0;
@@ -1229,7 +1254,7 @@ textarea.input {
 .pp-other-name {
   margin-top: 0;
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   font-weight: 450;
   overflow-wrap: break-word;
   line-height: 1.45;
@@ -1240,7 +1265,7 @@ textarea.input {
   color: var(--text-2);
   font-family: var(--font-display);
   font-style: italic;
-  font-size: 13px;
+  font-size: var(--fs-body);
   line-height: 1.45;
 }
 
@@ -1259,7 +1284,7 @@ textarea.input {
   align-items: center;
   gap: 5px;
   color: var(--accent-strong);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   font-weight: 600;
   line-height: 1.5;
 }
@@ -1280,10 +1305,10 @@ textarea.input {
   margin: -2px -6px;
   padding: 2px 6px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   background: transparent;
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 500;
   transition:
     background 0.15s,
@@ -1328,7 +1353,7 @@ textarea.input {
   align-items: baseline;
   gap: 6px;
   color: var(--text-3);
-  font-size: 11.5px;
+  font-size: var(--fs-meta);
   grid-column: 1 / -1;
   margin-top: 0;
   min-width: 0;
@@ -1366,7 +1391,7 @@ textarea.input {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 4px 16px 14px;
+  padding: 4px 14px 12px;
   scrollbar-width: thin;
 }
 
@@ -1502,7 +1527,7 @@ textarea.input {
 
 .pp-life-value {
   color: var(--text);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 600;
   line-height: 20px;
   font-variant-numeric: tabular-nums;
@@ -1510,7 +1535,7 @@ textarea.input {
 
 .pp-life-sub {
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   line-height: 18px;
 }
 
@@ -1524,7 +1549,7 @@ textarea.input {
   border-left: 2px solid var(--border-strong);
   color: var(--text-2);
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: var(--fs-strong);
   font-style: italic;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1546,12 +1571,12 @@ textarea.input {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 28px;
+  min-height: var(--h-control);
   margin-bottom: 6px;
 }
 
 .pp-family-head h3 {
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
@@ -1663,14 +1688,14 @@ textarea.input {
 .pp-node-name {
   margin-top: 6px;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 600;
   line-height: 17px;
 }
 
 .pp-node-sub {
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   line-height: 16px;
   font-variant-numeric: tabular-nums;
 }
@@ -1774,7 +1799,7 @@ textarea.input {
   background: var(--surface-3);
   box-shadow: 0 0 0 2px var(--surface-2);
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 650;
 }
 
@@ -1822,7 +1847,7 @@ textarea.input {
   border-radius: 6px;
   background: transparent;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 550;
   text-align: center;
   text-align-last: center;
@@ -1967,7 +1992,7 @@ textarea.input {
   flex: none;
   margin: 6px 10px 6px;
   color: var(--text-3);
-  font-size: 11px;
+  font-size: var(--fs-micro);
   font-weight: 650;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1998,7 +2023,7 @@ textarea.input {
 
 .pp-link-row-role {
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 450;
 }
 
@@ -2048,7 +2073,7 @@ kbd {
   border-radius: 6px;
   background: var(--surface-2);
   color: var(--text-2);
-  font: 600 11px/1.5 var(--font-ui);
+  font: 600 var(--fs-micro)/1.5 var(--font-ui);
   text-align: center;
 }
 
@@ -2067,7 +2092,7 @@ kbd {
 }
 
 .rel-sub {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
@@ -2095,7 +2120,7 @@ kbd {
   max-height: calc(100dvh - 40px);
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-dialog);
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   animation: modal-in 0.26s var(--ease) both;
@@ -2110,14 +2135,14 @@ kbd {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 10px 4px 12px;
+  padding: 12px 12px 6px 16px;
 }
 
 .modal-head h2 {
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: var(--fs-heading);
   font-weight: 600;
-  line-height: 1.2;
+  line-height: var(--lh-tight);
   letter-spacing: -0.015em;
   padding-top: 0;
 }
@@ -2130,8 +2155,8 @@ kbd {
 .form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 6px 12px 12px;
+  gap: 10px;
+  padding: 4px 16px 16px;
 }
 
 .field {
@@ -2142,14 +2167,14 @@ kbd {
 }
 
 .field-label {
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   font-weight: 600;
   color: var(--text-2);
 }
 
 .field-label small {
   font-weight: 400;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--text-3);
 }
 
@@ -2222,7 +2247,7 @@ kbd {
   display: flex;
   gap: 10px;
   margin-top: 0;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .error-text {
@@ -2231,7 +2256,7 @@ kbd {
 
 .field-note {
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
 }
 
 .field-note.is-error {
@@ -2252,7 +2277,7 @@ kbd {
 .check small {
   color: var(--text-3);
   font-weight: 400;
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
 }
 
 .more-btn {
@@ -2285,10 +2310,10 @@ kbd {
   display: flex;
   gap: 9px;
   padding: 11px 13px;
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--accent-soft);
   color: var(--accent-strong);
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .hint svg {
@@ -2298,14 +2323,15 @@ kbd {
 
 .confirm-text {
   color: var(--text-2);
-  font-size: 14.5px;
+  font-size: var(--fs-body);
+  line-height: 1.55;
 }
 
 .modal-foot {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 2px;
+  margin-top: 16px;
 }
 
 /* ==========================================================================
@@ -2330,7 +2356,7 @@ kbd {
   gap: 10px;
   padding: 18px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-dialog);
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   text-align: center;
@@ -2354,7 +2380,7 @@ kbd {
 
 .welcome-card p {
   color: var(--text-2);
-  font-size: 15px;
+  font-size: var(--fs-strong);
   line-height: 1.55;
   text-wrap: pretty;
 }
@@ -2391,20 +2417,22 @@ kbd {
   align-items: center;
   gap: 6px;
   max-width: 100%;
-  padding: 3px 4px;
+  padding: 3px;
   border: 1px solid var(--accent);
-  border-radius: 7px;
+  border-radius: var(--r-float);
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   pointer-events: auto;
   animation: drop-in 0.2s var(--ease) both;
+  min-height: var(--h-bar);
 }
 
 .compare-text {
   min-width: 0;
-  padding: 0 6px 0 4px;
-  font-size: 14px;
+  padding: 4px 6px 4px 4px;
+  font-size: var(--fs-body);
   text-wrap: balance;
+  line-height: var(--lh-tight);
 }
 
 .compare-text em {
@@ -2416,18 +2444,18 @@ kbd {
 /* "[◎] Arthur's direct line / Showing 12 of 54 people | Side Line Close | Show everyone" */
 .focus-banner {
   gap: 6px;
-  padding: 3px 4px;
+  padding: 3px;
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border-strong));
-  border-radius: 7px;
+  border-radius: var(--r-float);
 }
 
 .focus-icon {
   flex: none;
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 5px;
+  width: var(--h-control);
+  height: var(--h-control);
+  border-radius: var(--r-control);
   background: var(--accent-soft);
   color: var(--accent-strong);
 }
@@ -2435,12 +2463,13 @@ kbd {
 .focus-summary {
   flex: 1 1 auto;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: baseline;
   max-width: none;
-  padding-right: 0;
-  line-height: 1.25;
+  padding-right: 4px;
+  line-height: var(--lh-tight);
   min-width: 0;
+  gap: 8px;
 }
 
 .focus-name {
@@ -2450,7 +2479,7 @@ kbd {
   border: 0;
   background: none;
   color: var(--text);
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2472,7 +2501,7 @@ kbd {
 
 .focus-count {
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-meta);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -2519,12 +2548,12 @@ kbd {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 18px 32px;
-  padding: 14px 24px 24px;
+  padding: 8px 16px 16px;
 }
 
 .shortcuts h3 {
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 650;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2577,16 +2606,17 @@ kbd {
 .toast {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   max-width: min(520px, calc(100vw - 32px));
-  padding: 10px 10px 10px 16px;
-  border-radius: 13px;
+  padding: 6px 6px 6px 14px;
+  border-radius: var(--r-float);
   background: var(--tip-bg);
   color: var(--tip-text);
   font-weight: 500;
   box-shadow: var(--shadow-pop);
   pointer-events: auto;
   animation: toast-in 0.26s var(--ease) both;
+  min-height: var(--h-bar);
 }
 
 .toast-error {
@@ -2614,10 +2644,10 @@ kbd {
 .toast-close {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   background: transparent;
   color: inherit;
   opacity: 0.65;
@@ -2771,7 +2801,7 @@ kbd {
   aspect-ratio: 4 / 3;
   max-height: 52dvh;
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: var(--r-dialog);
   background:
     repeating-conic-gradient(#2a2620 0% 25%, #221f1a 0% 50%) 0 0 / 20px 20px;
   cursor: grab;
@@ -2868,7 +2898,7 @@ kbd {
 
 .crop-error {
   margin-top: -8px;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .crop-foot {
@@ -2989,7 +3019,7 @@ kbd {
 
 .viewer-title h2 {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: var(--fs-title);
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
@@ -3000,7 +3030,7 @@ kbd {
 .viewer-title p {
   margin-top: 2px;
   color: var(--viewer-text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
@@ -3033,7 +3063,7 @@ kbd {
   border-radius: 8px;
   background: transparent;
   color: var(--viewer-text);
-  font: 600 12.5px/1 var(--font-ui);
+  font: 600 var(--fs-meta)/1 var(--font-ui);
   font-variant-numeric: tabular-nums;
 }
 
@@ -3105,7 +3135,7 @@ kbd {
   display: grid;
   place-items: center;
   color: var(--viewer-text-2);
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 
 .viewer-note {
@@ -3115,10 +3145,10 @@ kbd {
   transform: translateX(-50%);
   max-width: calc(100% - 32px);
   padding: 9px 14px;
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(40, 34, 26, 0.92);
   color: var(--viewer-text);
-  font-size: 13px;
+  font-size: var(--fs-body);
   text-align: center;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
@@ -3193,7 +3223,7 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 4px 12px 12px;
+  padding: 4px 16px 16px;
 }
 
 .insights-tabs {
@@ -3216,7 +3246,7 @@ kbd {
   background: transparent;
   color: var(--text-2);
   font-weight: 550;
-  font-size: 13.5px;
+  font-size: var(--fs-body);
 }
 
 .insights-tab:hover {
@@ -3235,7 +3265,7 @@ kbd {
   border-radius: 999px;
   background: var(--surface-3);
   color: var(--text-2);
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
@@ -3311,7 +3341,7 @@ kbd {
   align-items: center;
   gap: 6px;
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .insights-milestone {
@@ -3319,7 +3349,7 @@ kbd {
   border-radius: 999px;
   background: var(--female-soft);
   color: var(--female);
-  font-size: 11px;
+  font-size: var(--fs-micro);
   font-weight: 650;
 }
 
@@ -3329,12 +3359,12 @@ kbd {
   flex-direction: column;
   align-items: flex-end;
   gap: 1px;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .insights-when span {
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 
 .insights-sev {
@@ -3362,7 +3392,7 @@ kbd {
 }
 
 .insights-msg {
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   line-height: 1.4;
 }
 
@@ -3390,7 +3420,7 @@ kbd {
   padding-top: 10px;
   border-top: 1px solid var(--border);
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 @media (max-width: 480px) {
@@ -3431,7 +3461,7 @@ kbd {
 .app.is-timeline .compare-wrap,
 .app.is-fan .compare-wrap {
   top: auto;
-  bottom: 56px;
+  bottom: 58px;
   flex-direction: column-reverse;
 }
 
@@ -3454,20 +3484,6 @@ kbd {
   overflow: hidden;
   animation: fade-in 0.2s var(--ease) both;
   container-type: inline-size;
-}
-
-/* Who's selected (or being compared) {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  height: 30px;
-  padding: 0 3px;
-  border: 0;
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
-  animation: fade-in 0.15s var(--ease) both;
-  max-width: 100%;
 }
 
 /* Scroll area -------------------------------------------------------------- */
@@ -3509,7 +3525,7 @@ kbd {
   background: var(--surface);
   border-right: 1px solid var(--border);
   color: var(--text-3);
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -3572,7 +3588,7 @@ kbd {
   border-radius: 7px;
   background: var(--tip-bg);
   color: var(--tip-text);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 700;
   line-height: 22px;
   font-variant-numeric: tabular-nums;
@@ -3581,7 +3597,7 @@ kbd {
 }
 
 .tl-cursor-label span {
-  font-size: 11px;
+  font-size: var(--fs-micro);
   font-weight: 500;
   opacity: 0.7;
 }
@@ -3716,7 +3732,7 @@ kbd {
   align-items: center;
   gap: 5px;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 600;
 }
 
@@ -3735,7 +3751,7 @@ kbd {
 .tl-name-sub {
   overflow: hidden;
   color: var(--text-3);
-  font-size: 11.5px;
+  font-size: var(--fs-meta);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -4022,7 +4038,7 @@ kbd {
   background: var(--surface);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 600;
   white-space: nowrap;
   pointer-events: auto;
@@ -4097,11 +4113,11 @@ kbd {
   max-width: 300px;
   padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--r-float);
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--fs-body);
   line-height: 1.4;
   pointer-events: none;
   opacity: 0;
@@ -4137,14 +4153,14 @@ kbd {
 
 .tl-card-head strong {
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: var(--fs-strong);
   font-weight: 600;
   line-height: 1.2;
 }
 
 .tl-card-eyebrow {
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 500;
 }
 
@@ -4271,13 +4287,13 @@ kbd {
 
 .tl-card-list li > div span {
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
 }
 
 .tl-card-list-age {
   flex: none;
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-variant-numeric: tabular-nums;
 }
 
@@ -4302,7 +4318,7 @@ kbd {
 .tl-empty h2 {
   color: var(--text);
   font-family: var(--font-display);
-  font-size: 19px;
+  font-size: var(--fs-title);
   font-weight: 600;
 }
 
@@ -4319,7 +4335,7 @@ kbd {
   flex: none;
   display: flex;
   flex-direction: column;
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   font-weight: 600;
   line-height: 1.25;
 }
@@ -4342,7 +4358,7 @@ kbd {
   border: 1px solid var(--border);
   border-radius: 99px;
   background: var(--surface);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   font-weight: 550;
   white-space: nowrap;
 }
@@ -4379,7 +4395,7 @@ kbd {
   }
 
   .tl-name-sub {
-    font-size: 11px;
+    font-size: var(--fs-meta);
   }
 
   .tl-corner {
@@ -4531,7 +4547,7 @@ kbd {
   width: auto;
   gap: 6px;
   padding: 0 10px 0 9px;
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 600;
 }
 
@@ -4550,7 +4566,7 @@ kbd {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--r-float);
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   animation: drop-in 0.2s var(--ease) both;
@@ -4566,7 +4582,7 @@ kbd {
 .sides-head h3 {
   flex: 1;
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 650;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -4580,7 +4596,7 @@ kbd {
   padding: 4px 6px;
   border-radius: 8px;
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 550;
   cursor: pointer;
 }
@@ -4623,7 +4639,7 @@ kbd {
   gap: 10px;
   padding: 6px 8px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--r-control);
   background: transparent;
   color: var(--text);
   text-align: left;
@@ -4666,7 +4682,7 @@ kbd {
 .side-title {
   flex: none;
   max-width: 100%;
-  font-size: 14px;
+  font-size: var(--fs-body);
   font-weight: 600;
   line-height: 1.25;
   white-space: nowrap;
@@ -4679,7 +4695,7 @@ kbd {
 }
 
 .side-sub {
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
@@ -4693,7 +4709,7 @@ kbd {
   border-radius: 99px;
   background: var(--surface-3);
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 550;
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -4752,7 +4768,7 @@ kbd {
   flex: 0 1 auto;
   margin-left: auto;
   padding: 0 6px;
-  border-radius: 5px;
+  border-radius: var(--r-control);
 }
 
 .segmented .focus-option {
@@ -4763,8 +4779,8 @@ kbd {
   gap: 4px;
   height: 26px;
   padding: 0 9px;
-  border-radius: 7px;
-  font-size: 12px;
+  border-radius: var(--r-control);
+  font-size: var(--fs-meta);
 }
 
 .focus-option-count {
@@ -4889,10 +4905,10 @@ kbd {
   max-width: min(300px, calc(100% - 32px));
   padding: 9px 12px 10px;
   border: 1px solid color-mix(in srgb, var(--side, var(--accent)) 50%, var(--border));
-  border-radius: 12px;
+  border-radius: var(--r-float);
   background: var(--surface);
   box-shadow: var(--shadow-pop);
-  font-size: 13.5px;
+  font-size: var(--fs-body);
   pointer-events: none;
   animation: fade-in 0.12s ease both;
 }
@@ -4903,7 +4919,7 @@ kbd {
   gap: 6px;
   margin-bottom: 6px;
   color: color-mix(in srgb, var(--side, var(--accent)) 80%, var(--text));
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   font-weight: 650;
 }
 
@@ -4932,7 +4948,7 @@ kbd {
 
 .ctip-rel {
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
 }
 
 .ctip-amp {
@@ -4950,7 +4966,7 @@ kbd {
 
 .ctip-more {
   color: var(--text-3);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
 }
 
 /* --- Choosing someone already in the tree ---------------------------------------- */
@@ -4984,7 +5000,7 @@ kbd {
   overflow-y: auto;
   padding: 4px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-float);
   background: var(--surface-2);
 }
 
@@ -4993,7 +5009,7 @@ kbd {
   align-items: center;
   gap: 11px;
   padding: 7px 9px;
-  border-radius: 9px;
+  border-radius: var(--r-control);
   cursor: pointer;
 }
 
@@ -5031,7 +5047,7 @@ kbd {
 .picker-years {
   flex: none;
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   font-weight: 450;
   font-variant-numeric: tabular-nums;
 }
@@ -5042,7 +5058,7 @@ kbd {
   border-radius: 6px;
   background: var(--surface-3);
   color: var(--text-2);
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   font-weight: 600;
 }
 
@@ -5055,7 +5071,7 @@ kbd {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
 }
 
 .picker-rel {
@@ -5077,7 +5093,7 @@ kbd {
   margin: 0;
   padding: 10px;
   color: var(--text-3);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
   text-align: center;
 }
 
@@ -5125,13 +5141,13 @@ kbd {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 30px;
+  height: var(--h-control);
   padding: 0 8px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--r-control);
   background: var(--surface-3);
   color: var(--text-2);
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 550;
   white-space: nowrap;
   transition:
@@ -5166,7 +5182,7 @@ kbd {
   border-radius: 6px;
   background: var(--surface);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-body);
   transition:
     border-color 0.15s,
     background 0.15s;
@@ -5183,7 +5199,7 @@ kbd {
 .fan-picker-name {
   max-width: 180px;
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: var(--fs-strong);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5197,7 +5213,7 @@ kbd {
   border-radius: 99px;
   background: var(--accent-soft);
   color: var(--accent-strong);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-weight: 600;
   flex: none;
 }
@@ -5217,7 +5233,7 @@ kbd {
   flex-direction: column;
   padding: 6px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-float);
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   animation: drop-in 0.16s var(--ease) both;
@@ -5241,7 +5257,7 @@ kbd {
   border: 0;
   outline: 0;
   background: transparent;
-  font-size: 14px;
+  font-size: var(--fs-body);
   min-width: 0;
   width: 100%;
 }
@@ -5249,7 +5265,7 @@ kbd {
 .fan-picker-heading {
   padding: 8px 10px 4px;
   color: var(--text-3);
-  font-size: 11.5px;
+  font-size: var(--fs-micro);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -5597,9 +5613,9 @@ kbd {
   width: 236px;
   max-height: calc(100% - 24px);
   overflow-y: auto;
-  padding: 6px;
+  padding: 4px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--r-float);
   background: color-mix(in srgb, var(--surface) 94%, transparent);
   box-shadow: var(--shadow-card);
   cursor: default;
@@ -5610,13 +5626,13 @@ kbd {
   align-items: center;
   gap: 9px;
   width: 100%;
-  height: 34px;
+  height: var(--h-field);
   padding: 0 8px;
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--r-control);
   background: transparent;
   text-align: left;
-  font-size: 13px;
+  font-size: var(--fs-body);
 }
 
 .fan-legend button:hover,
@@ -5650,7 +5666,7 @@ kbd {
 .fan-legend-rel {
   min-width: 0;
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5659,7 +5675,7 @@ kbd {
 .fan-legend-count {
   margin-left: auto;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-meta);
   font-variant-numeric: tabular-nums;
 }
 
@@ -5671,7 +5687,7 @@ kbd {
   padding: 8px 8px 4px;
   border-top: 1px solid var(--border);
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-meta);
 }
 
 /* Hover card: a touch of the branch's colour */
@@ -5697,15 +5713,16 @@ kbd {
 
 /* Shared dense controls keep choices on one line at every supported width. */
 .toolbar-select {
-  height: 28px;
+  height: var(--h-control);
   min-width: 0;
   max-width: 100%;
-  padding: 0 7px;
+  padding: 0 8px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--r-control);
   background: var(--surface-2);
   color: var(--text);
   font: inherit;
+  font-size: var(--fs-body);
   font-weight: 550;
 }
 .pp-head > .photo-btn, .pp-head > .photo-wrap { grid-column: 1; grid-row: 1; align-self: center; }
@@ -5720,7 +5737,7 @@ kbd {
 
 .focus-banner { flex-wrap: nowrap; width: max-content; }
 .focus-banner .focus-divider { display: none; }
-.focus-banner .focus-scopes { flex: 0 0 94px; }
+.focus-banner .focus-scopes { flex: none; width: auto; }
 .focus-banner .focus-summary { flex-basis: auto; }
 .focus-count { white-space: nowrap; }
 
@@ -5775,8 +5792,6 @@ kbd {
 .photo-actions summary::-webkit-details-marker { display: none; }
 .photo-actions .photo-meta { position: absolute; z-index: 5; top: 100%; left: 0; display: flex; flex-direction: column; align-items: stretch; width: max-content; min-width: 142px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); box-shadow: var(--shadow-pop); gap: 6px; }
 
-/* One app header { display: none; }
-
 .menu-item > span { min-width: 0; overflow-wrap: anywhere; }
 .topbar .menu-item { white-space: nowrap; }
 .topbar .menu-pop { z-index: 40; }
@@ -5801,7 +5816,7 @@ kbd {
 
 /* Secondary identity text and family filters support the person's name. */
 .pp-via-path { display: flex; align-items: center; flex: 1; min-width: 0; overflow-x: auto; gap: 2px; scrollbar-width: thin; }
-.pp-family-head .focus-options { height: 28px; min-height: 28px; max-width: 170px; padding: 0 6px 0 8px; font-size: 12px; font-weight: 500; background: var(--surface-2); border-color: var(--border); color: var(--text-2); }
+.pp-family-head .focus-options { height: 28px; min-height: 28px; max-width: 170px; padding: 0 6px 0 8px; font-size: var(--fs-meta); font-weight: 500; background: var(--surface-2); border-color: var(--border); color: var(--text-2); }
 .pp-family-head .focus-options:hover, .pp-family-head .focus-options:focus-visible { color: var(--text); border-color: var(--border-strong); }
 
 /* ==========================================================================
@@ -5918,7 +5933,7 @@ kbd {
   max-width: calc(100% - 16px);
   padding: 3px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-float);
   background: var(--surface);
   box-shadow: var(--shadow-card);
 }
@@ -6046,6 +6061,11 @@ kbd {
   .fan-lineage {
     width: 104px;
   }
+}
+
+/* Banners sit above the zoom row, which sits above the strip of people without dates. */
+.app.is-timeline:has(.tl-undated) .compare-wrap {
+  bottom: calc(58px + var(--undated-h, 58px));
 }
 
 /* The scrolling rows, with the zoom and summary floating over their bottom-left corner. */
