@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Baby, CalendarPlus, Flower2, House, Maximize, Minus, Plus, X } from 'lucide-react';
+import { Baby, CalendarPlus, Flower2, House, Maximize, Minus, Plus } from 'lucide-react';
 import type { Person } from '../types';
 import { useStore } from '../store';
 import { focusSet } from '../lib/branches';
@@ -33,7 +33,6 @@ import {
 } from '../lib/timeline';
 import { childrenOf, displayName, fullName, parentsOf, partnersOf, shortName } from '../lib/tree';
 import { Avatar } from './Avatar';
-import { HeaderControls } from './HeaderControls';
 
 const ROW_H = 44;
 const AXIS_H = 36;
@@ -594,7 +593,9 @@ export function Timeline() {
     const span = rs[i];
     const barX = nw + x(span.start);
     let scrollLeft = el.scrollLeft;
-    if (barX - el.scrollLeft < nw + 16 || barX - el.scrollLeft > el.clientWidth - 80) scrollLeft = barX - nw - 48;
+    // The details panel floats over the right of the timeline on wide screens.
+    const visibleW = panel && panel.width <= box.width * 0.6 && panel.left < box.right ? panel.left - box.left : el.clientWidth;
+    if (barX - el.scrollLeft < nw + 16 || barX - el.scrollLeft > visibleW - 80) scrollLeft = barX - nw - 48;
 
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     el.scrollTo({
@@ -865,106 +866,8 @@ export function Timeline() {
   const comparing = sel && cmp && cmp !== sel ? cmp : null;
 
   return (
-    <section className={`timeline${panelOpen ? ' is-panel-open' : ''}`} aria-label="Family timeline">
-      <HeaderControls>
-      <div className="tl-toolbar">
-        <select className="toolbar-select tl-order" aria-label="Order people" value={order} onChange={(e) => setOrder(e.target.value as TimelineOrder)}>
-          <option value="birth">Oldest first</option>
-          <option value="family">By family</option>
-        </select>
-
-        <div className="tl-status" aria-live="polite">
-          {sel ? (
-            <>
-              <span className="tl-focus">
-                <span className="tl-focus-avatars">
-                  <Avatar person={sel.person} size={24} />
-                  {comparing && <Avatar person={comparing.person} size={24} />}
-                </span>
-                <span className="tl-focus-text">
-                  {comparing ? (
-                    <CompareText base={sel} other={comparing} />
-                  ) : (
-                    <>
-                      <strong>{shortName(sel.person)}</strong>
-                      <span className="tl-focus-detail">
-                        lived alongside {overlapping} of {countPeople(rows.length - 1)}
-                      </span>
-                    </>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  className="tl-focus-clear"
-                  onClick={() => select(null)}
-                  aria-label="Clear selection"
-                  data-tip="Clear (Esc)"
-                >
-                  <X size={14} />
-                </button>
-              </span>
-            </>
-          ) : null}
-        </div>
-
-        {!sel && rows.length > 0 && (
-          <div className="tl-legend" aria-hidden="true">
-            <span>
-              <span className="tl-key-pin" /> Child born
-            </span>
-            <span>
-              <span className="tl-key-fade" /> Date unknown
-            </span>
-          </div>
-        )}
-
-        <div className="control-group tl-zoom">
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => zoomBy(1 / ZOOM_STEP)}
-            disabled={ppy <= MIN_PPY}
-            aria-label="Zoom out"
-            data-tip="Zoom out (−)"
-          >
-            <Minus size={16} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => zoomBy(ZOOM_STEP)}
-            disabled={ppy >= MAX_PPY}
-            aria-label="Zoom in"
-            data-tip="Zoom in (+)"
-          >
-            <Plus size={16} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={fit}
-            disabled={zoom === null}
-            aria-label="Fit all years"
-            data-tip="Fit all years (F)"
-          >
-            <Maximize size={15} />
-          </button>
-          {home && rowIndex.has(home.id) && (
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={() => select(home.id, true)}
-              aria-label={`Go to ${shortName(home)}, the home person`}
-              data-tip={`Go to ${shortName(home)} (H)`}
-            >
-              <House size={15} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      </HeaderControls>
-
+    <section className={`timeline${panelOpen ? ' has-panel' : ''}`} aria-label="Family timeline">
+      <div className="tl-body">
       <div
         ref={scrollRef}
         className="tl-scroll"
@@ -984,10 +887,22 @@ export function Timeline() {
             <p>Add a birth year (or a year of death) to someone and they'll appear here, on a line through time.</p>
           </div>
         ) : (
-          <div className="tl-grid" style={{ width: nameW + trackW, paddingBottom: BOTTOM_ROOM }}>
+          <div
+            className="tl-grid"
+            // Room to scroll the latest years out from under the details panel, which floats over the timeline.
+            style={{ width: `calc(${nameW + trackW}px + var(--tl-panel-room, 0px))`, paddingBottom: BOTTOM_ROOM }}
+          >
             <div className="tl-axis" style={{ height: AXIS_H }}>
               <div className="tl-corner" style={{ width: nameW }}>
-                {countPeople(rows.length)}
+                <select
+                  className="toolbar-select tl-order"
+                  aria-label="Order people"
+                  value={order}
+                  onChange={(e) => setOrder(e.target.value as TimelineOrder)}
+                >
+                  <option value="birth">Oldest first</option>
+                  <option value="family">By family</option>
+                </select>
               </div>
               <div className="tl-axis-track" style={{ width: trackW }}>
                 {/* Years the "Today" label would sit on are left out. */}
@@ -1092,6 +1007,67 @@ export function Timeline() {
           </div>
         )}
       </div>
+      <div className="view-foot">
+        <div className="control-group">
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => zoomBy(1 / ZOOM_STEP)}
+            disabled={ppy <= MIN_PPY}
+            aria-label="Zoom out"
+            data-tip="Zoom out (−)"
+          >
+            <Minus size={17} />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => zoomBy(ZOOM_STEP)}
+            disabled={ppy >= MAX_PPY}
+            aria-label="Zoom in"
+            data-tip="Zoom in (+)"
+          >
+            <Plus size={17} />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={fit}
+            disabled={zoom === null}
+            aria-label="Fit all years"
+            data-tip="Fit all years (F)"
+          >
+            <Maximize size={16} />
+          </button>
+          {home && rowIndex.has(home.id) && (
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => select(home.id, true)}
+              aria-label={`Go to ${shortName(home)}, the home person`}
+              data-tip={`Go to ${shortName(home)} (H)`}
+            >
+              <House size={16} />
+            </button>
+          )}
+        </div>
+        {rows.length > 0 && (
+          <div className="stats-pill tl-summary" aria-live="polite">
+            {sel ? (
+              comparing ? (
+                <CompareText base={sel} other={comparing} />
+              ) : (
+                <span>
+                  <strong>{shortName(sel.person)}</strong> lived alongside {overlapping} of {countPeople(rows.length - 1)}
+                </span>
+              )
+            ) : (
+              countPeople(rows.length)
+            )}
+          </div>
+        )}
+      </div>
+      </div>
 
       {undated.length > 0 && (
         <div className="tl-undated">
@@ -1140,20 +1116,20 @@ function CompareText({ base, other }: { base: Span; other: Span }) {
   const t = together(base, other);
   if (t.kind === 'overlap') {
     return (
-      <span className="tl-focus-detail">
+      <span>
         {a} and {b} {t.ongoing ? 'have both been' : 'were both'} alive {togetherWhen(t)}
       </span>
     );
   }
   if (t.kind === 'unknown') {
     return (
-      <span className="tl-focus-detail">
+      <span>
         {a} and {b} were probably never alive at the same time
       </span>
     );
   }
   return (
-    <span className="tl-focus-detail">
+    <span>
       {b} {t.otherLater ? 'was born' : 'died'} {yearsText(t.years)} {t.otherLater ? 'after' : 'before'} {a}{' '}
       {t.otherLater ? 'died' : 'was born'}
     </span>

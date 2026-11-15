@@ -358,11 +358,13 @@ function FocusBanner() {
   );
 }
 
-/** Stacked under the top bar, centred in the space the details panel leaves free. */
+/**
+ * Stacked under the top bar, centred in the space left of where the details panel goes -
+ * whether or not it is open, so a banner never slides when the panel opens or closes.
+ */
 function Banners() {
-  const panelOpen = useStore((s) => Boolean(s.selectedId && s.tree.people[s.selectedId]));
   return (
-    <div className={`compare-wrap${panelOpen ? '' : ' is-wide'}`}>
+    <div className="compare-wrap">
       <FocusBanner />
       <CompareBanner />
     </div>

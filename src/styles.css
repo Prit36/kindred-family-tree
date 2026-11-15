@@ -898,18 +898,12 @@ textarea.input {
   box-shadow: var(--shadow-card);
   overflow: hidden;
   cursor: pointer;
-  transition: right 0.28s var(--ease);
   animation: fade-in 0.3s ease both;
 }
 
 .minimap canvas {
   display: block;
   touch-action: none;
-}
-
-/* Clear of the details panel docked on the right. */
-.app:has(.panel) .minimap {
-  right: 394px;
 }
 
 /* Beside the open panel there's only room for it on a wide window. */
@@ -966,28 +960,6 @@ textarea.input {
   box-shadow: var(--shadow-card);
 }
 
-.topbar-group {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: 36px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  pointer-events: auto;
-  min-width: 0;
-  flex-shrink: 0;
-}
-
-.brand {
-  gap: 6px;
-  padding-left: 2px;
-  min-width: 0;
-  flex: 0 1 220px;
-}
-
 .logo {
   width: 30px;
   height: 30px;
@@ -1019,14 +991,6 @@ textarea.input {
   background: var(--surface);
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-ring);
-}
-
-.topbar-search {
-  padding: 0;
-  flex: 1 1 240px;
-  min-width: 160px;
-  max-width: 320px;
-  margin-inline: 0;
 }
 
 .search {
@@ -1122,13 +1086,6 @@ textarea.input {
 .search-why {
   color: var(--text-3);
   font-style: italic;
-}
-
-.divider {
-  width: 1px;
-  height: 20px;
-  margin: 0 5px;
-  background: var(--border);
 }
 
 .menu {
@@ -2459,11 +2416,6 @@ kbd {
   container: banners / inline-size;
 }
 
-/* No details panel open: the whole width is free. */
-.compare-wrap.is-wide {
-  right: 12px;
-}
-
 .compare {
   display: flex;
   align-items: center;
@@ -2634,7 +2586,6 @@ kbd {
 .shortcuts dd {
   color: var(--text);
 }
-
 
 /* ==========================================================================
    Toasts
@@ -2817,22 +2768,8 @@ kbd {
 
 @media (max-width: 640px) {
   .tree-name,
-  .search-kbd,
-  .divider {
+.search-kbd {
     display: none;
-  }
-
-  .brand {
-    flex: none;
-    padding: 0 9px;
-  }
-
-  .topbar-search {
-    flex: 1 1 0;
-  }
-
-  .topbar {
-    gap: 8px;
   }
 
   .welcome-card {
@@ -3231,7 +3168,6 @@ kbd {
   text-underline-offset: 2px;
 }
 
-
 @media (max-width: 560px) {
   .viewer-bar {
     flex-wrap: wrap;
@@ -3529,7 +3465,7 @@ kbd {
 .app.is-timeline .compare-wrap,
 .app.is-fan .compare-wrap {
   top: auto;
-  bottom: 26px;
+  bottom: 56px;
   flex-direction: column-reverse;
 }
 
@@ -3554,45 +3490,7 @@ kbd {
   container-type: inline-size;
 }
 
-/* Leave room for the details panel docked on the right. */
-.timeline.is-panel-open {
-  right: var(--panel-offset);
-}
-
-/* Toolbar ------------------------------------------------------------------ */
-
-.tl-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 0;
-  border-bottom: 0;
-  flex-wrap: nowrap;
-  background: transparent;
-}
-
-.tl-order {
-  flex: none;
-}
-
-.tl-order button {
-  padding: 0 12px;
-  white-space: nowrap;
-}
-
-.tl-status {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-}
-
-
-/* Who's selected (or being compared), with a way to let go. */
-.tl-focus {
+/* Who's selected (or being compared) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -3604,78 +3502,6 @@ kbd {
   background: color-mix(in srgb, var(--accent) 7%, var(--surface));
   animation: fade-in 0.15s var(--ease) both;
   max-width: 100%;
-}
-
-.tl-focus-avatars {
-  flex: none;
-  display: flex;
-}
-
-.tl-focus-avatars .avatar + .avatar {
-  margin-left: -7px;
-  box-shadow: 0 0 0 2px var(--surface);
-}
-
-.tl-focus-text {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-2);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.tl-focus-text strong {
-  color: var(--text);
-  font-weight: 650;
-}
-
-.tl-focus-text > strong + .tl-focus-detail {
-  margin-left: 6px;
-}
-
-.tl-focus-clear {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--text-3);
-  transition:
-    background 0.15s,
-    color 0.15s;
-}
-
-.tl-focus-clear:hover {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--text);
-}
-
-.tl-zoom {
-  flex: none;
-  padding: 0;
-  box-shadow: none;
-  border-radius: 0;
-  border: 0;
-}
-
-.tl-zoom .icon-btn {
-  width: 30px;
-  height: 30px;
-}
-
-/* Tooltips at the right edge open leftwards so they aren't clipped. */
-.tl-zoom [data-tip]::after {
-  left: auto;
-  right: 0;
-  transform: translate(0, -3px);
-}
-
-.tl-zoom [data-tip]:hover::after,
-.tl-zoom [data-tip]:focus-visible::after {
-  transform: translate(0, 0);
 }
 
 /* Scroll area -------------------------------------------------------------- */
@@ -4180,45 +4006,6 @@ kbd {
   white-space: nowrap;
 }
 
-.tl-legend {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  color: var(--text-3);
-  font-size: 12px;
-}
-
-.tl-legend > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.tl-key-pin {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--text-3);
-  box-shadow: 0 0 0 2px var(--surface);
-}
-
-.tl-key-fade {
-  width: 24px;
-  height: 10px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--text-3) 45%, transparent);
-  -webkit-mask-image: linear-gradient(to right, #000 25%, transparent);
-  mask-image: linear-gradient(to right, #000 25%, transparent);
-}
-
-@media (max-width: 1240px) {
-  .tl-legend {
-    display: none;
-  }
-}
-
 /* The selected person's life events, hanging under their bar */
 .tl-row.is-selected .tl-name {
   align-items: flex-start;
@@ -4490,7 +4277,6 @@ kbd {
   font-weight: 700;
 }
 
-
 .tl-card-list {
   display: grid;
   gap: 10px;
@@ -4572,7 +4358,6 @@ kbd {
   line-height: 1.25;
 }
 
-
 .tl-undated-list {
   display: flex;
   gap: 6px;
@@ -4605,30 +4390,12 @@ kbd {
   box-shadow: 0 0 0 2px var(--accent-ring);
 }
 
-
 @media (max-width: 859px) {
-  .timeline,
-  .timeline.is-panel-open {
+  .timeline {
     top: 68px;
     left: 8px;
     right: 8px;
     bottom: 8px;
-  }
-
-  .tl-toolbar {
-    gap: 10px;
-  }
-
-  .tl-focus-detail {
-    display: none;
-  }
-
-  .view-switch-label {
-    display: none;
-  }
-
-  .view-switch button {
-    padding: 0 8px;
   }
 }
 
@@ -4640,24 +4407,6 @@ kbd {
     background: none;
   }
 
-  .view-switch button[aria-checked='true'] {
-    display: none;
-  }
-
-  .view-switch button {
-    width: 34px;
-    height: 34px;
-    padding: 0;
-    justify-content: center;
-    border-radius: 10px;
-    color: var(--text-2);
-  }
-
-  .view-switch button:hover {
-    background: var(--surface-2);
-    color: var(--text);
-  }
-
   .tl-name {
     gap: 7px;
     padding: 0 6px 0 8px;
@@ -4667,21 +4416,8 @@ kbd {
     font-size: 11px;
   }
 
-  .tl-order button {
-    padding: 0 9px;
-  }
-
   .tl-corner {
     padding: 0 8px;
-  }
-
-  /* The details sheet already says who's selected. */
-  .tl-status {
-    display: none;
-  }
-
-  .tl-toolbar {
-    justify-content: space-between;
   }
 }
 
@@ -5383,7 +5119,6 @@ kbd {
   opacity: 0.65;
 }
 
-
 /* ==========================================================================
    Descendants: one person at the foot of a tree, their family as its canopy
    ========================================================================== */
@@ -5405,10 +5140,6 @@ kbd {
   container-type: inline-size;
 }
 
-.fan.is-panel-open {
-  right: var(--panel-offset);
-}
-
 .fan-toolbar {
   position: relative;
   z-index: 3;
@@ -5420,37 +5151,6 @@ kbd {
   border-bottom: 0;
   background: transparent;
   flex-wrap: nowrap;
-}
-
-.fan-stats {
-  min-width: 0;
-  color: var(--text-2);
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.fan-spacer {
-  flex: 1;
-}
-
-.fan-lineage {
-  flex: none;
-}
-
-.fan-lineage button {
-  padding: 0 12px;
-  white-space: nowrap;
-}
-
-.fan-zoom {
-  flex: none;
-  box-shadow: var(--shadow-card);
-  position: absolute;
-  z-index: 4;
-  right: 8px;
-  bottom: 8px;
 }
 
 /* Show husbands and wives: an on/off switch beside the lineage choice */
@@ -6023,19 +5723,9 @@ kbd {
   opacity: 1;
 }
 
-@media (max-width: 900px) {
-  .fan-stats {
-    display: none;
-  }
-}
-
 @media (max-width: 720px) {
   .fan-legend {
     display: none;
-  }
-
-  .fan.is-panel-open {
-    right: 12px;
   }
 }
 
@@ -6059,58 +5749,43 @@ kbd {
 .person-form .identity-row { grid-template-columns: minmax(92px, 0.65fr) minmax(0, 1.35fr); }
 .person-form textarea { height: 64px; }
 .fan-toolbar .fan-picker { flex: 0 1 auto; min-width: 0; }
-.fan-lineage { width: 128px; flex: none; }
+
 .fan-toolbar .fan-toggle { flex: none; }
-.fan-zoom .icon-btn { width: 30px; height: 30px; }
-.fan-zoom [data-tip]::after { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; transform: none; }
+
 .focus-banner { flex-wrap: nowrap; width: max-content; }
 .focus-banner .focus-divider { display: none; }
 .focus-banner .focus-scopes { flex: 0 0 94px; }
 .focus-banner .focus-summary { flex-basis: auto; }
 .focus-count { white-space: nowrap; }
-.topbar-history { display: flex; align-items: center; gap: 0; }
+
 .menu-item.mobile-history { display: none; }
 
-@media (max-width: 1100px) {
-  .view-switch-label { display: none; }
-  .view-switch button { padding-inline: 7px; }
-}
 @container (max-width: 760px) {
-  .fan-stats, .fan-picker-rel, .tl-legend { display: none; }
+  .fan-picker-rel { display: none; }
   .fan-toolbar .fan-picker { flex: 1 1 0; }
   .fan-picker-btn { max-width: 100%; }
   .fan-picker-name { min-width: 0; }
-  .fan-spacer { display: none; }
+
   .fan-picker-pop { width: min(360px, calc(100cqw - 14px)); }
-  .tl-focus-detail { display: none; }
 }
 @container (max-width: 480px) {
   .fan-toggle span { display: none; }
   .fan-toggle { width: 30px; padding: 0; justify-content: center; }
-  .tl-status { display: none; }
-  .tl-zoom { margin-left: auto; }
 }
 @media (max-width: 859px) {
   .panel { top: auto; left: 4px; right: 4px; bottom: 4px; max-height: calc(100dvh - 92px); }
-  .timeline, .timeline.is-panel-open, .fan, .fan.is-panel-open {
-    top: var(--content-top); left: 4px; right: 4px; bottom: 4px;
-  }
+  .timeline, .fan { top: var(--content-top); left: 4px; right: 4px; bottom: 4px; }
   .canvas-controls { top: var(--content-top); }
   .compare-wrap { top: 90px; left: 4px; right: 4px; }
 }
 @media (max-width: 700px) {
-  .topbar-history { display: none; }
   .menu-item.mobile-history { display: flex; }
-  .brand { flex: 0 1 150px; }
 }
 @media (max-width: 640px) {
-  .topbar { gap: 4px; }
-  .brand { flex: none; padding: 0; }
-  .topbar-search { flex: 1 1 0; margin: 0; }
   .search-icon { left: 6px; }
   .search-results { position: fixed; top: var(--content-top); left: 4px; right: 4px; }
   .search-input { padding-left: 26px; padding-right: 4px; }
-  .view-switch button { width: 30px; height: 30px; }
+
   .name-row { flex-direction: row; align-items: flex-start; }
   .name-fields, .field-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .welcome { padding: 54px 10px 10px; overflow-y: auto; pointer-events: auto; }
@@ -6124,11 +5799,6 @@ kbd {
   .icon-btn { min-width: 34px; }
 }
 
-.fan-tools { position: relative; flex: none; }
-.fan-tools summary { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 5px; cursor: pointer; list-style: none; }
-.fan-tools summary::-webkit-details-marker { display: none; }
-.fan-tools summary:hover, .fan-tools[open] summary { background: var(--surface-3); }
-.fan-tools .fan-zoom { top: calc(100% + 6px); right: 0; bottom: auto; }
 @media (max-width: 640px) {
   .person-form .field-row.is-death { grid-template-columns: minmax(88px, 0.75fr) minmax(184px, 1.25fr); }
 }
@@ -6139,66 +5809,23 @@ kbd {
 .photo-actions summary::-webkit-details-marker { display: none; }
 .photo-actions .photo-meta { position: absolute; z-index: 5; top: 100%; left: 0; display: flex; flex-direction: column; align-items: stretch; width: max-content; min-width: 142px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); box-shadow: var(--shadow-pop); gap: 6px; }
 
-/* One app header, including the active view's controls. */
-#view-controls:empty { display: none; }
-#view-controls { min-width: 0; }
-.topbar-actions { margin-left: auto; }
-.view-context { position: relative; min-width: 0; }
-.view-options-trigger { display: none; }
-.view-context-content { display: flex; align-items: center; min-width: 0; }
-.view-context .fan-toolbar, .view-context .tl-toolbar { flex: 1; min-width: 0; gap: 6px; }
-.view-context .fan-picker { flex: 0 1 240px; min-width: 120px; max-width: 260px; }
-.view-context .fan-spacer { display: none; }
-.view-context .fan-stats { flex: none; max-width: 240px; }
-.view-context .fan-toggle { flex: none; }
-.view-context .tl-status { max-width: 220px; }
-.view-context .tl-legend { display: none; }
-.view-context .fan-picker-pop { width: 360px; }
+/* One app header { display: none; }
+
 .menu-item > span { min-width: 0; overflow-wrap: anywhere; }
 .topbar .menu-item { white-space: nowrap; }
 .topbar .menu-pop { z-index: 40; }
 
-@media (max-width: 1700px) {
-  .view-context .fan-stats, .view-context .fan-picker-rel { display: none; }
-  .brand { flex-basis: 180px; }
-  .view-context .fan-picker { max-width: 200px; }
-  .view-context .tl-status { display: none; }
-}
-@media (max-width: 1350px) {
-  .view-context .fan-toggle span { display: none; }
-  .view-context .fan-toggle { width: 30px; padding: 0; justify-content: center; }
-  .brand { flex-basis: 150px; }
-  .topbar-history { display: none; }
-  .menu-item.mobile-history { display: flex; }
-}
-@media (max-width: 1250px) {
-  .view-options-trigger { display: inline-grid; }
-  .view-context-content { display: none; position: fixed; top: var(--content-top); right: 8px; width: min(520px, calc(100vw - 16px)); padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-pop); }
-  .view-context.is-open .view-context-content { display: flex; }
-  .view-context .fan-picker { flex: 1 1 0; min-width: 0; max-width: none; }
-  .view-context .fan-toolbar, .view-context .tl-toolbar { width: 100%; }
-  .view-context .fan-picker-pop { width: min(360px, calc(100vw - 36px)); }
-  .view-context .tl-zoom { margin-left: auto; }
-  .view-context .fan-toggle { width: 30px; padding: 0; justify-content: center; }
-  .view-context .fan-toggle span { display: none; }
-}
 @media (max-width: 700px) {
-  .header-secondary { display: none; }
-  .topbar-search { min-width: 100px; }
-  .brand { flex: 0 0 auto; }
   .tree-name { display: none; }
 }
 @media (max-width: 640px) {
   .search-input { padding-left: 28px; padding-right: 8px; }
   .search-icon { left: 8px; }
-  .topbar { gap: 6px; }
 }
 @media (max-width: 480px) {
   .topbar .menu-item { white-space: normal; }
   .topbar .menu-item > span { overflow-wrap: break-word; }
   .topbar .menu-pop { min-width: min(290px, calc(100vw - 16px)); }
-  .view-context .fan-lineage { width: 112px; }
-  .view-context .fan-picker-btn { gap: 4px; padding-inline: 5px; }
 }
 
 .menu-item.mobile-preference { display: none; }
@@ -6210,3 +5837,263 @@ kbd {
 .pp-via-path { display: flex; align-items: center; flex: 1; min-width: 0; overflow-x: auto; gap: 2px; scrollbar-width: thin; }
 .pp-family-head .focus-options { height: 28px; min-height: 28px; max-width: 170px; padding: 0 6px 0 8px; font-size: 12px; font-weight: 500; background: var(--surface-2); border-color: var(--border); color: var(--text-2); }
 .pp-family-head .focus-options:hover, .pp-family-head .focus-options:focus-visible { color: var(--text); border-color: var(--border-strong); }
+
+/* ==========================================================================
+   App header: the tree's name, the views, then search and app actions.
+   Three fixed parts, the same in every view, so nothing in it moves when you
+   switch views or open something. A view's own controls float on the view.
+   ========================================================================== */
+
+.topbar {
+  position: absolute;
+  top: var(--chrome-inset);
+  left: var(--chrome-inset);
+  right: var(--chrome-inset);
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.topbar-start,
+.topbar-center,
+.topbar-end {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.brand {
+  gap: 6px;
+  padding-left: 2px;
+}
+
+.topbar-center {
+  justify-content: center;
+}
+
+.topbar-end {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.topbar-search {
+  flex: 0 1 280px;
+  min-width: 140px;
+}
+
+.topbar-history,
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+/* Undo and redo are their own group, apart from the app's actions. */
+.topbar-history {
+  padding-right: 6px;
+  border-right: 1px solid var(--border);
+}
+
+/* Each view keeps its icon, label and width whichever is chosen. */
+.view-switch button {
+  justify-content: center;
+}
+
+@media (max-width: 1180px) {
+  .view-switch-label {
+    display: none;
+  }
+
+  .view-switch button {
+    width: 34px;
+    padding: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .topbar {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .topbar-history,
+  .header-secondary {
+    display: none;
+  }
+
+  .topbar-search {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+/* ==========================================================================
+   View chrome: settings float at the top left of a view, zoom and a summary
+   at the bottom left - the same places in the tree, descendants and timeline.
+   The details panel floats over the view instead of squeezing it.
+   ========================================================================== */
+
+.view-bar {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 16px);
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* A fixed width, so a longer or shorter name never pushes the other controls along. */
+.view-bar .fan-picker {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.view-bar .fan-picker-btn {
+  width: 280px;
+  height: 30px;
+  padding: 0 7px 0 4px;
+  border-color: var(--border);
+}
+
+/* The name keeps its room; the relationship gives way first. */
+.view-bar .fan-picker-name {
+  flex: 0 1 auto;
+  min-width: 64px;
+  max-width: none;
+}
+
+.view-bar .fan-picker-rel {
+  flex: 0 100 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.view-bar .fan-picker-chev {
+  margin-left: auto;
+}
+
+.fan-lineage {
+  flex: none;
+  width: 124px;
+  height: 30px;
+}
+
+.view-foot {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 16px);
+  pointer-events: none;
+}
+
+.view-foot > * {
+  pointer-events: auto;
+}
+
+.view-foot [data-tip]::after {
+  top: auto;
+  bottom: calc(100% + 10px);
+}
+
+.view-foot .stats-pill {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tl-summary {
+  max-width: 440px;
+}
+
+.tl-summary strong {
+  color: var(--text);
+}
+
+/* The branches list sits under the view's settings. */
+.fan-legend {
+  top: 56px;
+  left: 8px;
+  bottom: auto;
+  max-height: calc(100% - 56px - 56px);
+}
+
+/* The timeline's order sits in its top-left corner, above the names it orders. */
+.tl-corner {
+  padding: 0 6px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.tl-order {
+  max-width: 100%;
+}
+
+/* Lets the latest years be scrolled out from under the floating details panel. */
+.timeline.has-panel {
+  --tl-panel-room: var(--panel-offset);
+}
+
+/* Out of the way of the details panel, which floats on the right. */
+.minimap {
+  left: 8px;
+  right: auto;
+  bottom: 52px;
+}
+
+@media (max-width: 859px) {
+  .timeline.has-panel {
+    --tl-panel-room: 0px;
+  }
+}
+
+@media (max-width: 640px) {
+  .view-bar .fan-picker-btn {
+    width: auto;
+    max-width: 100%;
+  }
+
+  .fan-toggle span {
+    display: none;
+  }
+
+  .fan-toggle {
+    width: 30px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .fan-lineage {
+    width: 104px;
+  }
+}
+
+/* The scrolling rows, with the zoom and summary floating over their bottom-left corner. */
+.tl-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}

@@ -278,7 +278,6 @@ function MainMenu() {
           {item('Undo', <Undo2 size={16} />, undo, { disabled: !canUndo, mobileHistory: true })}
           {item('Redo', <Redo2 size={16} />, redo, { disabled: !canRedo, mobileHistory: true })}
           {item('Calendar & checks', <CalendarHeart size={16} />, () => openDialog({ type: 'insights', tab: 'upcoming' }), { mobilePreference: true, disabled: empty })}
-          {item(theme === 'dark' ? 'Light theme' : 'Dark theme', theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />, toggleTheme, { mobilePreference: true })}
           {NAMINGS.map((n) => (
             <button key={n.value} type="button" role="menuitemradio" aria-checked={naming === n.value} className="menu-item mobile-preference" onClick={() => { setNaming(n.value); setOpen(false); }}>
               <Languages size={16} /><span>{n.label}</span>{naming === n.value && <Check size={16} />}
@@ -289,6 +288,7 @@ function MainMenu() {
           {item('Export GEDCOM (.ged)', <FileText size={16} />, exportGedcom, { disabled: empty })}
           {item('Import backup or GEDCOM…', <Upload size={16} />, pickBackupFile)}
           <hr />
+          {item(theme === 'dark' ? 'Light theme' : 'Dark theme', theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />, toggleTheme)}
           {item('Keyboard shortcuts', <Keyboard size={16} />, () => openDialog({ type: 'shortcuts' }))}
           {item('Load sample family', <Sparkles size={16} />, () => openDialog({ type: 'sample' }))}
           {item('Start over', <RotateCcw size={16} />, () => openDialog({ type: 'reset' }), { disabled: empty, danger: true })}
@@ -412,26 +412,27 @@ function InsightsButton() {
 export function TopBar() {
   const canUndo = useStore((s) => s.past.length > 0);
   const canRedo = useStore((s) => s.future.length > 0);
-  const theme = useStore((s) => s.theme);
-  const { undo, redo, toggleTheme } = useStore.getState();
+  const { undo, redo } = useStore.getState();
   const empty = useStore((s) => !hasPeople(s.tree));
 
+  // Three fixed parts - the tree's name, the views, then search and app actions - so
+  // nothing in the header moves when you switch views or open something. Each view's
+  // own controls float on the view itself.
   return (
     <header className="topbar">
-      <div className="topbar-group brand">
+      <div className="topbar-start brand">
         <Logo />
         <TreeName />
       </div>
 
-      {!empty && (
-        <div className="topbar-group topbar-search">
-          <SearchBox />
-        </div>
-      )}
+      <div className="topbar-center">{!empty && <ViewSwitch />}</div>
 
-      {!empty && <ViewSwitch />}
-      <div id="view-controls" />
-      <div className="topbar-group topbar-actions">
+      <div className="topbar-end">
+        {!empty && (
+          <div className="topbar-search">
+            <SearchBox />
+          </div>
+        )}
         <div className="topbar-history">
           <button type="button" className="icon-btn" onClick={undo} disabled={!canUndo} aria-label="Undo" data-tip="Undo (Ctrl+Z)">
             <Undo2 size={17} />
@@ -439,21 +440,12 @@ export function TopBar() {
           <button type="button" className="icon-btn" onClick={redo} disabled={!canRedo} aria-label="Redo" data-tip="Redo (Ctrl+Shift+Z)">
             <Redo2 size={17} />
           </button>
-          <span className="divider" />
         </div>
-
-        {!empty && <InsightsButton />}
-        {!empty && <span className="header-secondary"><NamingMenu /></span>}
-        <button
-          type="button"
-          className="icon-btn header-secondary"
-          onClick={toggleTheme}
-          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-          data-tip={theme === 'dark' ? 'Light theme' : 'Dark theme'}
-        >
-          {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-        </button>
-        <MainMenu />
+        <div className="topbar-actions">
+          {!empty && <InsightsButton />}
+          {!empty && <span className="header-secondary"><NamingMenu /></span>}
+          <MainMenu />
+        </div>
       </div>
     </header>
   );

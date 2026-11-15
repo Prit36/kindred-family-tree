@@ -31,7 +31,6 @@ import { searchIndex, searchPeople } from '../lib/search';
 import { SIDE_TONES } from '../lib/sides';
 import { displayName, fullName, indexOf, partnersOf, shortName } from '../lib/tree';
 import { Avatar } from './Avatar';
-import { HeaderControls } from './HeaderControls';
 
 const MIN_ZOOM = 0.04;
 const MAX_ZOOM = 4;
@@ -470,7 +469,6 @@ export function FanView() {
   const selectedId = useStore((s) => s.selectedId);
   const compareId = useStore((s) => s.compareId);
   const view = useStore((s) => s.view);
-  const panelOpen = useStore((s) => Boolean(s.selectedId && s.tree.people[s.selectedId]));
   const { select, compare, setFan, toast, openDialog } = useStore.getState();
 
   const rootId = prefs.rootId && tree.people[prefs.rootId] ? prefs.rootId : defaultRoot(tree);
@@ -573,22 +571,40 @@ export function FanView() {
     else d3select(stage).interrupt().call(zoomRef.current!.transform, t);
   }, []);
 
+  /**
+   * The part of the stage you can actually see, in stage pixels: the details panel floats
+   * over the right (or, on narrow screens, the bottom) and the list of branches keeps its
+   * own column on the left of a wide screen.
+   */
+  const visibleArea = useCallback(() => {
+    const stage = stageRef.current!;
+    const box = stage.getBoundingClientRect();
+    let left = 0;
+    let right = stage.clientWidth;
+    let bottom = stage.clientHeight;
+    const legend = stage.querySelector<HTMLElement>('.fan-legend');
+    if (legend && stage.clientWidth > 1000) left = legend.offsetLeft + legend.offsetWidth;
+    const panel = document.querySelector('.panel')?.getBoundingClientRect();
+    if (panel && panel.left < box.right && panel.bottom > box.top) {
+      if (panel.width < box.width * 0.6) right = Math.min(right, panel.left - box.left - 8);
+      else bottom = Math.max(160, panel.top - box.top - 8);
+    }
+    return { left, right, top: 0, bottom };
+  }, []);
+
   const fitBox = useCallback(
     (box: Box, animate: boolean, maxK = 1.4) => {
-      const stage = stageRef.current;
-      if (!stage) return;
-      // On a wide screen the list of branches keeps its own column on the left.
-      const legend = stage.querySelector<HTMLElement>('.fan-legend');
-      const inset = legend && stage.clientWidth > 1000 ? legend.offsetWidth + 12 : 0;
-      const w = stage.clientWidth - inset;
-      const h = stage.clientHeight;
+      if (!stageRef.current) return;
+      const area = visibleArea();
+      const w = area.right - area.left;
+      const h = area.bottom - area.top;
       const margin = 28;
       const k = Math.max(MIN_ZOOM, Math.min(maxK, (w - margin * 2) / box.width, (h - margin * 2) / box.height));
-      const x = inset + (w - box.width * k) / 2 - box.minX * k;
-      const y = (h - box.height * k) / 2 - box.minY * k;
+      const x = area.left + (w - box.width * k) / 2 - box.minX * k;
+      const y = area.top + (h - box.height * k) / 2 - box.minY * k;
       moveTo(zoomIdentity.translate(x, y).scale(k), animate);
     },
-    [moveTo],
+    [moveTo, visibleArea],
   );
 
   const fit = useCallback(
@@ -610,8 +626,9 @@ export function FanView() {
     firstFit.current = false;
   }, [rootId, prefs.sonsOnly, fit]);
 
-  // The details panel opening or closing changes the room there is: refit if the whole
-  // family was showing, otherwise keep whatever was in the middle in the middle.
+  // The window changing size: refit if the whole family was showing, otherwise keep
+  // whatever was in the middle in the middle. (The details panel floats over the fan, so
+  // opening or closing it never moves anything.)
   useEffect(() => {
     const stage = stageRef.current!;
     let last = { w: stage.clientWidth, h: stage.clientHeight };
@@ -644,12 +661,15 @@ export function FanView() {
     const t = zoomTransform(stage);
     const sx = t.applyX(wx);
     const sy = t.applyY(wy);
+    const area = visibleArea();
     const pad = 60;
-    if (view.kind === 'reveal' && sx > pad && sy > pad && sx < stage.clientWidth - pad && sy < stage.clientHeight - pad) return;
+    if (view.kind === 'reveal' && sx > area.left + pad && sy > area.top + pad && sx < area.right - pad && sy < area.bottom - pad) return;
     const k = view.kind === 'focus' ? Math.max(t.k, 0.9) : t.k;
+    const cx = (area.left + area.right) / 2;
+    const cy = (area.top + area.bottom) / 2;
     fitted.current = false;
-    moveTo(zoomIdentity.translate(stage.clientWidth / 2 - wx * k, stage.clientHeight / 2 - wy * k).scale(k), true);
-  }, [view, fit, moveTo]);
+    moveTo(zoomIdentity.translate(cx - wx * k, cy - wy * k).scale(k), true);
+  }, [view, fit, moveTo, visibleArea]);
 
   // --- Pointer --------------------------------------------------------------
   const indexAt = (target: EventTarget | null) => {
@@ -815,12 +835,9 @@ export function FanView() {
   const rootSpouseText = rootSpouses.length ? `& ${rootSpouses.map((s) => treeName(tree, s, naming)).join(', ')}` : '';
 
   return (
-    <section className={`fan${panelOpen ? ' is-panel-open' : ''}`} aria-label={`Descendants of ${displayName(root)}`}>
-      <HeaderControls>
-      <div className="fan-toolbar">
+    <section className="fan" aria-label={`Descendants of ${displayName(root)}`}>
+      <div className="view-bar fan-toolbar">
         <RootPicker tree={tree} root={root} kin={kin} naming={naming} />
-        <span className="fan-stats">{statsText(gens, fan.nodes.length - 1, fan.living, naming)}</span>
-        <span className="fan-spacer" />
         <select
           className="toolbar-select fan-lineage"
           aria-label="Which descendants"
@@ -849,23 +866,22 @@ export function FanView() {
           <HeartHandshake size={15} />
           <span>Spouses</span>
         </button>
-        <details className="fan-tools">
-          <summary aria-label="Zoom controls" title="Zoom controls"><Maximize size={16} /></summary>
-          <div className="control-group fan-zoom">
-            <button type="button" className="icon-btn" onClick={() => zoomBy(1 / 1.35)} aria-label="Zoom out" data-tip="Zoom out (−)">
-              <Minus size={16} />
-            </button>
-            <button type="button" className="icon-btn" onClick={() => zoomBy(1.35)} aria-label="Zoom in" data-tip="Zoom in (+)">
-              <Plus size={16} />
-            </button>
-            <button type="button" className="icon-btn" onClick={() => fit()} aria-label="Fit the whole family" data-tip="Fit (F)">
-              <Maximize size={15} />
-            </button>
-          </div>
-        </details>
       </div>
 
-      </HeaderControls>
+      <div className="view-foot">
+        <div className="control-group">
+          <button type="button" className="icon-btn" onClick={() => zoomBy(1 / 1.35)} aria-label="Zoom out" data-tip="Zoom out (−)">
+            <Minus size={17} />
+          </button>
+          <button type="button" className="icon-btn" onClick={() => zoomBy(1.35)} aria-label="Zoom in" data-tip="Zoom in (+)">
+            <Plus size={17} />
+          </button>
+          <button type="button" className="icon-btn" onClick={() => fit()} aria-label="Fit the whole family" data-tip="Fit (F)">
+            <Maximize size={16} />
+          </button>
+        </div>
+        <div className="stats-pill">{statsText(gens, fan.nodes.length - 1, fan.living, naming)}</div>
+      </div>
 
       <div
         ref={stageRef}
