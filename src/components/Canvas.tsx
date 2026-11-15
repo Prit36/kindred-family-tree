@@ -31,7 +31,6 @@ import { canvasHandle } from '../lib/canvasHandle';
 import { PersonCard } from './PersonCard';
 import { SidesLegend } from './SidesLegend';
 import { ConnectorTip, type Connector } from './ConnectorTip';
-import { Minimap, type MinimapHandle } from './Minimap';
 
 const STROKE = {
   fill: 'none',
@@ -64,8 +63,6 @@ const MIN_ZOOM = 0.15;
 const FAR_ZOOM = 0.62;
 const MAX_ZOOM = 2;
 const TOP_INSET = 52;
-/** From this many people on show, the overview map appears in the corner. */
-const MINIMAP_FROM = 25;
 /** How long after the tree changes newly shown people and lines fade in. */
 const FRESH_MS = 700;
 
@@ -95,7 +92,6 @@ export function Canvas() {
   const sideColours = useStore((s) => s.sides.colour);
   const collapsed = useStore((s) => s.collapsed);
   const view = useStore((s) => s.view);
-  const theme = useStore((s) => s.theme);
   const select_ = useStore((s) => s.select);
   const compare = useStore((s) => s.compare);
   const openDialog = useStore((s) => s.openDialog);
@@ -104,7 +100,6 @@ export function Canvas() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef<ZoomBehavior<HTMLDivElement, unknown> | null>(null);
-  const minimapRef = useRef<MinimapHandle>(null);
 
   // What is drawn: the area around the screen, the zoom level's style of card, and - while
   // an image is being saved - everything, in full.
@@ -290,7 +285,7 @@ export function Canvas() {
         if (e.type === 'wheel') return true;
         if (e.button) return false;
         // Let buttons on the canvas be clicked without starting a drag.
-        return !(e.target as HTMLElement).closest('.quick-add, .branch-toggle, .canvas-controls, .sides, .minimap');
+        return !(e.target as HTMLElement).closest('.quick-add, .branch-toggle, .canvas-controls, .sides');
       })
       .on('zoom', (event: { transform: ZoomTransform }) => {
         const t = event.transform;
@@ -307,16 +302,13 @@ export function Canvas() {
         viewport.style.backgroundSize = `${grid}px ${grid}px`;
         viewport.style.backgroundPosition = `${t.x}px ${t.y}px`;
         syncView(t);
-        minimapRef.current?.update(t);
       });
     zoomRef.current = behavior;
     select(viewport).call(behavior).on('dblclick.zoom', null);
     syncView(zoomTransform(viewport));
     // A bigger window shows more of the tree.
     const resize = new ResizeObserver(() => {
-      const t = zoomTransform(viewport);
-      syncView(t);
-      minimapRef.current?.update(t);
+      syncView(zoomTransform(viewport));
     });
     resize.observe(viewport);
     return () => {
@@ -404,20 +396,6 @@ export function Canvas() {
     select(viewport).transition().duration(220).call(zoomRef.current!.scaleBy, factor);
   };
 
-  /** The overview map moves the view: the clicked point goes to the middle of the free area. */
-  const navigateTo = useCallback(
-    (x: number, y: number, animate: boolean) => {
-      const area = visibleArea();
-      const k = zoomTransform(viewportRef.current!).k;
-      const t = zoomIdentity.translate(area.left + area.width / 2 - x * k, area.top + area.height / 2 - y * k).scale(k);
-      moveTo(t, animate);
-    },
-    [moveTo, visibleArea],
-  );
-  const viewportSize = useCallback(() => {
-    const vp = viewportRef.current;
-    return { width: vp?.clientWidth ?? 0, height: vp?.clientHeight ?? 0 };
-  }, []);
 
   // --- Keyboard --------------------------------------------------------------
   // Remembers which way you came so Up then Down returns to the same person.
@@ -585,9 +563,6 @@ export function Canvas() {
     };
   }, []);
 
-  const showMinimap = visible.size >= MINIMAP_FROM && layout.bounds.width > 0;
-  const minimapLit = path?.cards ?? null;
-
   return (
     <div
       ref={viewportRef}
@@ -595,7 +570,7 @@ export function Canvas() {
       data-zoom={drawFar ? 'far' : 'near'}
       onClick={(e) => {
         if (lineHover.get()) lineHover.set(null);
-        if (!(e.target as HTMLElement).closest('.card-slot, .canvas-controls, .sides, .minimap')) select_(null);
+        if (!(e.target as HTMLElement).closest('.card-slot, .canvas-controls, .sides')) select_(null);
       }}
     >
       <div ref={worldRef} className={`world${peeked ? ' is-peeking' : ''}`}>
@@ -748,20 +723,6 @@ export function Canvas() {
       </div>
 
       <HoverTip tree={tree} layout={layout} families={families} unionById={unionById} toneOf={toneOf} viewportRef={viewportRef} />
-
-      {showMinimap && (
-        <Minimap
-          ref={minimapRef}
-          layout={layout}
-          toneOf={toneOf}
-          selectedId={selectedId}
-          homeId={shown.homeId}
-          lit={minimapLit}
-          theme={theme}
-          viewport={viewportSize}
-          onNavigate={navigateTo}
-        />
-      )}
 
       {total > 0 && (
         <div className="canvas-controls">

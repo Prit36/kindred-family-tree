@@ -883,36 +883,6 @@ textarea.input {
   backdrop-filter: blur(6px);
 }
 
-/* The whole tree in miniature, with a frame round the part on screen. */
-.minimap {
-  --node: color-mix(in srgb, var(--text-3) 70%, var(--surface));
-  --frame-stroke: var(--accent);
-  --frame-fill: color-mix(in srgb, var(--accent) 12%, transparent);
-  position: absolute;
-  right: 14px;
-  bottom: 14px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 13px;
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
-  cursor: pointer;
-  animation: fade-in 0.3s ease both;
-}
-
-.minimap canvas {
-  display: block;
-  touch-action: none;
-}
-
-/* Beside the open panel there's only room for it on a wide window. */
-@media (max-width: 1179px) {
-  .app:has(.panel) .minimap {
-    display: none;
-  }
-}
-
 /* Some branches are folded away: the pill says so and undoes it in one click. */
 .stats-pill.is-filtered {
   display: inline-flex;
@@ -2760,10 +2730,6 @@ kbd {
     display: none;
   }
 
-  /* Narrow screens have the panel as a sheet over the bottom, and no room to spare. */
-  .minimap {
-    display: none;
-  }
 }
 
 @media (max-width: 640px) {
@@ -6053,13 +6019,6 @@ kbd {
 /* Lets the latest years be scrolled out from under the floating details panel. */
 .timeline.has-panel {
   --tl-panel-room: var(--panel-offset);
-}
-
-/* Out of the way of the details panel, which floats on the right. */
-.minimap {
-  left: 8px;
-  right: auto;
-  bottom: 52px;
 }
 
 @media (max-width: 859px) {
