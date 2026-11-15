@@ -14,11 +14,14 @@ import {
   descendantCount,
   fanLayout,
   generationName,
+  isNameless,
   largestFamilies,
   latePrefix,
   patriarchOf,
   ringLabelSpots,
   sliceCentre,
+  standInName,
+  treeName,
   type FanLayout,
   type FanNode,
 } from '../lib/fan';
@@ -127,7 +130,7 @@ function RootPicker({ tree, root, kin, naming }: { tree: Tree; root: Person; kin
         }}
       >
         <Avatar person={root} size={28} />
-        <span className="fan-picker-name">{latePrefix(root, naming) + shortName(root)}</span>
+        <span className="fan-picker-name">{treeName(tree, root, naming)}</span>
         {relation && <span className="fan-picker-rel">{relation}</span>}
         <ChevronDown size={15} className="fan-picker-chev" />
       </button>
@@ -173,7 +176,7 @@ function RootPicker({ tree, root, kin, naming }: { tree: Tree; root: Person; kin
                 >
                   <Avatar person={p} size={30} />
                   <span className="rel-text">
-                    <span className="rel-name">{displayName(p)}</span>
+                    <span className="rel-name">{standInName(tree, p, naming) || displayName(p)}</span>
                     <span className="rel-sub">
                       {[kin.get(p.id), lifespan(p), count ? descendantsText(count, naming) : '']
                         .filter(Boolean)
@@ -227,6 +230,7 @@ interface LayerProps {
   line: ReadonlySet<number>;
   selIdx: number;
   cmpIdx: number;
+  homeIdx: number;
 }
 
 /** Branches from each parent's slice out to their children's. */
@@ -254,7 +258,7 @@ const Twigs = memo(function Twigs({ fan, lit, line }: LayerProps) {
   );
 });
 
-const Slices = memo(function Slices({ fan, lit, line, selIdx, cmpIdx }: LayerProps) {
+const Slices = memo(function Slices({ fan, lit, line, selIdx, cmpIdx, homeIdx }: LayerProps) {
   return (
     <g className="fan-slices">
       {fan.nodes.map((n, i) => {
@@ -264,6 +268,7 @@ const Slices = memo(function Slices({ fan, lit, line, selIdx, cmpIdx }: LayerPro
           n.viaDaughter ? 'is-daughter-line' : '',
           i === selIdx ? 'is-selected' : '',
           i === cmpIdx ? 'is-compared' : '',
+          i === homeIdx ? 'is-home' : '',
           line.has(i) && i !== selIdx ? 'is-on-line' : '',
           lit ? (lit.has(i) ? 'is-lit' : 'is-dim') : '',
           n.person.deceased || n.person.deathDate ? 'is-deceased' : '',
@@ -282,7 +287,7 @@ const Slices = memo(function Slices({ fan, lit, line, selIdx, cmpIdx }: LayerPro
 });
 
 /** Names, grouped by size so zooming can show or hide each group at once. */
-const Labels = memo(function Labels({ fan, lit }: { fan: FanLayout; lit: ReadonlySet<number> | null }) {
+const Labels = memo(function Labels({ fan, lit, homeIdx }: { fan: FanLayout; lit: ReadonlySet<number> | null; homeIdx: number }) {
   const buckets = new Map<number, FanNode[]>();
   for (const n of fan.nodes) {
     if (!n.label) continue;
@@ -298,8 +303,9 @@ const Labels = memo(function Labels({ fan, lit }: { fan: FanLayout; lit: Readonl
             const l = n.label!;
             const i = fan.index.get(n.id)!;
             const dim = lit && !lit.has(i);
+            const cls = [dim ? 'is-dim' : '', i === homeIdx ? 'is-home' : ''].filter(Boolean).join(' ');
             return (
-              <g key={n.id} transform={`translate(${l.x} ${l.y}) rotate(${l.rotate})`} className={dim ? 'is-dim' : undefined}>
+              <g key={n.id} transform={`translate(${l.x} ${l.y}) rotate(${l.rotate})`} className={cls || undefined}>
                 <text className="fan-name" y={l.sub ? -l.size * 0.48 : 0} fontSize={l.size}>
                   {l.text}
                 </text>
@@ -348,7 +354,7 @@ function FanCard({ tree, node, root, kin, naming, at }: CardProps) {
   const p = node.person;
   const toMe = kin.get(p.id);
   const toRoot = node.depth > 0 ? relationName(tree, root.id, p.id, naming) : null;
-  const partners = partnersOf(tree, p.id).filter((x) => x.union.status !== 'divorced');
+  const partners = partnersOf(tree, p.id).filter((x) => x.union.status !== 'divorced' && !isNameless(x.person));
   const kids = indexOf(tree).children.get(p.id)?.length ?? 0;
   const dead = p.deceased || Boolean(p.deathDate);
 
@@ -358,13 +364,13 @@ function FanCard({ tree, node, root, kin, naming, at }: CardProps) {
         <Avatar person={p} size={40} />
         <div>
           {toMe && <span className="tl-card-eyebrow">{toMe}</span>}
-          <strong>{latePrefix(p, naming) + displayName(p)}</strong>
+          <strong>{standInName(tree, p, naming) || latePrefix(p, naming) + displayName(p)}</strong>
         </div>
       </div>
       <dl className="tl-card-facts">
         {toRoot && (
           <div>
-            <dt>{naming === 'en' ? `To ${shortName(root)}` : shortName(root)}</dt>
+            <dt>{naming === 'en' ? `To ${treeName(tree, root, naming)}` : treeName(tree, root, naming)}</dt>
             <dd>
               <span className="fan-card-rel">{toRoot.label}</span>
               {toRoot.meaning && <span className="tl-card-muted"> · {toRoot.meaning}</span>}
@@ -431,8 +437,8 @@ export function FanView() {
   const kin = relationLabels(tree, naming);
 
   const fan = useMemo(
-    () => fanLayout(tree, rootId ?? '', { sonsOnly: prefs.sonsOnly }, (id) => kin.get(id) ?? ''),
-    [tree, rootId, prefs.sonsOnly, kin],
+    () => fanLayout(tree, rootId ?? '', { sonsOnly: prefs.sonsOnly }, (id) => kin.get(id) ?? '', naming),
+    [tree, rootId, prefs.sonsOnly, kin, naming],
   );
   const live = useRef(fan);
   live.current = fan;
@@ -443,6 +449,7 @@ export function FanView() {
 
   const selIdx = selectedId ? (fan.index.get(selectedId) ?? -1) : -1;
   const cmpIdx = compareId ? (fan.index.get(compareId) ?? -1) : -1;
+  const homeIdx = tree.homeId ? (fan.index.get(tree.homeId) ?? -1) : -1;
 
   // The selected person's line back to the root.
   const line = useMemo(() => {
@@ -719,7 +726,7 @@ export function FanView() {
     return {
       svg,
       root,
-      rootName: latePrefix(root, naming) + shortName(root),
+      rootName: treeName(tree, root, naming),
       rootRelation: kin.get(root.id) ?? '',
       rootR: ROOT_R,
       parents: root.parentIds
@@ -727,11 +734,11 @@ export function FanView() {
         .filter((p): p is Person => Boolean(p))
         .map((p) => ({
           person: p,
-          name: latePrefix(p, naming) + shortName(p),
+          name: treeName(tree, p, naming),
           relation: relationName(tree, root.id, p.id, naming)?.label ?? '',
         })),
       parentsY: f.groundY + 34,
-      title: latePrefix(root, naming) + displayName(root),
+      title: standInName(tree, root, naming) || latePrefix(root, naming) + displayName(root),
       subtitle: `${word} · ${statsText(f.rings.length + 1, f.nodes.length - 1, f.living, naming)}`,
       fileName: `${displayName(root)} family tree`,
     };
@@ -825,12 +832,12 @@ export function FanView() {
               ))}
             </defs>
             <Trunk groundY={fan.groundY} />
-            <Twigs fan={fan} lit={lit} line={line} selIdx={selIdx} cmpIdx={cmpIdx} />
-            <Slices fan={fan} lit={lit} line={line} selIdx={selIdx} cmpIdx={cmpIdx} />
-            <Labels fan={fan} lit={lit} />
+            <Twigs fan={fan} lit={lit} line={line} selIdx={selIdx} cmpIdx={cmpIdx} homeIdx={homeIdx} />
+            <Slices fan={fan} lit={lit} line={line} selIdx={selIdx} cmpIdx={cmpIdx} homeIdx={homeIdx} />
+            <Labels fan={fan} lit={lit} homeIdx={homeIdx} />
             <g className="fan-rings" aria-hidden="true">
               {fan.rings.map((ring) =>
-                ringLabelSpots(ring).map((s, k) => (
+                ringLabelSpots(ring).slice(1).map((s, k) => (
                   <text key={`${ring.depth}-${k}`} x={s.x} y={s.y} textAnchor={s.anchor} className="fan-ring-label">
                     {generationName(ring.depth, naming, hasDaughterLine && !prefs.sonsOnly)}
                     <tspan className="fan-ring-count"> · {ring.count}</tspan>
@@ -850,7 +857,7 @@ export function FanView() {
             aria-label={`${displayName(root)} - show details`}
           >
             <Avatar person={root} size={52} />
-            <span className="fan-root-name">{latePrefix(root, naming) + shortName(root)}</span>
+            <span className="fan-root-name">{treeName(tree, root, naming)}</span>
             {rootRel && <span className="fan-root-rel">{rootRel}</span>}
           </button>
 
@@ -874,14 +881,14 @@ export function FanView() {
                   type="button"
                   className="fan-parent"
                   onClick={() => reroot(p.id)}
-                  data-tip={`Show ${shortName(p)}'s family`}
+                  data-tip={`Show ${treeName(tree, p, naming)}'s family`}
                 >
                   <Avatar person={p} size={26} />
                   <span>
                     <span className="fan-parent-rel">
                       {relationName(tree, root.id, p.id, naming)?.label ?? (p.gender === 'female' ? 'Mother' : 'Father')}
                     </span>
-                    {latePrefix(p, naming) + shortName(p)}
+                    {treeName(tree, p, naming)}
                   </span>
                 </button>
               ))}
@@ -908,7 +915,7 @@ export function FanView() {
                       }}
                     >
                       <span className={`fan-swatch${n.person.gender === 'female' ? ' is-daughter' : ''}`} />
-                      <span className="fan-legend-name">{latePrefix(n.person, naming) + shortName(n.person)}</span>
+                      <span className="fan-legend-name">{treeName(tree, n.person, naming)}</span>
                       {kin.get(n.id) && <span className="fan-legend-rel">{kin.get(n.id)}</span>}
                       <span className="fan-legend-count">{n.descendants + 1}</span>
                     </button>

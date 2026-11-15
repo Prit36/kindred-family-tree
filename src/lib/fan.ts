@@ -2,7 +2,7 @@ import { arc } from 'd3-shape';
 import type { Gender, Person, Tree } from '../types';
 import { compareByBirth } from './dates';
 import type { Naming } from './naming';
-import { indexOf, isPlaceholder } from './tree';
+import { indexOf, isPlaceholder, shortName } from './tree';
 
 /**
  * The descendants view: one person at the foot of a tree, everyone descended from them
@@ -104,9 +104,12 @@ const sliceArc = arc<{ r0: number; r1: number; a0: number; a1: number; pad: numb
   .padRadius((s) => (s.r0 + s.r1) / 2)
   .cornerRadius((s) => Math.min(6, (s.r1 - s.r0) / 4, ((s.a1 - s.a0) * (s.r0 + s.r1)) / 8));
 
+/** Nobody knows their name: a placeholder, or someone known only through notes. */
+export const isNameless = (p: Person) => isPlaceholder(p) || !(p.firstName.trim() || p.lastName.trim() || p.birthName.trim());
+
 /** The name a slice can show: the first given name ("Ramjibhai" from "Ramjibhai Mavjibhai"). */
 export function sliceName(p: Person): string {
-  if (isPlaceholder(p)) return '';
+  if (isNameless(p)) return '';
   return p.firstName.trim().split(/\s+/)[0] || p.lastName.trim() || '';
 }
 
@@ -152,10 +155,34 @@ function fitLabel(n: FanNode, text: string, sub: string): FanLabel | null {
 }
 
 /**
+ * Someone the tree knows nothing about except their children, called after the eldest
+ * named one ("Muljibhai's father") rather than "Unknown".
+ */
+export function standInName(tree: Tree, p: Person, naming: Naming): string {
+  if (!isNameless(p)) return '';
+  const kid = (indexOf(tree).children.get(p.id) ?? [])
+    .map((k) => tree.people[k])
+    .filter(Boolean)
+    .sort(compareByBirth)
+    .find((k) => sliceName(k));
+  if (!kid) return '';
+  const name = sliceName(kid);
+  const g = p.gender;
+  if (naming === 'gu') return `${name}ના ${g === 'female' ? 'માતા' : g === 'male' ? 'પિતા' : 'વડીલ'}`;
+  if (naming === 'gu-latn') return `${name} na ${g === 'female' ? 'mata' : g === 'male' ? 'pita' : 'vadil'}`;
+  return `${name}'s ${g === 'female' ? 'mother' : g === 'male' ? 'father' : 'parent'}`;
+}
+
+/** What to call someone here: their short name (સ્વ. if they have died), or after their child. */
+export function treeName(tree: Tree, p: Person, naming: Naming): string {
+  return standInName(tree, p, naming) || latePrefix(p, naming) + shortName(p);
+}
+
+/**
  * Lays out everyone descended from `rootId`. `subOf` gives the small second line for a
  * slice (their relationship to you), or ''.
  */
-export function fanLayout(tree: Tree, rootId: string, opts: FanOptions, subOf: (id: string) => string): FanLayout {
+export function fanLayout(tree: Tree, rootId: string, opts: FanOptions, subOf: (id: string) => string, naming: Naming = 'en'): FanLayout {
   const { children } = indexOf(tree);
   const nodes: FanNode[] = [];
   const index = new Map<string, number>();
@@ -270,7 +297,7 @@ export function fanLayout(tree: Tree, rootId: string, opts: FanOptions, subOf: (
       n.twigWidth = Math.min(10, 1.4 + Math.sqrt(weight[index.get(n.id)!]) * 1.1);
       n.twig = `M${P(p.r1 - 3, pm)}L${P(mid, pm)}A${fmt(mid)} ${fmt(mid)} 0 ${large} ${sweep} ${P(mid, am)}L${P(n.r0 + 3, am)}`;
     }
-    n.label = fitLabel(n, sliceName(n.person), n.depth <= 2 ? subOf(n.id) : '');
+    n.label = fitLabel(n, sliceName(n.person) || standInName(tree, n.person, naming), n.depth <= 2 ? subOf(n.id) : '');
   }
 
   // The trunk runs down past the lowest leaves to the ground.

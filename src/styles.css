@@ -5629,6 +5629,15 @@ kbd {
   stroke-width: 2.5;
 }
 
+.fan-slice.is-home path:first-child {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+.fan-labels .is-home .fan-name {
+  fill: var(--accent-strong);
+}
+
 .fan-slice.is-selected path:first-child {
   fill: color-mix(in srgb, var(--side) calc(var(--mix) + 22%), var(--surface));
   stroke: var(--text);
@@ -5717,9 +5726,11 @@ kbd {
   font-size: 17px;
   font-weight: 600;
   line-height: 1.1;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .fan-root-rel {
@@ -5836,7 +5847,8 @@ kbd {
 }
 
 .fan-legend-name {
-  min-width: 0;
+  flex: none;
+  max-width: 132px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -5844,9 +5856,12 @@ kbd {
 }
 
 .fan-legend-rel {
+  min-width: 0;
   color: var(--text-2);
   font-size: 12px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .fan-legend-count {
