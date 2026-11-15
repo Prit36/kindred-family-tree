@@ -2,7 +2,7 @@ import { memo, type CSSProperties } from 'react';
 import { House, Plus, ScrollText } from 'lucide-react';
 import type { Person, Relation } from '../types';
 import { lifespan } from '../lib/dates';
-import { displayName } from '../lib/tree';
+import { displayName, givenName } from '../lib/tree';
 import { useLinkedByLine } from '../lib/lineHover';
 import { Avatar } from './Avatar';
 
@@ -31,6 +31,8 @@ interface Props {
   /** Just added to what's drawn (a new person, or an unfolded branch): fades in. */
   fresh: boolean;
   canAddParent: boolean;
+  /** Changes whenever the way names are written does (script, or the tree's own spellings), so the card is drawn again */
+  nameStyle: unknown;
   onSelect: (id: string) => void;
   onCompare: (id: string) => void;
   onEdit: (id: string) => void;
@@ -94,7 +96,7 @@ export const PersonCard = memo(function PersonCard({
   const life = lifespan(person);
   // The home person's relation is what they're called: "You", or "તમે" in Gujarati.
   const glance = isHome ? relation || 'You' : glanceLabel(relation);
-  const first = person.firstName.trim() || name;
+  const first = givenName(person) || name;
   const linked = useLinkedByLine(person.id);
 
   const cls = [

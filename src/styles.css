@@ -1259,6 +1259,15 @@ textarea.input {
   overflow-wrap: anywhere;
 }
 
+/* The name in the other script: ભરતભાઈ મોજીદ્રા under "Bharatbhai Mojidra" */
+.pp-other-name {
+  margin-top: -4px;
+  color: var(--text-2);
+  font-size: 15px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
 .pp-aka {
   margin-top: -4px;
   color: var(--text-2);

@@ -143,6 +143,8 @@ interface RowProps {
   /** Dots for these children are part of the selected person's family lines. */
   linkedChildIds: ReadonlySet<string>;
   compact: boolean;
+  /** Changes whenever the way names are written does, so rows redraw their names */
+  nameStyle: unknown;
   onPick: (id: string, e: MouseEvent) => void;
   onEdit: (id: string) => void;
 }
@@ -340,6 +342,7 @@ export function Timeline() {
   const now = useMemo(() => nowYear(), []);
   const naming = useStore((s) => s.naming);
   const kin = relationLabels(tree, naming);
+  const nameStyle = naming === 'gu' ? (tree.spellings ?? naming) : 'latin';
 
   // A focused branch narrows the timeline too; folded branches are a tree-only thing.
   const ids = useMemo(
@@ -786,11 +789,12 @@ export function Timeline() {
           pins: isSel ? NO_PINS : (pins.get(s.person.id) ?? NO_PINS),
           linkedChildIds: sel && sel.person.parentIds.includes(s.person.id) ? linked : NO_IDS,
           compact,
+          nameStyle,
           onPick,
           onEdit,
         };
       });
-  }, [rows, sel, selIndex, cmp, cmpIndex, first, last, homeId, kin, ppy, nameW, trackW, xOf, rowTop, rowHeight, life, pins, linked, compact, onPick, onEdit]);
+  }, [rows, sel, selIndex, cmp, cmpIndex, first, last, homeId, kin, ppy, nameW, trackW, xOf, rowTop, rowHeight, life, pins, linked, compact, nameStyle, onPick, onEdit]);
 
   // --- Hover readout -----------------------------------------------------------------
   const readout = (clientX: number, target: HTMLElement) => {

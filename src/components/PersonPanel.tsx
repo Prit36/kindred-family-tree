@@ -26,7 +26,9 @@ import { relationLabels, relationName } from '../lib/naming';
 import {
   childrenOf,
   displayName,
+  gujaratiName,
   isPlaceholder,
+  latinName,
   parentsOf,
   partnersOf,
   pathBetween,
@@ -131,6 +133,10 @@ function Details({ person }: { person: Person }) {
   const siblings = siblingsOf(tree, person.id).sort(compareByBirth);
   const children = childrenOf(tree, person.id).sort(compareByBirth);
   const descendants = descendantCount(tree, person.id);
+
+  // The name in the other script too: ભરતભાઈ મોજીદ્રા under "Bharatbhai Mojidra", or the other way round.
+  const named = Boolean(person.firstName.trim() || person.lastName.trim());
+  const otherName = !named ? '' : naming === 'gu' ? latinName(person) : gujaratiName(person, tree.spellings);
 
   const birthName =
     person.birthName && person.birthName !== person.lastName
@@ -483,6 +489,11 @@ function Details({ person }: { person: Person }) {
 
         <div className="pp-id">
           <h2 className="pp-name">{displayName(person)}</h2>
+          {otherName && (
+            <span className="pp-other-name" lang={naming === 'gu' ? 'en' : 'gu'}>
+              {otherName}
+            </span>
+          )}
           {birthName && <span className="pp-aka">{birthName}</span>}
           {(relation || side) && (
             <div className="pp-meta">

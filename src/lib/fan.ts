@@ -2,7 +2,7 @@ import { arc } from 'd3-shape';
 import type { Gender, Person, Tree } from '../types';
 import { compareByBirth } from './dates';
 import type { Naming } from './naming';
-import { indexOf, isPlaceholder, partnersOf, shortName } from './tree';
+import { givenName, indexOf, isPlaceholder, partnersOf, shortName } from './tree';
 
 /**
  * The descendants view: one person at the foot of a tree, everyone descended from them
@@ -124,7 +124,8 @@ export const isNameless = (p: Person) => isPlaceholder(p) || !(p.firstName.trim(
 /** The name a slice can show: the first given name ("Ramjibhai" from "Ramjibhai Mavjibhai"). */
 export function sliceName(p: Person): string {
   if (isNameless(p)) return '';
-  return p.firstName.trim().split(/\s+/)[0] || p.lastName.trim() || '';
+  // The same in Gujarati script: its words line up with the English ones (રામજીભાઈ માવજીભાઈ).
+  return givenName(p).split(/\s+/)[0] || shortName(p);
 }
 
 const GUJARATI = /[઀-૿]/;

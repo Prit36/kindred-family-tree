@@ -26,6 +26,7 @@ import {
   singleParentSiblings,
   updatePerson,
 } from '../lib/tree';
+import { learnSpellings, NO_SPELLINGS, toGujarati } from '../lib/gujaratiNames';
 import { Avatar } from './Avatar';
 import { DateInput } from './DateInput';
 import { Modal } from './Modal';
@@ -155,6 +156,22 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
 
   const set = (patch: Partial<PersonInput>) => setDraft((d) => ({ ...d, ...patch }));
 
+  // The name in Gujarati: worked out from the English until it's typed over, and then
+  // remembered for everyone with that name (see learnSpellings).
+  const [guFirst, setGuFirst] = useState<string | null>(null);
+  const [guLast, setGuLast] = useState<string | null>(null);
+  const autoFirst = toGujarati(draft.firstName, tree.spellings);
+  const autoLast = toGujarati(draft.lastName, tree.spellings);
+  const withSpellings = (t: Tree, first: string, last: string): Tree => {
+    const before = tree.spellings ?? NO_SPELLINGS;
+    let after = before;
+    if (guFirst !== null && guFirst.trim() !== autoFirst) after = learnSpellings(after, first, guFirst);
+    if (guLast !== null && guLast.trim() !== autoLast) after = learnSpellings(after, last, guLast);
+    if (after === before) return t;
+    const { spellings: _, ...rest } = t;
+    return Object.keys(after).length ? { ...rest, spellings: { ...after } } : rest;
+  };
+
   const needsPlaceholders =
     relation === 'sibling' &&
     anchor !== undefined &&
@@ -224,15 +241,17 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
       deathDate: draft.deceased ? draft.deathDate : '',
     };
 
+    const named = (t: Tree) => withSpellings(t, clean.firstName, clean.lastName);
+
     if (spec.type === 'edit') {
-      commit(updatePerson(tree, spec.personId, clean));
+      commit(named(updatePerson(tree, spec.personId, clean)));
       closeDialog();
       return;
     }
 
     if (spec.type === 'first') {
       const created = createPerson(tree, clean);
-      commit(created.tree);
+      commit(named(created.tree));
       closeDialog();
       select(created.id, true);
       return;
@@ -265,7 +284,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
         break;
       }
     }
-    commit(next);
+    commit(mode === 'new' ? named(next) : next);
     closeDialog();
     select(targetId);
   };
@@ -352,6 +371,26 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
                     value={draft.lastName}
                     autoComplete="off"
                     onChange={(e) => set({ lastName: e.target.value })}
+                  />
+                </label>
+                <label className="field" lang="gu">
+                  <span className="field-label">નામ</span>
+                  <input
+                    className="input"
+                    value={guFirst ?? autoFirst}
+                    autoComplete="off"
+                    aria-label="First name in Gujarati"
+                    onChange={(e) => setGuFirst(e.target.value)}
+                  />
+                </label>
+                <label className="field" lang="gu">
+                  <span className="field-label">અટક</span>
+                  <input
+                    className="input"
+                    value={guLast ?? autoLast}
+                    autoComplete="off"
+                    aria-label="Last name in Gujarati"
+                    onChange={(e) => setGuLast(e.target.value)}
                   />
                 </label>
               </div>

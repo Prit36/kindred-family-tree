@@ -282,7 +282,7 @@ function MainMenu() {
   );
 }
 
-/** The words relationships are named in: English, ગુજરાતી, or Gujarati in English letters. */
+/** The words relationships are named in - English, ગુજરાતી, or Gujarati in English letters - and the script of people's names. */
 function NamingMenu() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -312,15 +312,15 @@ function NamingMenu() {
         className="icon-btn"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="Relationship names"
-        data-tip={open ? undefined : 'Relationship names (L)'}
+        aria-label="Names and relationships"
+        data-tip={open ? undefined : 'Names and relationships (L)'}
         onClick={() => setOpen((o) => !o)}
       >
         <Languages size={17} />
       </button>
       {open && (
-        <div className="menu-pop naming-pop" role="menu" aria-label="Relationship names">
-          <h3>Relationship names</h3>
+        <div className="menu-pop naming-pop" role="menu" aria-label="Names and relationships">
+          <h3>Names and relationships</h3>
           {NAMINGS.map((n) => (
             <button
               key={n.value}

@@ -170,6 +170,8 @@ export function Canvas() {
 
   const naming = useStore((s) => s.naming);
   const kin = relationLabels(tree, naming);
+  // Cards redraw their names when the script changes, or a Gujarati spelling is corrected.
+  const nameStyle = naming === 'gu' ? (tree.spellings ?? naming) : 'latin';
   const sides = familySides(tree);
   // Hovering a side in the list lights it up and dims everyone else.
   const peeked = useMemo(() => (peek ? focusSet(tree, peek) : null), [tree, peek]);
@@ -701,6 +703,7 @@ export function Canvas() {
 
         <Cards
           tree={tree}
+          nameStyle={nameStyle}
           layout={layout}
           win={drawWin}
           far={drawFar}
@@ -816,6 +819,7 @@ export function Canvas() {
 
 interface CardsProps {
   tree: Tree;
+  nameStyle: unknown;
   layout: TreeLayout;
   win: Win | null;
   far: boolean;
@@ -836,6 +840,7 @@ interface CardsProps {
 /** The cards on screen (and whoever is selected or compared, wherever they are). */
 function Cards({
   tree,
+  nameStyle,
   layout,
   win,
   far,
@@ -876,6 +881,7 @@ function Cards({
         far={far}
         fresh={isFresh(id)}
         canAddParent={p.parentIds.length < 2 || p.parentIds.some((pid) => placeholders.has(pid))}
+        nameStyle={nameStyle}
         onSelect={onSelect}
         onCompare={onCompare}
         onEdit={onEdit}

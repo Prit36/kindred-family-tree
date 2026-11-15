@@ -42,7 +42,7 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
       [['/'], 'Search by name, place, year or relationship'],
       [['T'], 'Switch between the tree and the timeline'],
       [['D'], "Show the selected person's descendants as a tree of generations"],
-      [['L'], 'Name relationships in English, ગુજરાતી or Gujarati in English letters'],
+      [['L'], 'Switch names and relationships between English, ગુજરાતી and Gujarati in English letters'],
       [['H'], 'Jump back to yourself'],
       [['F'], 'Fit the whole tree on screen'],
       [['+', '−'], 'Zoom in and out'],

@@ -15,6 +15,7 @@ import {
 import { focusTitle } from './lib/sides';
 import type { Naming } from './lib/naming';
 import { emptyTree, shortName } from './lib/tree';
+import { NO_SPELLINGS, setNameScriptSource } from './lib/gujaratiNames';
 import { onSaveResult, requestPersistence, saveTree } from './lib/treeStore';
 
 const VIEW_KEY = 'kindred.view.v1';
@@ -409,6 +410,12 @@ export const useStore = create<State>((set, get) => ({
     set({ naming });
   },
 }));
+
+// People's names are written in Gujarati along with everything else when ગુજરાતી is chosen.
+setNameScriptSource(() => {
+  const { naming, tree } = useStore.getState();
+  return { gujarati: naming === 'gu', spellings: tree.spellings ?? NO_SPELLINGS };
+});
 
 // Remember which branches are folded.
 useStore.subscribe((state, prev) => {

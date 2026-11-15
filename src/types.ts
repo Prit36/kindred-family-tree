@@ -43,6 +43,11 @@ export interface Tree {
   unions: Union[];
   /** The person relationships are described relative to ("me") */
   homeId: string | null;
+  /**
+   * How this family writes names in Gujarati where it differs from the automatic spelling:
+   * a lowercase name ("katudiya") or whole name ("ramesh d.") → its Gujarati ("કટુડિયા").
+   */
+  spellings?: Record<string, string>;
 }
 
 export type Relation = 'parent' | 'partner' | 'child' | 'sibling';

@@ -1,5 +1,5 @@
 import type { Person, Tree } from '../types';
-import { displayName } from './tree';
+import { gujaratiName, latinName } from './tree';
 import { relationSearchText } from './naming';
 import { yearOf } from './dates';
 
@@ -12,17 +12,20 @@ interface Searchable {
 
 // Metadata belongs to immutable people, so editing one member needn't lowercase
 // everyone else's notes again. Undo history must not retain assembled search indexes.
-const metadata = new WeakMap<Person, Omit<Searchable, 'fields'> & { fields: string[] }>();
+const metadata = new WeakMap<Person, Searchable & { spellings: Tree['spellings'] }>();
 const indexes = new WeakMap<Tree, WeakRef<Searchable[]>>();
 
 export function searchIndex(tree: Tree): Searchable[] {
   const hit = indexes.get(tree)?.deref();
   if (hit) return hit;
+  const spellings = tree.spellings;
   const index = Object.values(tree.people).map((person) => {
     let entry = metadata.get(person);
-    if (!entry) {
-      const display = displayName(person);
-      entry = { person, display, name: display.toLowerCase(), fields: [
+    if (!entry || entry.spellings !== spellings) {
+      const display = latinName(person);
+      // Found by name in either script: "bharat" or "ભરત".
+      const name = `${display} ${gujaratiName(person, spellings)}`.toLowerCase();
+      entry = { person, display, name, spellings, fields: [
         person.birthName.toLowerCase(), '', person.birthPlace.toLowerCase(),
         `${yearOf(person.birthDate) ?? ''} ${yearOf(person.deathDate) ?? ''}`, person.notes.toLowerCase(),
       ] };

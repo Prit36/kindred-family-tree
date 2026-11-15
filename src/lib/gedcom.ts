@@ -1,6 +1,6 @@
 import type { Gender, Person, Tree, Union, UnionStatus } from '../types';
 import { MONTHS, buildDate, formatDate, parseDate } from './dates';
-import { blankInput, displayName, sanitizeTree, uid } from './tree';
+import { blankInput, latinName, sanitizeTree, uid } from './tree';
 
 /**
  * GEDCOM 5.5.1, the format every genealogy program (Ancestry, FamilySearch, MyHeritage,
@@ -352,7 +352,7 @@ export function parseGedcom(text: string, fallbackName = 'My Family', now = new 
       if (when || where) {
         for (const [me, other] of [spouses, [...spouses].reverse()]) {
           const detail = [when && `on ${when}`, where && `in ${where}`].filter(Boolean).join(' ');
-          addNote(me, `Married ${displayName(people[other])} ${detail}`);
+          addNote(me, `Married ${latinName(people[other])} ${detail}`);
         }
       }
     }
@@ -377,7 +377,7 @@ export function parseGedcom(text: string, fallbackName = 'My Family', now = new 
     people[cid].parentIds = spousesOf(chosen.fam).filter((pid) => pid !== cid);
     const others = ordered.filter((o) => o !== chosen && spousesOf(o.fam).length > 0);
     for (const o of others) {
-      const names = spousesOf(o.fam).map((pid) => displayName(people[pid])).join(' and ');
+      const names = spousesOf(o.fam).map((pid) => latinName(people[pid])).join(' and ');
       addNote(cid, `${o.pedi === 'adopted' ? 'Adopted by' : o.pedi === 'foster' ? 'Fostered by' : 'Also listed as the child of'} ${names}`);
     }
   }

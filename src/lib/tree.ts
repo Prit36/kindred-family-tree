@@ -1,6 +1,7 @@
 import type { Person, PersonInput, Tree, Union, UnionStatus } from '../types';
 import type { CropView } from './crop';
 import { isOriginalId } from './photoStore';
+import { firstLetter, nameScript, toGujarati, type Spellings } from './gujaratiNames';
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -28,15 +29,41 @@ export function blankInput(partial: Partial<PersonInput> = {}): PersonInput {
   };
 }
 
+/**
+ * Names are shown in the script chosen (see gujaratiNames.ts): "Bharatbhai Mojidra", or
+ * ભરતભાઈ મોજીદ્રા in Gujarati. They are always stored in English letters.
+ */
+function shown(text: string): string {
+  const script = nameScript();
+  return script.gujarati ? toGujarati(text, script.spellings) : text.trim();
+}
+
+const unknown = () => (nameScript().gujarati ? 'અજ્ઞાત' : 'Unknown');
+
 export function displayName(p: Person | undefined): string {
-  if (!p) return 'Unknown';
-  const name = `${p.firstName} ${p.lastName}`.trim();
-  return name || 'Unknown';
+  if (!p) return unknown();
+  return `${shown(p.firstName)} ${shown(p.lastName)}`.trim() || unknown();
 }
 
 export function shortName(p: Person | undefined): string {
+  if (!p) return unknown();
+  return shown(p.firstName) || shown(p.lastName) || unknown();
+}
+
+/** Someone's given names as shown: "Ramjibhai Mavjibhai", or રામજીભાઈ માવજીભાઈ. */
+export function givenName(p: Person): string {
+  return shown(p.firstName);
+}
+
+/** The name in English letters, as stored - for files other programs read. */
+export function latinName(p: Person | undefined): string {
   if (!p) return 'Unknown';
-  return p.firstName.trim() || p.lastName.trim() || 'Unknown';
+  return `${p.firstName} ${p.lastName}`.trim() || 'Unknown';
+}
+
+/** The name in Gujarati script, whichever script is being shown. */
+export function gujaratiName(p: Person, spellings?: Spellings): string {
+  return `${toGujarati(p.firstName, spellings)} ${toGujarati(p.lastName, spellings)}`.trim();
 }
 
 /** The surname someone was born with - what their parents and siblings most likely share. */
@@ -52,6 +79,10 @@ export function isPlaceholder(p: Person | undefined): boolean {
 }
 
 export function initials(p: Pick<Person, 'firstName' | 'lastName'>): string {
+  if (nameScript().gujarati) {
+    const gu = firstLetter(shown(p.firstName)) + firstLetter(shown(p.lastName));
+    if (gu) return gu;
+  }
   const a = p.firstName.trim()[0] ?? '';
   const b = p.lastName.trim()[0] ?? '';
   return (a + b).toUpperCase() || '?';
@@ -412,6 +443,16 @@ function cropOf(v: unknown): CropView | null {
   return ok(cx) && ok(cy) && ok(zoom) && zoom >= 1 ? { cx, cy, zoom } : null;
 }
 
+/** A tree's own Gujarati spellings, keeping only well-formed ones. */
+function spellingsOf(raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'string' && /[઀-૿]/.test(value) && key.trim()) out[key.trim().toLowerCase()] = value.trim();
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** Accepts anything parsed from JSON and returns a well-formed tree, or throws. */
 export function sanitizeTree(raw: unknown): Tree {
   if (!raw || typeof raw !== 'object') throw new Error('Not a family tree file');
@@ -492,6 +533,8 @@ export function sanitizeTree(raw: unknown): Tree {
     unions,
     homeId: typeof src.homeId === 'string' && people[src.homeId] ? src.homeId : null,
   };
+  const spellings = spellingsOf(src.spellings);
+  if (spellings) tree.spellings = spellings;
   for (const p of Object.values(people)) {
     if (p.parentIds.length !== 2) continue;
     const [a, b] = p.parentIds;

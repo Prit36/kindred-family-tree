@@ -3,12 +3,12 @@ import type { Tree } from '../types';
 import { gujaratiKinship } from './gujarati';
 import { kinshipFor, relationBetween } from './kinship';
 
-/** Which words relationships are named in. */
+/** Which words relationships are named in - and, for ગુજરાતી, which script people's names are written in. */
 export type Naming = 'en' | 'gu' | 'gu-latn';
 
 export const NAMINGS: { value: Naming; label: string; example: string }[] = [
   { value: 'en', label: 'English', example: 'Uncle, Cousin, Sister-in-law' },
-  { value: 'gu', label: 'ગુજરાતી', example: 'કાકા, માસી, ભાભી' },
+  { value: 'gu', label: 'ગુજરાતી', example: 'ભરતભાઈ · કાકા, માસી, ભાભી' },
   { value: 'gu-latn', label: 'Gujarati in English letters', example: 'Kaka, Masi, Bhabhi' },
 ];
 
