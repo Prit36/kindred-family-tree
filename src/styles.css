@@ -6332,3 +6332,249 @@ body {
     right: calc(min(var(--panel-width), 46vw) + 2 * var(--chrome-inset));
   }
 }
+
+/* ==========================================================================
+   Phones: no box inside another
+   On a small screen every frame costs room, so the header, the timeline and
+   the details sheet sit flush against the screen's edges, and what is inside
+   them (tabs, selects, secondary buttons, lists, counts) has no outline or
+   fill of its own - a tint or an underline shows what is chosen.
+   ========================================================================== */
+
+@media (max-width: 640px), (max-width: 859px) and (max-height: 500px) {
+  :root {
+    --chrome-inset: 0px;
+    --content-top: 44px;
+  }
+
+  /* --- The shell --- */
+  .topbar {
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--content-top);
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .timeline {
+    top: var(--content-top);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .search-results {
+    top: calc(var(--content-top) + 4px);
+  }
+
+  /* --- Inside a surface: no boxes of their own --- */
+  .segmented,
+  .view-switch {
+    gap: 2px;
+    padding: 0;
+    background: none;
+  }
+
+  .segmented button[aria-selected='true'],
+  .segmented button[aria-checked='true'] {
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    box-shadow: none;
+  }
+
+  .segmented[role='tablist'],
+  .insights-tabs {
+    gap: 16px;
+    padding: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: none;
+  }
+
+  .segmented[role='tablist'] button,
+  .insights-tab {
+    flex: none;
+    height: var(--h-control);
+    margin-bottom: -1px;
+    padding: 0 2px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: none;
+  }
+
+  .segmented[role='tablist'] button[aria-selected='true'],
+  .insights-tab.is-active {
+    border-bottom-color: var(--accent);
+    background: none;
+    color: var(--text);
+    box-shadow: none;
+  }
+
+  .btn:not(.btn-primary):not(.btn-danger):not(.fan-add-child) {
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .btn:not(.btn-primary):not(.btn-danger):not(.fan-add-child):hover {
+    background: var(--surface-2);
+  }
+
+  .toolbar-select,
+  .pp-family-head .focus-options {
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .insights-count,
+  .insights-tab.is-active .insights-count,
+  .side-count,
+  .picker-same,
+  .picker-row.is-chosen .picker-same,
+  .insights-milestone {
+    min-width: 0;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .insights-count,
+  .side-count,
+  .picker-same {
+    color: var(--text-3);
+  }
+
+  .insights-sev,
+  .sev-problem .insights-sev,
+  .sev-warning .insights-sev,
+  .sev-tip .insights-sev {
+    width: 20px;
+    background: none;
+  }
+
+  .insights-row.is-today {
+    background: none;
+  }
+
+  .insights-row.is-today .insights-name,
+  .insights-row.is-today .insights-when {
+    color: var(--accent-strong);
+  }
+
+  .hint {
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--text-2);
+  }
+
+  .hint svg {
+    color: var(--accent);
+  }
+
+  .focus-icon,
+  .focus-icon[data-tone] {
+    width: 24px;
+    background: none;
+  }
+
+  /* The details sheet's family diagram sits on the sheet itself. */
+  .pp-tree {
+    padding: 4px 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .pp-tree .avatar {
+    box-shadow:
+      0 0 0 2px var(--surface),
+      0 0 0 3.5px var(--tone);
+  }
+
+  .pp-node.is-self {
+    padding: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .pp-node.is-self .avatar {
+    box-shadow:
+      0 0 0 2px var(--surface),
+      0 0 0 4px var(--accent);
+  }
+
+  .pp-stack-more {
+    box-shadow: 0 0 0 2px var(--surface);
+  }
+
+  /* Lists sit on their dialog or view, not in a tray. */
+  .picker-list {
+    margin: 0 -8px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .picker-row.is-chosen {
+    box-shadow: none;
+  }
+
+  .side-main.is-active {
+    border-color: transparent;
+  }
+
+  .tl-undated {
+    background: none;
+  }
+
+  .tl-chip {
+    padding: 0 10px 0 4px;
+    border: 0;
+    border-radius: var(--r-control);
+    background: transparent;
+  }
+
+  .tl-chip.is-selected {
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    box-shadow: none;
+  }
+
+  kbd,
+  .search-kbd {
+    border: 0;
+    background: none;
+  }
+}
+
+/* A phone held upright: the details sheet spans the screen's width from the bottom edge. */
+@media (max-width: 640px) and (min-height: 501px) {
+  .panel {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-width: 1px 0 0;
+    border-radius: var(--r-dialog) var(--r-dialog) 0 0;
+  }
+}
+
+/* A phone on its side: the details panel docks flush to the right edge. */
+@media (max-width: 859px) and (max-height: 500px) {
+  .panel {
+    bottom: 0;
+    max-height: none;
+    border-width: 0 0 0 1px;
+    border-radius: 0;
+  }
+
+  .panel .pp-body {
+    flex: 1 1 auto;
+  }
+}
