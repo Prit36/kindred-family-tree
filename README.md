@@ -11,6 +11,8 @@ npm run dev
 
 Then open http://localhost:5173. `npm run build` produces a static site in `dist/` that can be hosted anywhere.
 
+Fonts are committed. Run `python scripts/optimize_fonts.py` manually after content, typography or Fontsource changes; font processing is not part of the build.
+
 ## Using it
 
 - **Add yourself**, then select any card and use the **+** bubbles (up = parent, down = child, left = sibling, right = partner) or the buttons in the side panel.
