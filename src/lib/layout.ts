@@ -1,5 +1,7 @@
-import type { Tree, UnionStatus } from '../types';
+import type { Tree, Union, UnionStatus } from '../types';
 import { birthSortKey } from './dates';
+import { RecentMap } from './lru';
+import { shapeOf, type Shape } from './shape';
 
 export const CARD_W = 224;
 export const CARD_H = 80;
@@ -80,6 +82,15 @@ export interface LayoutAnchor {
 interface Family {
   parents: string[];
   children: string[];
+}
+
+/** Where everyone goes, before the tree is shifted into place and its lines are drawn. */
+interface Arrangement {
+  nodes: Readonly<Record<string, Readonly<NodePos>>>;
+  /** The couples whose both partners are in the tree */
+  unions: Union[];
+  /** Each set of parents (ids sorted and joined with `|`) and the children they share */
+  families: Map<string, Family>;
 }
 
 const mean = (values: number[]) => values.reduce((a, b) => a + b, 0) / values.length;
@@ -254,9 +265,7 @@ export function familyStem(layout: TreeLayout, parents: string[]): Stem | null {
  * 5. Connectors are drawn as orthogonal lines from each couple down to their children.
  */
 export function computeLayout(tree: Tree, anchor?: LayoutAnchor): TreeLayout {
-  const people = tree.people;
-  const ids = Object.keys(people);
-  if (ids.length === 0) {
+  if (Object.keys(tree.people).length === 0) {
     return {
       nodes: {},
       unions: [],
@@ -266,6 +275,152 @@ export function computeLayout(tree: Tree, anchor?: LayoutAnchor): TreeLayout {
       unionByPair: new Map(),
     };
   }
+  // Ordering and placing everyone is most of the work, and depends only on the tree's
+  // structure - so going back to a structure seen a moment ago (undo, leaving a focus,
+  // unfolding a branch again) reuses it, and only the lines are drawn again.
+  const shape = shapeOf(tree);
+  let placed = arrangements.get(shape);
+  if (!placed) arrangements.set(shape, (placed = arrange(tree)));
+  const { unions, families } = placed;
+  const nodes: Record<string, NodePos> = {};
+  for (const id in placed.nodes) nodes[id] = { ...placed.nodes[id] };
+  // Shift so the anchor person stays exactly where they were (or start at the origin).
+  const extent = (): Bounds => {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const n of Object.values(nodes)) {
+      minX = Math.min(minX, n.x);
+      minY = Math.min(minY, n.y);
+      maxX = Math.max(maxX, n.x + CARD_W);
+      maxY = Math.max(maxY, n.y + CARD_H);
+    }
+    return { minX, minY, width: maxX - minX, height: maxY - minY };
+  };
+  const raw = extent();
+  const anchored = anchor ? nodes[anchor.id] : undefined;
+  const dx = anchor && anchored ? Math.round(anchor.x - anchored.x) : -raw.minX;
+  const dy = anchor && anchored ? Math.round(anchor.y - anchored.y) : -raw.minY;
+  for (const n of Object.values(nodes)) {
+    n.x += dx;
+    n.y += dy;
+  }
+  const bounds = extent();
+
+  // --- 5a. Couple lines -----------------------------------------------------
+  const unionLines: UnionLine[] = unions.map((u) => {
+    const a = nodes[u.a];
+    const b = nodes[u.b];
+    const [l, r] = a.x <= b.x ? [a, b] : [b, a];
+    const y = l.y + CARD_H / 2;
+    const x1 = l.x + CARD_W;
+    const x2 = r.x;
+    const adjacent = l.y === r.y && x2 - x1 <= PARTNER_GAP + 1;
+    const midX = (x1 + x2) / 2;
+    if (adjacent) {
+      // Two segments, leaving room for the ring drawn at the midpoint.
+      const d = `M ${x1} ${y} L ${midX - UNION_RING} ${y} M ${midX + UNION_RING} ${y} L ${x2} ${y}`;
+      const box = [x1, y - UNION_RING, x2, y + UNION_RING] as const;
+      return { id: u.id, status: u.status, d, midX, midY: y, a: u.a, b: u.b, adjacent: true, box };
+    }
+    // Not side by side (rare, e.g. several marriages): arc over the cards in between.
+    const top = Math.min(l.y, r.y) - 22;
+    const sx = l.x + CARD_W / 2;
+    const ex = r.x + CARD_W / 2;
+    return {
+      id: u.id,
+      status: u.status,
+      d: `M ${sx} ${l.y} C ${sx} ${top}, ${ex} ${top}, ${ex} ${r.y}`,
+      midX: (sx + ex) / 2,
+      midY: top + 6,
+      a: u.a,
+      b: u.b,
+      adjacent: false,
+      box: [sx, top, ex, Math.max(l.y, r.y)] as const,
+    };
+  });
+  const unionByPair = new Map(unionLines.map((u) => [[u.a, u.b].sort().join('|'), u]));
+
+  // --- 5b. Parent → child connectors ---------------------------------------
+  interface Run {
+    ax: number;
+    ay: number;
+    parents: string[];
+    children: string[];
+    top: number;
+    min: number;
+    max: number;
+    lane: number;
+  }
+  const runs: Run[] = [];
+  for (const [key, fam] of families) {
+    const union = fam.parents.length === 2 ? unionByPair.get(key) : undefined;
+    const { x: ax, y: ay } = stemFrom(nodes, union, fam.parents)!;
+    const centers = fam.children.map((c) => nodes[c].x + CARD_W / 2);
+    runs.push({
+      ax,
+      ay,
+      parents: fam.parents,
+      children: fam.children,
+      top: Math.min(...fam.children.map((c) => nodes[c].y)),
+      min: Math.min(ax, ...centers),
+      max: Math.max(ax, ...centers),
+      lane: 0,
+    });
+  }
+
+  // Families whose horizontal runs overlap in the same gap get separate lanes.
+  const byGap = new Map<number, Run[]>();
+  for (const run of runs) {
+    if (!byGap.has(run.top)) byGap.set(run.top, []);
+    byGap.get(run.top)!.push(run);
+  }
+  const laneCount = new Map<number, number>();
+  for (const [top, list] of byGap) {
+    list.sort((a, b) => a.min - b.min);
+    const laneEnds: number[] = [];
+    for (const run of list) {
+      let lane = laneEnds.findIndex((end) => end + 16 < run.min);
+      if (lane === -1) lane = laneEnds.length;
+      laneEnds[lane] = run.max;
+      run.lane = lane;
+    }
+    laneCount.set(top, laneEnds.length);
+  }
+
+  const links: ChildLink[] = [];
+  for (const run of runs) {
+    const lanes = laneCount.get(run.top)!;
+    const step = Math.min(LANE_STEP, (RANK_SEP - 44) / Math.max(1, lanes - 1));
+    const busY = Math.round(run.top - RANK_SEP / 2 + (run.lane - (lanes - 1) / 2) * step);
+    for (const childId of run.children) {
+      const cx = nodes[childId].x + CARD_W / 2;
+      const cy = nodes[childId].y;
+      const delta = cx - run.ax;
+      const s = Math.sign(delta);
+      const r = Math.max(0, Math.min(CORNER, Math.abs(delta) / 2, busY - run.ay, cy - busY));
+      // The command sequence is identical for every link so the path can be CSS-transitioned.
+      const d =
+        `M ${run.ax} ${run.ay} L ${run.ax} ${busY - r} ` +
+        `Q ${run.ax} ${busY} ${run.ax + s * r} ${busY} L ${cx - s * r} ${busY} ` +
+        `Q ${cx} ${busY} ${cx} ${busY + r} L ${cx} ${cy}`;
+      const box = [Math.min(run.ax, cx), run.ay, Math.max(run.ax, cx), cy] as const;
+      links.push({ childId, parentIds: run.parents, d, box });
+    }
+  }
+
+  const generations = new Set(Object.values(nodes).map((n) => n.y)).size;
+  return { nodes, unions: unionLines, links, bounds, generations, unionByPair };
+}
+
+/** The ordering and placing done for the last few tree structures. */
+const arrangements = new RecentMap<Shape, Arrangement>(4);
+
+/** Steps 1-4 of the layout: everyone's place before the tree is shifted into position. */
+function arrange(tree: Tree): Arrangement {
+  const people = tree.people;
+  const ids = Object.keys(people);
 
   // Oldest first, so siblings read left-to-right by age wherever nothing else decides.
   const sortKey = new Map(ids.map((id) => [id, birthSortKey(people[id])]));
@@ -561,9 +716,15 @@ export function computeLayout(tree: Tree, anchor?: LayoutAnchor): TreeLayout {
       for (let r = 1; r < rows.length; r++) sortRow(r, fromParents(r), age);
       let best = snapshot();
       let bestScore = crossings();
+      // A sweep that changes nothing would be followed by identical ones, so stop there.
+      const orderNow = () => rows.map((row) => row.map((g) => members.get(g)!.join(',')).join(';')).join('/');
+      let last = orderNow();
       for (let pass = 0; pass < 8 && bestScore > 0; pass++) {
         for (let r = rows.length - 2; r >= 0; r--) sortRow(r, fromChildren(r));
         for (let r = 1; r < rows.length; r++) sortRow(r, fromParents(r));
+        const now = orderNow();
+        if (now === last) break;
+        last = now;
         const score = crossings();
         if (score < bestScore) {
           best = snapshot();
@@ -647,7 +808,11 @@ export function computeLayout(tree: Tree, anchor?: LayoutAnchor): TreeLayout {
       let i = 0;
       for (const pool of pools) {
         const value = pool.total / pool.weight;
-        for (let k = 0; k < pool.count; k++, i++) x.set(row[i], value + offsets[i]);
+        for (let k = 0; k < pool.count; k++, i++) {
+          const next = value + offsets[i];
+          if (next !== x.get(row[i])) moved = true;
+          x.set(row[i], next);
+        }
       }
     };
 
@@ -696,7 +861,10 @@ export function computeLayout(tree: Tree, anchor?: LayoutAnchor): TreeLayout {
       return shifts.length ? x.get(g)! + mean(shifts) : null;
     };
 
-    for (let pass = 0; pass < 8; pass++) {
+    // Settled once a whole pass moves nobody: every pass after it would do the same.
+    let moved = true;
+    for (let pass = 0; pass < 8 && moved; pass++) {
+      moved = false;
       for (let r = 1; r < rows.length; r++) {
         packing = new Map();
         placeRow(r, underParents(r));
@@ -744,133 +912,5 @@ export function computeLayout(tree: Tree, anchor?: LayoutAnchor): TreeLayout {
     }
     cursorX += width + COMPONENT_GAP;
   }
-
-  // Shift so the anchor person stays exactly where they were (or start at the origin).
-  const extent = (): Bounds => {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const n of Object.values(nodes)) {
-      minX = Math.min(minX, n.x);
-      minY = Math.min(minY, n.y);
-      maxX = Math.max(maxX, n.x + CARD_W);
-      maxY = Math.max(maxY, n.y + CARD_H);
-    }
-    return { minX, minY, width: maxX - minX, height: maxY - minY };
-  };
-  const raw = extent();
-  const anchored = anchor ? nodes[anchor.id] : undefined;
-  const dx = anchor && anchored ? Math.round(anchor.x - anchored.x) : -raw.minX;
-  const dy = anchor && anchored ? Math.round(anchor.y - anchored.y) : -raw.minY;
-  for (const n of Object.values(nodes)) {
-    n.x += dx;
-    n.y += dy;
-  }
-  const bounds = extent();
-
-  // --- 5a. Couple lines -----------------------------------------------------
-  const unionLines: UnionLine[] = unions.map((u) => {
-    const a = nodes[u.a];
-    const b = nodes[u.b];
-    const [l, r] = a.x <= b.x ? [a, b] : [b, a];
-    const y = l.y + CARD_H / 2;
-    const x1 = l.x + CARD_W;
-    const x2 = r.x;
-    const adjacent = l.y === r.y && x2 - x1 <= PARTNER_GAP + 1;
-    const midX = (x1 + x2) / 2;
-    if (adjacent) {
-      // Two segments, leaving room for the ring drawn at the midpoint.
-      const d = `M ${x1} ${y} L ${midX - UNION_RING} ${y} M ${midX + UNION_RING} ${y} L ${x2} ${y}`;
-      const box = [x1, y - UNION_RING, x2, y + UNION_RING] as const;
-      return { id: u.id, status: u.status, d, midX, midY: y, a: u.a, b: u.b, adjacent: true, box };
-    }
-    // Not side by side (rare, e.g. several marriages): arc over the cards in between.
-    const top = Math.min(l.y, r.y) - 22;
-    const sx = l.x + CARD_W / 2;
-    const ex = r.x + CARD_W / 2;
-    return {
-      id: u.id,
-      status: u.status,
-      d: `M ${sx} ${l.y} C ${sx} ${top}, ${ex} ${top}, ${ex} ${r.y}`,
-      midX: (sx + ex) / 2,
-      midY: top + 6,
-      a: u.a,
-      b: u.b,
-      adjacent: false,
-      box: [sx, top, ex, Math.max(l.y, r.y)] as const,
-    };
-  });
-  const unionByPair = new Map(unionLines.map((u) => [[u.a, u.b].sort().join('|'), u]));
-
-  // --- 5b. Parent → child connectors ---------------------------------------
-  interface Run {
-    ax: number;
-    ay: number;
-    parents: string[];
-    children: string[];
-    top: number;
-    min: number;
-    max: number;
-    lane: number;
-  }
-  const runs: Run[] = [];
-  for (const [key, fam] of families) {
-    const union = fam.parents.length === 2 ? unionByPair.get(key) : undefined;
-    const { x: ax, y: ay } = stemFrom(nodes, union, fam.parents)!;
-    const centers = fam.children.map((c) => nodes[c].x + CARD_W / 2);
-    runs.push({
-      ax,
-      ay,
-      parents: fam.parents,
-      children: fam.children,
-      top: Math.min(...fam.children.map((c) => nodes[c].y)),
-      min: Math.min(ax, ...centers),
-      max: Math.max(ax, ...centers),
-      lane: 0,
-    });
-  }
-
-  // Families whose horizontal runs overlap in the same gap get separate lanes.
-  const byGap = new Map<number, Run[]>();
-  for (const run of runs) {
-    if (!byGap.has(run.top)) byGap.set(run.top, []);
-    byGap.get(run.top)!.push(run);
-  }
-  const laneCount = new Map<number, number>();
-  for (const [top, list] of byGap) {
-    list.sort((a, b) => a.min - b.min);
-    const laneEnds: number[] = [];
-    for (const run of list) {
-      let lane = laneEnds.findIndex((end) => end + 16 < run.min);
-      if (lane === -1) lane = laneEnds.length;
-      laneEnds[lane] = run.max;
-      run.lane = lane;
-    }
-    laneCount.set(top, laneEnds.length);
-  }
-
-  const links: ChildLink[] = [];
-  for (const run of runs) {
-    const lanes = laneCount.get(run.top)!;
-    const step = Math.min(LANE_STEP, (RANK_SEP - 44) / Math.max(1, lanes - 1));
-    const busY = Math.round(run.top - RANK_SEP / 2 + (run.lane - (lanes - 1) / 2) * step);
-    for (const childId of run.children) {
-      const cx = nodes[childId].x + CARD_W / 2;
-      const cy = nodes[childId].y;
-      const delta = cx - run.ax;
-      const s = Math.sign(delta);
-      const r = Math.max(0, Math.min(CORNER, Math.abs(delta) / 2, busY - run.ay, cy - busY));
-      // The command sequence is identical for every link so the path can be CSS-transitioned.
-      const d =
-        `M ${run.ax} ${run.ay} L ${run.ax} ${busY - r} ` +
-        `Q ${run.ax} ${busY} ${run.ax + s * r} ${busY} L ${cx - s * r} ${busY} ` +
-        `Q ${cx} ${busY} ${cx} ${busY + r} L ${cx} ${cy}`;
-      const box = [Math.min(run.ax, cx), run.ay, Math.max(run.ax, cx), cy] as const;
-      links.push({ childId, parentIds: run.parents, d, box });
-    }
-  }
-
-  const generations = new Set(Object.values(nodes).map((n) => n.y)).size;
-  return { nodes, unions: unionLines, links, bounds, generations, unionByPair };
+  return { nodes, unions, families };
 }

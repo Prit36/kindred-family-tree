@@ -17,7 +17,7 @@ import { releasePhoto, type PhotoSource } from './lib/files';
 import { focusSet, type FocusScope } from './lib/branches';
 import { familySides, focusTitle, sideForFocus } from './lib/sides';
 import { NAMINGS, relationName } from './lib/naming';
-import { deletePerson, fullName, pathBetween, shortName } from './lib/tree';
+import { deletePerson, fullName, hasPeople, pathBetween, shortName } from './lib/tree';
 import { Avatar } from './components/Avatar';
 import { Canvas } from './components/Canvas';
 import { FanView } from './components/FanView';
@@ -451,7 +451,7 @@ function useFileDrop(): boolean {
 }
 
 export default function App() {
-  const empty = useStore((s) => Object.keys(s.tree.people).length === 0);
+  const empty = useStore((s) => !hasPeople(s.tree));
   const dialogOpen = useStore((s) => s.dialog !== null);
   const timeline = useStore((s) => s.mode === 'timeline') && !empty;
   const fan = useStore((s) => s.mode === 'fan') && !empty;
@@ -488,10 +488,10 @@ export default function App() {
         openDialog({ type: 'shortcuts' });
       } else if (e.key.toLowerCase() === 't') {
         const { mode, setMode, tree } = useStore.getState();
-        if (Object.keys(tree.people).length > 0) setMode(mode === 'timeline' ? 'tree' : 'timeline');
+        if (hasPeople(tree)) setMode(mode === 'timeline' ? 'tree' : 'timeline');
       } else if (e.key.toLowerCase() === 'd') {
         const { mode, setMode, tree } = useStore.getState();
-        if (Object.keys(tree.people).length > 0) setMode(mode === 'fan' ? 'tree' : 'fan');
+        if (hasPeople(tree)) setMode(mode === 'fan' ? 'tree' : 'fan');
       } else if (e.key.toLowerCase() === 'l') {
         // English → ગુજરાતી → Gujarati in English letters → English
         const { naming, setNaming } = useStore.getState();

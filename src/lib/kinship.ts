@@ -1,7 +1,7 @@
 import { shapeOf, type Shape } from './shape';
 import type { Gender, Tree, Union } from '../types';
 import { partnersOf } from './tree';
-import { LruMap } from './lru';
+import { LruMap, RecentMap } from './lru';
 
 /** Describes how everyone in the tree is related to the "home" person. */
 
@@ -112,7 +112,7 @@ function spouseWord(g: Gender, u: Union): string {
   return u.status === 'divorced' ? `Ex-${base.toLowerCase()}` : base;
 }
 
-const cache = new WeakMap<Shape, Map<string, string>>();
+const cache = new RecentMap<Shape, Map<string, string>>(6);
 
 /** Relationship labels relative to the tree's home person (memoised per tree). */
 export function kinshipFor(tree: Tree): Map<string, string> {
@@ -121,7 +121,7 @@ export function kinshipFor(tree: Tree): Map<string, string> {
   return m;
 }
 
-const betweenCache = new WeakMap<Shape, Map<string, Map<string, string>>>();
+const betweenCache = new RecentMap<Shape, Map<string, Map<string, string>>>(6);
 
 /** How `otherId` is related to `fromId` ("Great-grandfather", "Wife's brother"…), or '' if they aren't. */
 export function relationBetween(tree: Tree, fromId: string, otherId: string): string {

@@ -27,7 +27,7 @@ import { lifespan } from '../lib/dates';
 import { searchIndex, searchPeople } from '../lib/search';
 import { upcomingDates } from '../lib/insights';
 import { NAMINGS, relationLabels } from '../lib/naming';
-import { fullName } from '../lib/tree';
+import { fullName, hasPeople } from '../lib/tree';
 import { Avatar } from './Avatar';
 
 function Logo() {
@@ -218,7 +218,7 @@ function SearchBox() {
 function MainMenu() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const empty = useStore((s) => Object.keys(s.tree.people).length === 0);
+  const empty = useStore((s) => !hasPeople(s.tree));
   const openDialog = useStore((s) => s.openDialog);
 
   useEffect(() => {
@@ -398,7 +398,7 @@ export function TopBar() {
   const canRedo = useStore((s) => s.future.length > 0);
   const theme = useStore((s) => s.theme);
   const { undo, redo, toggleTheme } = useStore.getState();
-  const empty = useStore((s) => Object.keys(s.tree.people).length === 0);
+  const empty = useStore((s) => !hasPeople(s.tree));
 
   return (
     <header className="topbar">

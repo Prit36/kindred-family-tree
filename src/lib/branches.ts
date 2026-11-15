@@ -1,7 +1,7 @@
 import { shapeOf, type Shape } from './shape';
 import type { Tree } from '../types';
 import { ancestorIds, descendantIds, indexOf, partnersOf, siblingsOf } from './tree';
-import { LruMap } from './lru';
+import { LruMap, RecentMap } from './lru';
 import { sideMembers } from './sides';
 
 /**
@@ -57,7 +57,7 @@ interface Graph {
   roots: number[];
 }
 
-const graphCache = new WeakMap<Shape, Graph>();
+const graphCache = new RecentMap<Shape, Graph>(6);
 
 function graphOf(tree: Tree): Graph {
   let g = graphCache.get(shapeOf(tree));
@@ -367,7 +367,7 @@ function withDescendantsAndPartners(tree: Tree, roots: Iterable<string>): Set<st
   return out;
 }
 
-const focusCache = new WeakMap<Shape, Map<string, ReadonlySet<string>>>();
+const focusCache = new RecentMap<Shape, Map<string, ReadonlySet<string>>>(6);
 
 /** The people a focus keeps on screen. */
 export function focusSet(tree: Tree, focus: Focus): ReadonlySet<string> {
@@ -391,7 +391,7 @@ export function focusSet(tree: Tree, focus: Focus): ReadonlySet<string> {
 // Visibility
 // ---------------------------------------------------------------------------
 
-const visibleCache = new WeakMap<Shape, { focus: Focus | null; collapsed: Collapsed; ids: ReadonlySet<string> }>();
+const visibleCache = new RecentMap<Shape, { focus: Focus | null; collapsed: Collapsed; ids: ReadonlySet<string> }>(6);
 
 /** The people drawn on the canvas for this focus and these folds. */
 export function visibleIds(tree: Tree, focus: Focus | null, collapsed: Collapsed): ReadonlySet<string> {
@@ -414,7 +414,7 @@ export function visibleIds(tree: Tree, focus: Focus | null, collapsed: Collapsed
   return ids;
 }
 
-const toggleCache = new WeakMap<Shape, { collapsed: Collapsed; toggles: BranchToggle[] }>();
+const toggleCache = new RecentMap<Shape, { collapsed: Collapsed; toggles: BranchToggle[] }>(6);
 
 /**
  * Every place the tree can be folded or unfolded right now. A fold that wouldn't hide

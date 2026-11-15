@@ -1,4 +1,5 @@
 import type { Gender, Person, Relation, Tree } from '../types';
+import { memoRecent } from './lru';
 
 /*
  * Gujarati full names are written given name, father's name, surname: Prit Bharatbhai
@@ -77,14 +78,14 @@ export function middleNameForNew(tree: Tree, anchor: Person, relation: Relation,
   }
 }
 
-const middleCache = new WeakMap<Tree, Map<string, string>>();
+/** Middle names worked out so far, for the last few trees. */
+const middleNames = memoRecent((_tree: Tree) => new Map<string, string>());
 
 /** Someone's middle name in English letters - written down, or worked out from the tree. */
 export function middleNameOf(tree: Tree, p: Person): string {
   const own = p.middleName.trim();
   if (!tree.patronymic) return own;
-  let perTree = middleCache.get(tree);
-  if (!perTree) middleCache.set(tree, (perTree = new Map()));
+  const perTree = middleNames(tree);
   let out = perTree.get(p.id);
   if (out !== undefined) return out;
   const derived = derivedMiddleName(tree, p);

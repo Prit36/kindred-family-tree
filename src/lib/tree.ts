@@ -3,9 +3,16 @@ import type { CropView } from './crop';
 import { isOriginalId } from './photoStore';
 import { firstLetter, nameScript, toGujarati, type Spellings } from './gujaratiNames';
 import { adoptPatronymics, middleNameOf } from './names';
+import { memoRecent } from './lru';
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+/** Whether anyone is in the tree - without listing all of them, as this is asked on every state change. */
+export function hasPeople(tree: Tree): boolean {
+  for (const _ in tree.people) return true;
+  return false;
 }
 
 export function emptyTree(): Tree {
@@ -111,11 +118,8 @@ export interface TreeIndex {
   unions: Map<string, Union[]>;
 }
 
-const indexCache = new WeakMap<Tree, TreeIndex>();
-
-export function indexOf(tree: Tree): TreeIndex {
-  let idx = indexCache.get(tree);
-  if (idx) return idx;
+/** Who each person's children and partnerships are - for the last few trees looked at. */
+export const indexOf: (tree: Tree) => TreeIndex = memoRecent((tree: Tree): TreeIndex => {
   const children = new Map<string, string[]>();
   const unions = new Map<string, Union[]>();
   for (const p of Object.values(tree.people)) {
@@ -130,10 +134,8 @@ export function indexOf(tree: Tree): TreeIndex {
       unions.get(id)!.push(u);
     }
   }
-  idx = { children, unions };
-  indexCache.set(tree, idx);
-  return idx;
-}
+  return { children, unions };
+}, 6);
 
 export function parentsOf(tree: Tree, id: string): Person[] {
   const p = tree.people[id];

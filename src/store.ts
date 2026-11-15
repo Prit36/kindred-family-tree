@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Relation, Tree } from './types';
+import type { Person, Relation, Tree } from './types';
 import type { CropView } from './lib/crop';
 import type { PhotoSource } from './lib/files';
 import {
@@ -14,7 +14,7 @@ import {
 } from './lib/branches';
 import { focusTitle } from './lib/sides';
 import type { Naming } from './lib/naming';
-import { emptyTree, shortName } from './lib/tree';
+import { emptyTree, indexOf, shortName } from './lib/tree';
 import { NO_SPELLINGS, setNameScriptSource } from './lib/gujaratiNames';
 import { onSaveResult, requestPersistence, saveTree } from './lib/treeStore';
 
@@ -119,10 +119,54 @@ export interface ViewRequest {
   nonce: number;
 }
 
+/**
+ * One step of undo history: how to get a tree back from the tree beside it in the history.
+ * Only what differs is kept, not a copy of everyone - on a tree of thousands each step
+ * would otherwise hold its own table of every person.
+ */
+interface Patch {
+  /** The people who differ, as they are in the tree this gives back; null where they aren't in it. */
+  people: Map<string, Person | null>;
+  /** Everyone's ids in order, when people were added, removed or reordered (the layout reads that order). */
+  order: string[] | null;
+  /** The rest of that tree, which is small and shares its unions array with its neighbours. */
+  rest: Omit<Tree, 'people'>;
+}
+
+/** The patch that turns `from` back into `to`. */
+function diff(from: Tree, to: Tree): Patch {
+  const people = new Map<string, Person | null>();
+  const toIds = Object.keys(to.people);
+  const fromIds = Object.keys(from.people);
+  let sameOrder = toIds.length === fromIds.length;
+  for (let i = 0; i < toIds.length; i++) {
+    const id = toIds[i];
+    if (from.people[id] !== to.people[id]) people.set(id, to.people[id]);
+    if (sameOrder && fromIds[i] !== id) sameOrder = false;
+  }
+  if (!sameOrder) for (const id of fromIds) if (!(id in to.people)) people.set(id, null);
+  const { people: _people, ...rest } = to;
+  return { people, order: sameOrder ? null : toIds, rest };
+}
+
+function applyPatch(base: Tree, patch: Patch): Tree {
+  let people: Tree['people'];
+  if (patch.order) {
+    people = {};
+    for (const id of patch.order) people[id] = patch.people.has(id) ? patch.people.get(id)! : base.people[id];
+  } else {
+    people = { ...base.people };
+    for (const [id, p] of patch.people) people[id] = p!;
+  }
+  return { ...patch.rest, people };
+}
+
 interface State {
   tree: Tree;
-  past: Tree[];
-  future: Tree[];
+  /** Undo steps, oldest first: each gives back the tree before the one after it. */
+  past: Patch[];
+  /** Redo steps, next first. */
+  future: Patch[];
   selectedId: string | null;
   /** A second person picked (Shift+click) to see how they're related to the selected one. */
   compareId: string | null;
@@ -249,7 +293,7 @@ export const useStore = create<State>((set, get) => ({
     if (tree === current) return;
     set({
       tree,
-      past: [...past.slice(-HISTORY_LIMIT + 1), current],
+      past: [...past.slice(-HISTORY_LIMIT + 1), diff(tree, current)],
       future: [],
       ...surviving(tree, get()),
     });
@@ -258,11 +302,11 @@ export const useStore = create<State>((set, get) => ({
   undo: () => {
     const { tree, past, future } = get();
     if (past.length === 0) return;
-    const prev = past[past.length - 1];
+    const prev = applyPatch(tree, past[past.length - 1]);
     set({
       tree: prev,
       past: past.slice(0, -1),
-      future: [tree, ...future],
+      future: [diff(prev, tree), ...future],
       ...surviving(prev, get()),
     });
     if (unrelated(tree, prev)) get().fitView();
@@ -271,10 +315,10 @@ export const useStore = create<State>((set, get) => ({
   redo: () => {
     const { tree, past, future } = get();
     if (future.length === 0) return;
-    const next = future[0];
+    const next = applyPatch(tree, future[0]);
     set({
       tree: next,
-      past: [...past, tree],
+      past: [...past, diff(next, tree)],
       future: future.slice(1),
       ...surviving(next, get()),
     });
@@ -385,7 +429,7 @@ export const useStore = create<State>((set, get) => ({
     const { selectedId, tree } = get();
     // Opening the descendants fan with someone selected who has children shows their family.
     if (mode === 'fan' && selectedId && tree.people[selectedId]) {
-      const hasChildren = Object.values(tree.people).some((p) => p.parentIds.includes(selectedId));
+      const hasChildren = Boolean(indexOf(tree).children.get(selectedId)?.length);
       if (hasChildren && get().fan.rootId !== selectedId) get().setFan({ rootId: selectedId });
     }
     set({ mode, view: selectedId ? { kind: 'reveal', id: selectedId, nonce: nonce++ } : get().view });

@@ -1,7 +1,7 @@
 import { shapeOf, type Shape } from './shape';
 import type { Gender, Tree, UnionStatus } from '../types';
 import { indexOf, partnerIn, unionsOf } from './tree';
-import { LruMap } from './lru';
+import { LruMap, RecentMap } from './lru';
 
 /**
  * Gujarati relationship names (સંબંધ), worked out from the chain of people linking two
@@ -487,8 +487,8 @@ function describe(steps: Step[]): GuTerm {
   return { gu, latin, en };
 }
 
-const cache = new WeakMap<Shape, Map<string, Map<string, GuTerm>>>();
-const homeCache = new WeakMap<Shape, Map<string, GuTerm>>();
+const cache = new RecentMap<Shape, Map<string, Map<string, GuTerm>>>(6);
+const homeCache = new RecentMap<Shape, Map<string, GuTerm>>(6);
 
 /** Gujarati names for how everyone connected to `egoId` is related to them (memoised per tree). */
 export function gujaratiKinship(tree: Tree, egoId: string | null): Map<string, GuTerm> {

@@ -1,6 +1,7 @@
 import type { Tree } from '../types';
 import type { Focus } from './branches';
 import { kinshipFor } from './kinship';
+import { memoRecent } from './lru';
 import { bloodRelatives, partnersOf, pathBetween, shortName } from './tree';
 
 /**
@@ -55,17 +56,11 @@ export interface FamilySides {
 export const SIDE_TONES = 8;
 
 const EMPTY: FamilySides = { sides: [], sideOf: new Map(), byKey: new Map() };
-const cache = new WeakMap<Tree, FamilySides>();
 
 const possessive = (label: string) => `${label}'s`;
 
-export function familySides(tree: Tree): FamilySides {
-  const hit = cache.get(tree);
-  if (hit) return hit;
-  const result = computeSides(tree);
-  cache.set(tree, result);
-  return result;
-}
+/** The tree split into sides (memoised for the last few trees). */
+export const familySides: (tree: Tree) => FamilySides = memoRecent((tree: Tree) => computeSides(tree));
 
 function computeSides(tree: Tree): FamilySides {
   const homeId = tree.homeId;
