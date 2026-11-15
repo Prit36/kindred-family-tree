@@ -5408,6 +5408,37 @@ kbd {
   box-shadow: none;
 }
 
+/* Show husbands and wives: an on/off switch beside the lineage choice */
+.fan-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.fan-toggle:hover {
+  color: var(--text);
+}
+
+.fan-toggle[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
 /* Whose family: a pill with their photo, name and who they are to you */
 .fan-picker {
   position: relative;
@@ -5670,6 +5701,18 @@ kbd {
   pointer-events: none;
 }
 
+/* Their husband or wife: the serif italic of a family register, so it reads as a partner, not a second person in the slice */
+.fan-spouse {
+  /* A shade of the name's own colour, so it holds up on every branch's tint */
+  fill: color-mix(in srgb, var(--text) 80%, transparent);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 500;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
 .fan-labels .is-dim {
   opacity: 0.3;
 }
@@ -5731,6 +5774,33 @@ kbd {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
+}
+
+/* The root person and their husband or wife, overlapping like a couple's photos */
+.fan-root-avatars {
+  display: flex;
+  align-items: flex-end;
+}
+
+.fan-root-avatars .avatar + .avatar {
+  position: relative;
+  z-index: 1;
+  margin-left: -12px;
+  box-shadow: 0 0 0 3px var(--surface);
+}
+
+.fan-root-spouse {
+  max-width: 118px;
+  margin-top: -3px;
+  color: var(--text-2);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .fan-root-rel {

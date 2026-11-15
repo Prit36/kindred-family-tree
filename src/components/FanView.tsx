@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { select as d3select } from 'd3-selection';
 import 'd3-transition';
 import { zoom, zoomIdentity, zoomTransform, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-import { Check, ChevronDown, Maximize, Minus, Plus, Search } from 'lucide-react';
+import { Check, ChevronDown, HeartHandshake, Maximize, Minus, Plus, Search } from 'lucide-react';
 import type { Person, Tree } from '../types';
 import { useStore } from '../store';
 import { canvasHandle } from '../lib/canvasHandle';
@@ -306,11 +306,21 @@ const Labels = memo(function Labels({ fan, lit, homeIdx }: { fan: FanLayout; lit
             const cls = [dim ? 'is-dim' : '', i === homeIdx ? 'is-home' : ''].filter(Boolean).join(' ');
             return (
               <g key={n.id} transform={`translate(${l.x} ${l.y}) rotate(${l.rotate})`} className={cls || undefined}>
-                <text className="fan-name" y={l.sub ? -l.size * 0.48 : 0} fontSize={l.size}>
+                <text className="fan-name" y={l.nameY} fontSize={l.size}>
                   {l.text}
+                  {l.spouse && l.spouseInline && (
+                    <tspan className="fan-spouse" fontSize={l.spouseSize}>
+                      {` ${l.spouse}`}
+                    </tspan>
+                  )}
                 </text>
+                {l.spouse && !l.spouseInline && (
+                  <text className="fan-spouse" y={l.spouseY} fontSize={l.spouseSize}>
+                    {l.spouse}
+                  </text>
+                )}
                 {l.sub && (
-                  <text className="fan-sub" y={l.size * 0.72} fontSize={l.size * 0.72}>
+                  <text className="fan-sub" y={l.subY} fontSize={l.subSize}>
                     {l.sub}
                   </text>
                 )}
@@ -334,9 +344,11 @@ interface CardProps {
   kin: Map<string, string>;
   naming: Naming;
   at: { x: number; y: number };
+  /** Their parent in the fan, the one descended from the root */
+  parentId: string | null;
 }
 
-function FanCard({ tree, node, root, kin, naming, at }: CardProps) {
+function FanCard({ tree, node, root, kin, naming, at, parentId }: CardProps) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
@@ -355,8 +367,13 @@ function FanCard({ tree, node, root, kin, naming, at }: CardProps) {
   const toMe = kin.get(p.id);
   const toRoot = node.depth > 0 ? relationName(tree, root.id, p.id, naming) : null;
   const partners = partnersOf(tree, p.id).filter((x) => x.union.status !== 'divorced' && !isNameless(x.person));
-  const kids = indexOf(tree).children.get(p.id)?.length ?? 0;
+  const kidIds = indexOf(tree).children.get(p.id) ?? [];
+  const kids = kidIds.length;
   const dead = p.deceased || Boolean(p.deathDate);
+  // With more than one husband or wife, whose children are whose.
+  const kidsWith = (id: string) => (partners.length > 1 ? kidIds.filter((k) => tree.people[k]?.parentIds.includes(id)).length : 0);
+  // The parent who married into the family: the mother of a son's children, the father of a daughter's.
+  const inLaw = node.depth > 0 ? p.parentIds.map((id) => tree.people[id]).find((x) => x && x.id !== parentId) : undefined;
 
   return createPortal(
     <div ref={ref} className="tl-card fan-card" role="tooltip" data-tone={node.branch >= 0 ? node.branch % SIDE_TONES : undefined}>
@@ -392,10 +409,31 @@ function FanCard({ tree, node, root, kin, naming, at }: CardProps) {
             <dd>{formatDate(p.deathDate)}</dd>
           </div>
         )}
+        {inLaw && !isNameless(inLaw) && (
+          <div>
+            <dt>{inLaw.gender === 'female' ? 'Mother' : inLaw.gender === 'male' ? 'Father' : 'Parent'}</dt>
+            <dd>{treeName(tree, inLaw, naming)}</dd>
+          </div>
+        )}
         {partners.length > 0 && (
           <div>
-            <dt>{partners.length > 1 ? 'Partners' : p.gender === 'female' ? 'Husband' : p.gender === 'male' ? 'Wife' : 'Partner'}</dt>
-            <dd>{partners.map((x) => latePrefix(x.person, naming) + shortName(x.person)).join(', ')}</dd>
+            <dt>
+              {partners.length > 1
+                ? p.gender === 'female' ? 'Husbands' : p.gender === 'male' ? 'Wives' : 'Partners'
+                : p.gender === 'female' ? 'Husband' : p.gender === 'male' ? 'Wife' : 'Partner'}
+            </dt>
+            <dd>
+              {partners.map((x, i) => {
+                const n = kidsWith(x.person.id);
+                return (
+                  <span key={x.person.id} className="fan-card-spouse">
+                    {i > 0 && ', '}
+                    {latePrefix(x.person, naming) + shortName(x.person)}
+                    {n > 0 && <span className="tl-card-muted"> ({n} {n === 1 ? 'child' : 'children'})</span>}
+                  </span>
+                );
+              })}
+            </dd>
           </div>
         )}
         {kids > 0 && (
@@ -437,8 +475,8 @@ export function FanView() {
   const kin = relationLabels(tree, naming);
 
   const fan = useMemo(
-    () => fanLayout(tree, rootId ?? '', { sonsOnly: prefs.sonsOnly }, (id) => kin.get(id) ?? '', naming),
-    [tree, rootId, prefs.sonsOnly, kin, naming],
+    () => fanLayout(tree, rootId ?? '', { sonsOnly: prefs.sonsOnly, spouses: prefs.spouses }, (id) => kin.get(id) ?? '', naming),
+    [tree, rootId, prefs.sonsOnly, prefs.spouses, kin, naming],
   );
   const live = useRef(fan);
   live.current = fan;
@@ -727,6 +765,8 @@ export function FanView() {
       svg,
       root,
       rootName: treeName(tree, root, naming),
+      rootSpouse: f.nodes[0]?.spouses.length ? `& ${f.nodes[0].spouses.map((s) => treeName(tree, s, naming)).join(', ')}` : '',
+      rootSpouses: f.nodes[0]?.spouses ?? [],
       rootRelation: kin.get(root.id) ?? '',
       rootR: ROOT_R,
       parents: root.parentIds
@@ -768,6 +808,8 @@ export function FanView() {
   const parents = root.parentIds.map((id) => tree.people[id]).filter((p): p is Person => Boolean(p));
   const tipNode = tip ? fan.nodes[tip.i] : undefined;
   const rootRel = kin.get(root.id);
+  const rootSpouses = fan.nodes[0]?.spouses ?? [];
+  const rootSpouseText = rootSpouses.length ? `& ${rootSpouses.map((s) => treeName(tree, s, naming)).join(', ')}` : '';
 
   return (
     <section className={`fan${panelOpen ? ' is-panel-open' : ''}`} aria-label={`Descendants of ${displayName(root)}`}>
@@ -795,6 +837,24 @@ export function FanView() {
             Sons' line
           </button>
         </div>
+        <button
+          type="button"
+          className="fan-toggle"
+          aria-pressed={prefs.spouses}
+          data-tip={
+            naming === 'gu'
+              ? 'પતિ-પત્નીનાં નામ'
+              : naming === 'gu-latn'
+                ? 'Pati-patni na naam'
+                : prefs.spouses
+                  ? 'Hide husbands and wives'
+                  : 'Show husbands and wives'
+          }
+          onClick={() => setFan({ spouses: !prefs.spouses })}
+        >
+          <HeartHandshake size={15} />
+          Spouses
+        </button>
         <div className="control-group fan-zoom">
           <button type="button" className="icon-btn" onClick={() => zoomBy(1 / 1.35)} aria-label="Zoom out" data-tip="Zoom out (−)">
             <Minus size={16} />
@@ -856,8 +916,14 @@ export function FanView() {
             onPointerLeave={() => setHover(null)}
             aria-label={`${displayName(root)} - show details`}
           >
-            <Avatar person={root} size={52} />
+            <span className="fan-root-avatars">
+              <Avatar person={root} size={52} />
+              {rootSpouses.slice(0, 2).map((s) => (
+                <Avatar key={s.id} person={s} size={40} />
+              ))}
+            </span>
             <span className="fan-root-name">{treeName(tree, root, naming)}</span>
+            {rootSpouses.length > 0 && <span className="fan-root-spouse">{rootSpouseText}</span>}
             {rootRel && <span className="fan-root-rel">{rootRel}</span>}
           </button>
 
@@ -933,7 +999,17 @@ export function FanView() {
         )}
       </div>
 
-      {tipNode && <FanCard tree={tree} node={tipNode} root={root} kin={kin} naming={naming} at={{ x: tip!.x, y: tip!.y }} />}
+      {tipNode && (
+        <FanCard
+          tree={tree}
+          node={tipNode}
+          root={root}
+          kin={kin}
+          naming={naming}
+          at={{ x: tip!.x, y: tip!.y }}
+          parentId={fan.nodes[tipNode.parent]?.id ?? null}
+        />
+      )}
     </section>
   );
 }

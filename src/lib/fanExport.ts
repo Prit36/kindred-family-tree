@@ -42,6 +42,7 @@ const PROPS = [
   'opacity',
   'font-size',
   'font-weight',
+  'font-style',
   'text-anchor',
   'dominant-baseline',
 ] as const;
@@ -58,6 +59,9 @@ export interface FanPicture {
   svg: SVGSVGElement;
   root: Person;
   rootName: string;
+  /** Their husband or wife ("& Kashiben"), or '' */
+  rootSpouse: string;
+  rootSpouses: Person[];
   rootRelation: string;
   rootR: number;
   parents: { person: Person; name: string; relation: string }[];
@@ -96,6 +100,8 @@ export async function renderFanPng(pic: FanPicture): Promise<string> {
     }
     // Nothing is lit or dimmed in the picture.
     if (dst.classList.contains('is-dim')) style.push('opacity:1');
+    // Husbands and wives keep their serif italic.
+    if (dst.classList.contains('fan-spouse')) style.push(`font-family:${fontDisplay}`);
     dst.setAttribute('style', style.join(';'));
     dst.removeAttribute('class');
   });
@@ -149,13 +155,29 @@ export async function renderFanPng(pic: FanPicture): Promise<string> {
 
   const R = pic.rootR;
   copy.appendChild(el('circle', { cx: 0, cy: 0, r: R, fill: v('--surface'), stroke: resolve(`color-mix(in srgb, ${css.getPropertyValue('--bark')} 80%, ${css.getPropertyValue('--surface')})`), 'stroke-width': 3 }));
-  copy.appendChild(avatar(pic.root, 0, -18, 26));
+  // With a husband or wife the couple's photos overlap and everything sits a little higher.
+  const spouses = pic.rootSpouses.slice(0, 2);
+  const lift = pic.rootSpouse ? 8 : 0;
+  const ay = -18 - lift;
+  const groupW = 52 + spouses.length * (40 - 12);
+  copy.appendChild(avatar(pic.root, -groupW / 2 + 26, ay, 26));
+  spouses.forEach((s, i) => {
+    const r = 20;
+    const cx = -groupW / 2 + 60 + i * 28;
+    copy.appendChild(el('circle', { cx, cy: ay + 26 - r, r: r + 6, fill: v('--surface') }));
+    copy.appendChild(avatar(s, cx, ay + 26 - r, r));
+  });
   copy.appendChild(
-    el('text', { x: 0, y: 26, 'text-anchor': 'middle', 'font-family': fontDisplay, 'font-size': 17, 'font-weight': 600, fill: v('--text') }, pic.rootName),
+    el('text', { x: 0, y: 26 - lift, 'text-anchor': 'middle', 'font-family': fontDisplay, 'font-size': 17, 'font-weight': 600, fill: v('--text') }, pic.rootName),
   );
+  if (pic.rootSpouse) {
+    copy.appendChild(
+      el('text', { x: 0, y: 42 - lift, 'text-anchor': 'middle', 'font-family': fontDisplay, 'font-size': 14, 'font-style': 'italic', 'font-weight': 500, fill: v('--text-2') }, pic.rootSpouse),
+    );
+  }
   if (pic.rootRelation) {
     copy.appendChild(
-      el('text', { x: 0, y: 45, 'text-anchor': 'middle', 'font-family': fontUi, 'font-size': 12, 'font-weight': 600, fill: v('--accent-strong') }, pic.rootRelation),
+      el('text', { x: 0, y: (pic.rootSpouse ? 58 : 45) - lift, 'text-anchor': 'middle', 'font-family': fontUi, 'font-size': 12, 'font-weight': 600, fill: v('--accent-strong') }, pic.rootRelation),
     );
   }
 

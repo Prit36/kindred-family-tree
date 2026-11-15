@@ -30,23 +30,24 @@ const SIDES_KEY = 'kindred.sides';
 const NAMING_KEY = 'kindred.naming';
 const FAN_KEY = 'kindred.fan';
 
-/** Whose descendants the fan shows, and whether it follows only the sons' line. */
+/** Whose descendants the fan shows, whether it follows only the sons' line, and whether husbands and wives are named. */
 export interface FanPrefs {
   rootId: string | null;
   sonsOnly: boolean;
+  spouses: boolean;
 }
 
 function loadFanPrefs(): FanPrefs {
   try {
     const raw: unknown = JSON.parse(localStorage.getItem(FAN_KEY) ?? 'null');
     if (raw && typeof raw === 'object') {
-      const { rootId, sonsOnly } = raw as Partial<FanPrefs>;
-      return { rootId: typeof rootId === 'string' ? rootId : null, sonsOnly: sonsOnly === true };
+      const { rootId, sonsOnly, spouses } = raw as Partial<FanPrefs>;
+      return { rootId: typeof rootId === 'string' ? rootId : null, sonsOnly: sonsOnly === true, spouses: spouses !== false };
     }
   } catch {
     /* defaults */
   }
-  return { rootId: null, sonsOnly: false };
+  return { rootId: null, sonsOnly: false, spouses: true };
 }
 
 function loadNaming(): Naming {

@@ -2,7 +2,7 @@ import { arc } from 'd3-shape';
 import type { Gender, Person, Tree } from '../types';
 import { compareByBirth } from './dates';
 import type { Naming } from './naming';
-import { indexOf, isPlaceholder, shortName } from './tree';
+import { indexOf, isPlaceholder, partnersOf, shortName } from './tree';
 
 /**
  * The descendants view: one person at the foot of a tree, everyone descended from them
@@ -35,8 +35,18 @@ export interface FanLabel {
   rotate: number;
   size: number;
   text: string;
-  /** A second, smaller line (their relationship to you), when there's room */
+  /** Offset of the name from the label's middle, across the line */
+  nameY: number;
+  /** Their husband or wife ("& Kokilaben"), when there's room, or '' */
+  spouse: string;
+  spouseSize: number;
+  spouseY: number;
+  /** The spouse follows the name on the same line rather than under it */
+  spouseInline: boolean;
+  /** A smaller line (their relationship to you), when there's room */
   sub: string;
+  subSize: number;
+  subY: number;
 }
 
 export interface FanNode {
@@ -58,6 +68,8 @@ export interface FanNode {
   descendants: number;
   /** Children left out because only the sons' line is shown */
   hidden: number;
+  /** Their husbands or wives, if spouses are shown and their names are known */
+  spouses: Person[];
   /** Slice outline */
   d: string;
   /** Branch from the parent's slice to this one */
@@ -89,6 +101,8 @@ export interface FanLayout {
 export interface FanOptions {
   /** Follow only sons: daughters are shown, their children are not. */
   sonsOnly: boolean;
+  /** Name each person's husband or wife alongside them. */
+  spouses: boolean;
 }
 
 const pt = (r: number, a: number): [number, number] => [r * Math.sin(a), -r * Math.cos(a)];
@@ -121,7 +135,33 @@ function textWidth(text: string): number {
   return w;
 }
 
-/** Fits a name (and maybe a second line) into a slice, along the ring or across it - whichever lets it be bigger. */
+/** Line height, in font sizes. */
+const LH = 1.18;
+/** The spouse's name beside the person's own, and the smallest it may come down to so it fits. */
+const SPOUSE = 0.82;
+const SPOUSE_MIN = 0.66;
+/** The relationship line under the names. */
+const SUB = 0.72;
+
+/** Who someone is married to, in the order they married, if their names are known. */
+export function spousesOf(tree: Tree, id: string): Person[] {
+  return partnersOf(tree, id)
+    .filter((x) => x.union.status !== 'divorced' && !isNameless(x.person))
+    .map((x) => x.person);
+}
+
+/** "& Kokilaben", or "& Kashiben, Maniben" - and, should that not fit, the first and how many more. */
+function spouseTexts(spouses: Person[]): string[] {
+  const names = spouses.map(sliceName).filter(Boolean);
+  if (!names.length) return [];
+  const all = `& ${names.join(', ')}`;
+  return names.length === 1 ? [all] : [all, `& ${names[0]} +${names.length - 1}`];
+}
+
+/**
+ * Fits a name into a slice, along the ring or across it - whichever lets it be bigger -
+ * then, where there's room, their husband or wife and their relationship to you.
+ */
 function fitLabel(n: FanNode, text: string, sub: string): FanLabel | null {
   if (!text) return null;
   const thick = n.r1 - n.r0;
@@ -148,10 +188,63 @@ function fitLabel(n: FanNode, text: string, sub: string): FanLabel | null {
   if (rotate < -90) rotate += 180;
   const [x, y] = pt(rm, am);
 
-  // A second line only along the ring, where there's depth enough for both.
-  const subFont = size * 0.72;
-  const fitsSub = along && sub && (thick - 16) >= size * 2.5 && textWidth(sub) * subFont <= alongW && subFont >= 9;
-  return { x: fmt(x), y: fmt(y), rotate: fmt(rotate), size: fmt(size), text, sub: fitsSub ? sub : '' };
+  // The spouse: under the name, or - across a narrow slice - after it on the same line.
+  let spouse = '';
+  let spouseSize = 0;
+  let spouseInline = false;
+  for (const s of spouseTexts(n.spouses)) {
+    const sw = textWidth(s);
+    if (along) {
+      const fs = Math.min(size * SPOUSE, alongW / sw);
+      if (fs >= size * SPOUSE_MIN && fs >= MIN_FONT && (size + fs) * LH <= thick - 16) {
+        [spouse, spouseSize] = [s, fs];
+        break;
+      }
+      continue;
+    }
+    // Under the name: the slice must be wide enough for both lines even at its narrow, inner end.
+    const under = Math.min(size * SPOUSE, acrossW / sw);
+    const len = Math.max(w * size, sw * under);
+    if (under >= size * SPOUSE_MIN && (size + under) * LH <= (rm - len / 2) * (n.a1 - n.a0) - 3) {
+      [spouse, spouseSize] = [s, under];
+      break;
+    }
+    const after = Math.min(size * SPOUSE, (acrossW - w * size) / textWidth(` ${s}`));
+    if (after >= size * SPOUSE_MIN && after >= MIN_FONT) {
+      [spouse, spouseSize, spouseInline] = [s, after, true];
+      break;
+    }
+  }
+
+  // Their relationship to you, only along the ring, where there's depth enough for it too.
+  const stacked = spouse && !spouseInline ? spouseSize : 0;
+  const subSize = size * SUB;
+  const fitsSub =
+    along && sub && subSize >= 9 && textWidth(sub) * subSize <= alongW && (size + stacked + subSize) * LH <= thick - 16;
+
+  // The lines, centred together on the middle of the slice.
+  const lines = [size, stacked, fitsSub ? subSize : 0];
+  let top = (-lines.reduce((s, l) => s + l, 0) * LH) / 2;
+  const [nameY, spouseY, subY] = lines.map((l) => {
+    const mid = top + (l * LH) / 2;
+    top += l * LH;
+    return fmt(mid);
+  });
+  return {
+    x: fmt(x),
+    y: fmt(y),
+    rotate: fmt(rotate),
+    size: fmt(size),
+    text,
+    nameY,
+    spouse,
+    spouseSize: fmt(spouseSize),
+    spouseY,
+    spouseInline,
+    sub: fitsSub ? sub : '',
+    subSize: fmt(subSize),
+    subY,
+  };
 }
 
 /**
@@ -197,7 +290,7 @@ export function fanLayout(tree: Tree, rootId: string, opts: FanOptions, subOf: (
     index.set(id, i);
     const node: FanNode = {
       id, person, depth, parent, kids: [], a0: 0, a1: 0, r0: 0, r1: 0, branch, viaDaughter,
-      descendants: 0, hidden: 0, d: '', twig: '', twigWidth: 0, label: null,
+      descendants: 0, hidden: 0, spouses: opts.spouses ? spousesOf(tree, id) : [], d: '', twig: '', twigWidth: 0, label: null,
     };
     nodes.push(node);
     const kids = (children.get(id) ?? [])
