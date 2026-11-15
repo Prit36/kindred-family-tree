@@ -15,6 +15,7 @@ import {
 import type { CropView } from './lib/crop';
 import { releasePhoto, type PhotoSource } from './lib/files';
 import { focusSet, type FocusScope } from './lib/branches';
+import { installTouchHold, isTouch } from './lib/touchHold';
 import { familySides, focusTitle, sideForFocus } from './lib/sides';
 import { NAMINGS, relationName } from './lib/naming';
 import { deletePerson, fullName, hasPeople, pathBetween, shortName } from './lib/tree';
@@ -79,11 +80,24 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
   },
 ];
 
+/** On a touch screen the list starts with what fingers do. */
+const GESTURES: (typeof SHORTCUTS)[number] = {
+  title: 'Touch',
+  rows: [
+    [['Tap'], 'Select someone'],
+    [['Double-tap'], 'Edit them - in Descendants, put them at the foot of the tree'],
+    [['Hold'], 'See how they are related to the selected person'],
+    [['Pinch'], 'Zoom in and out'],
+    [['Swipe'], 'Swipe the details up for everything, down to tuck them away'],
+  ],
+};
+
 function ShortcutsDialog({ onClose }: { onClose: () => void }) {
+  const touch = isTouch();
   return (
-    <Modal title="Keyboard shortcuts" onClose={onClose} width={720}>
+    <Modal title={touch ? 'Gestures and shortcuts' : 'Keyboard shortcuts'} onClose={onClose} width={720}>
       <div className="shortcuts">
-        {SHORTCUTS.map((group) => (
+        {(touch ? [GESTURES, ...SHORTCUTS] : SHORTCUTS).map((group) => (
           <section key={group.title}>
             <h3>{group.title}</h3>
             <dl>
@@ -453,6 +467,8 @@ export default function App() {
   const timeline = useStore((s) => s.mode === 'timeline') && !empty;
   const fan = useStore((s) => s.mode === 'fan') && !empty;
   const dragging = useFileDrop();
+
+  useEffect(installTouchHold, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -5,6 +5,7 @@ import {
   ChartGantt,
   Download,
   Ellipsis,
+  Hand,
   FileText,
   Image,
   Keyboard,
@@ -28,6 +29,7 @@ import { searchIndex, searchPeople } from '../lib/search';
 import { upcomingDates } from '../lib/insights';
 import { NAMINGS, relationLabels } from '../lib/naming';
 import { fullName, hasPeople } from '../lib/tree';
+import { isTouch } from '../lib/touchHold';
 import { Avatar } from './Avatar';
 
 function Logo() {
@@ -275,6 +277,10 @@ function MainMenu() {
       </button>
       {open && (
         <div className="menu-pop" role="menu">
+          {/* The header has no room for the tree's name on a phone; it is renamed here. */}
+          <div className="menu-tree-name">
+            <TreeName />
+          </div>
           {item('Undo', <Undo2 size={16} />, undo, { disabled: !canUndo, mobileHistory: true })}
           {item('Redo', <Redo2 size={16} />, redo, { disabled: !canRedo, mobileHistory: true })}
           {item('Calendar & checks', <CalendarHeart size={16} />, () => openDialog({ type: 'insights', tab: 'upcoming' }), { mobilePreference: true, disabled: empty })}
@@ -289,7 +295,11 @@ function MainMenu() {
           {item('Import backup or GEDCOM…', <Upload size={16} />, pickBackupFile)}
           <hr />
           {item(theme === 'dark' ? 'Light theme' : 'Dark theme', theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />, toggleTheme)}
-          {item('Keyboard shortcuts', <Keyboard size={16} />, () => openDialog({ type: 'shortcuts' }))}
+          {item(
+            isTouch() ? 'Gestures and shortcuts' : 'Keyboard shortcuts',
+            isTouch() ? <Hand size={16} /> : <Keyboard size={16} />,
+            () => openDialog({ type: 'shortcuts' }),
+          )}
           {item('Load sample family', <Sparkles size={16} />, () => openDialog({ type: 'sample' }))}
           {item('Start over', <RotateCcw size={16} />, () => openDialog({ type: 'reset' }), { disabled: empty, danger: true })}
         </div>

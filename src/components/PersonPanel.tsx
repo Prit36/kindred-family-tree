@@ -1,4 +1,12 @@
-import { useEffect, useLayoutEffect, useReducer, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useReducer,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import {
   ArrowDown,
   ArrowLeftRight,
@@ -106,13 +114,113 @@ function yearSpan(people: Person[]): string {
   return lo === hi ? String(lo) : `${lo}–${hi}`;
 }
 
+/** Phones in portrait: the panel is a sheet over the bottom of the view (see styles.css). */
+const SHEET_QUERY = '(max-width: 859px) and (min-height: 501px)';
+
 export function PersonPanel() {
   const person = useStore((s) => (s.selectedId ? s.tree.people[s.selectedId] : undefined));
+  // On a phone the sheet opens small - name and actions - so the tree stays in sight.
+  // It stays as big as you left it while you go from person to person.
+  const [expanded, setExpanded] = useState(false);
+  const open = Boolean(person);
+  useEffect(() => {
+    if (!open) setExpanded(false);
+  }, [open]);
+  // Comparing two people is shown on the view, so the sheet makes way for it.
+  const comparing = useStore((s) => s.compareId !== null);
+  useEffect(() => {
+    if (comparing) setExpanded(false);
+  }, [comparing]);
   // A fresh panel per person, so nothing folded for one carries over to the next.
-  return person ? <Details key={person.id} person={person} /> : null;
+  return person ? <Details key={person.id} person={person} expanded={expanded} onExpand={setExpanded} /> : null;
 }
 
-function Details({ person }: { person: Person }) {
+/**
+ * Dragging the sheet's top edge: up shows everything, down shows less, and down
+ * again puts it away. A tap on the grip does the same as a short drag.
+ */
+function useSheetDrag(expanded: boolean, onExpand: (expanded: boolean) => void, onClose: () => void) {
+  const panelRef = useRef<HTMLElement>(null);
+  // The latest of these, for a drag that began a few renders ago.
+  const live = useRef({ expanded, onExpand, onClose });
+  live.current = { expanded, onExpand, onClose };
+  const stop = useRef<(() => void) | null>(null);
+  useEffect(() => () => stop.current?.(), []);
+
+  const onPointerDown = (e: ReactPointerEvent) => {
+    if (!window.matchMedia(SHEET_QUERY).matches || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    stop.current?.();
+    const id = e.pointerId;
+    const startY = e.clientY;
+    let dy = 0;
+    let moved = false;
+
+    // Followed on the window: a quick flick leaves the sheet before it is seen to move.
+    const onMove = (ev: PointerEvent) => {
+      const panel = panelRef.current;
+      if (ev.pointerId !== id || !panel) return;
+      dy = ev.clientY - startY;
+      if (!moved && Math.abs(dy) < 6) return;
+      moved = true;
+      // Follows the finger down; going up it only gives a little, then snaps open.
+      panel.style.transition = 'none';
+      panel.style.transform = `translateY(${dy > 0 ? dy : Math.max(dy / 4, -24)}px)`;
+    };
+    const end = (ev: PointerEvent) => {
+      if (ev.pointerId !== id) return;
+      finish();
+      if (!moved || ev.type === 'pointercancel') return;
+      swallowNextClick();
+      const { expanded: big, onExpand: expand, onClose: close } = live.current;
+      if (dy < -36) expand(true);
+      else if (dy > 56) {
+        if (big) expand(false);
+        else close();
+      }
+    };
+    const finish = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      stop.current = null;
+      const panel = panelRef.current;
+      if (panel) {
+        panel.style.transition = '';
+        panel.style.transform = '';
+      }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    stop.current = finish;
+  };
+
+  return {
+    panelRef,
+    handlers: { onPointerDown },
+  };
+}
+
+/** A drag that ends over a button (or off the sheet) is not a press of whatever is under it. */
+function swallowNextClick() {
+  const swallow = (e: MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
+  window.addEventListener('click', swallow, { capture: true, once: true });
+  // A finger that moved sends no click at all; don't eat a later, real one.
+  window.setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 400);
+}
+
+function Details({
+  person,
+  expanded,
+  onExpand,
+}: {
+  person: Person;
+  expanded: boolean;
+  onExpand: (expanded: boolean) => void;
+}) {
   const tree = useStore((s) => s.tree);
   const focus = useStore((s) => s.focus);
   const naming = useStore((s) => s.naming);
@@ -469,13 +577,31 @@ function Details({ person }: { person: Person }) {
     </button>
   );
 
+  const sheet = useSheetDrag(expanded, onExpand, () => select(null));
+
   return (
     <aside
-      className={`panel${isFolded('compact') ? ' is-compact' : ''}`}
+      ref={sheet.panelRef}
+      className={`panel${isFolded('compact') ? ' is-compact' : ''}${expanded ? '' : ' is-peek'}`}
       aria-label={`Details for ${fullName(tree, person)}`}
       data-person-id={person.id}
     >
-      <header className="pp-head">
+      <div className="pp-sheet-top" {...sheet.handlers}>
+        <button
+          type="button"
+          className="pp-grip"
+          aria-label={expanded ? 'Show less' : 'Show more'}
+          aria-expanded={expanded}
+          onClick={() => onExpand(!expanded)}
+        />
+      <header
+        className="pp-head"
+        onClick={(e) => {
+          // On a phone, a tap on the small sheet's name opens it up.
+          if (expanded || !window.matchMedia(SHEET_QUERY).matches) return;
+          if (!(e.target as Element).closest('button, a, select, input')) onExpand(true);
+        }}
+      >
         <button
           type="button"
           className="icon-btn pp-close"
@@ -541,6 +667,7 @@ function Details({ person }: { person: Person }) {
             </nav>
           )}
       </header>
+      </div>
 
       <div className="pp-body" ref={bodyRef}>
         {lifeline}

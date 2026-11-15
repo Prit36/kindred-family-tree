@@ -6093,3 +6093,211 @@ kbd {
   display: flex;
   flex-direction: column;
 }
+
+/* ==========================================================================
+   Phones and touch screens
+   Portrait phones get the details as a sheet that opens small (name and
+   actions) and is pulled up for the rest; landscape phones are too short for
+   a sheet, so the panel stays at the side as on a computer.
+   ========================================================================== */
+
+html,
+body {
+  /* No pull-to-refresh or rubber-banding of the whole app when a view is dragged. */
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tooltips come up on hover; a tap would leave one stuck on screen. */
+@media (hover: none) {
+  [data-tip]::after {
+    display: none !important;
+  }
+
+  /* Shown on hover only, so on a touch screen they would be invisible but still
+     tappable. Unlinking is in the links menu at the foot of the panel. */
+  .pp-unlink {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  /* A held finger selects someone to compare with, not the text on their card. */
+  .viewport,
+  .fan,
+  .timeline {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* Fingertip-sized targets without drawing anything bigger. */
+  .quick-add::before {
+    content: '';
+    position: absolute;
+    inset: -9px;
+    border-radius: 50%;
+  }
+
+  .menu-item {
+    min-height: 40px;
+  }
+
+  .search-kbd {
+    display: none;
+  }
+
+  .segmented button {
+    min-height: 32px;
+  }
+}
+
+/* The sheet's grip, and the wrapper that makes the grip and the name one place to drag. */
+.pp-sheet-top {
+  display: contents;
+}
+
+.pp-grip {
+  display: none;
+}
+
+.menu-tree-name {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  /* The tree's name has no room in the header; it is renamed at the top of the menu. */
+  .menu-tree-name {
+    display: block;
+    margin: 0 0 4px;
+    padding: 2px 2px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .menu-tree-name .tree-name {
+    display: block;
+    max-width: none;
+    height: var(--h-field);
+  }
+}
+
+@media (max-width: 640px) {
+  /* The views take the logo's place, and keep the look that shows which one is on. */
+  .topbar {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .topbar .brand {
+    display: none;
+  }
+
+  .view-switch {
+    padding: 2px;
+    background: var(--surface-3);
+  }
+
+  .view-switch button {
+    width: 38px;
+  }
+
+  /* Messages come in under the header, clear of the details sheet's buttons. */
+  .toasts {
+    top: calc(var(--content-top) + 4px);
+    bottom: auto;
+  }
+}
+
+@media (max-width: 859px) and (min-height: 501px) {
+  .panel {
+    border-radius: var(--r-dialog) var(--r-dialog) var(--r-float) var(--r-float);
+    transition: transform 0.22s var(--ease);
+  }
+
+  .pp-sheet-top {
+    display: block;
+    flex: none;
+    /* Up and down are the sheet's; sideways still scrolls the "via" path. */
+    touch-action: pan-x;
+  }
+
+  .pp-grip {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-dialog) var(--r-dialog) 0 0;
+    background: none;
+    cursor: grab;
+  }
+
+  .pp-grip::before {
+    content: '';
+    position: absolute;
+    top: 7px;
+    left: calc(50% - 18px);
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-strong);
+  }
+
+  .pp-grip:focus-visible {
+    outline: none;
+  }
+
+  .pp-grip:focus-visible::before {
+    background: var(--accent);
+  }
+
+  .pp-head {
+    padding-top: 0;
+  }
+
+  /* Small: who they are and what you can do. */
+  .panel.is-peek .pp-body {
+    display: none;
+  }
+
+  .panel.is-peek .pp-head {
+    cursor: pointer;
+  }
+}
+
+/* A phone on its side: too short for a sheet, so the panel docks at the side. */
+@media (max-width: 859px) and (max-height: 500px) {
+  .panel {
+    top: var(--content-top);
+    left: auto;
+    right: var(--chrome-inset);
+    bottom: auto;
+    width: min(var(--panel-width), 46vw);
+    max-height: calc(100dvh - var(--content-top) - var(--chrome-inset));
+    animation-name: panel-in;
+  }
+
+  .timeline.has-panel {
+    right: calc(min(var(--panel-width), 46vw) + 2 * var(--chrome-inset));
+  }
+
+  /* The descendants' settings stay clear of the panel, whether or not it is open. */
+  .view-bar .fan-picker-btn {
+    width: 200px;
+  }
+
+  /* No room for the branches list beside the fan. */
+  .fan-legend {
+    display: none;
+  }
+
+  /* Banners keep to the space left of where the panel goes, as on a computer. */
+  .compare-wrap {
+    right: calc(min(var(--panel-width), 46vw) + 2 * var(--chrome-inset));
+  }
+}

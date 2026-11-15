@@ -281,7 +281,7 @@ const Slices = memo(function Slices({ fan, lit, line, selIdx, cmpIdx, homeIdx }:
           .join(' ');
         return (
           <g key={n.id} className={cls} data-tone={n.branch % SIDE_TONES} style={{ ['--mix' as string]: `${mixFor(n.depth)}%` }}>
-            <path d={n.d} data-i={i} />
+            <path d={n.d} data-i={i} data-person-id={n.id} />
             {n.viaDaughter && <path d={n.d} className="fan-hatch" fill={`url(#fan-hatch-${n.branch % SIDE_TONES})`} />}
           </g>
         );
@@ -680,6 +680,8 @@ export function FanView() {
   };
 
   const onPointerOver = (e: React.PointerEvent) => {
+    // A tap selects, and the details sheet says the rest; a card here would only cover the fan.
+    if (e.pointerType === 'touch') return;
     const i = indexAt(e.target);
     if (i === null) return;
     setHover(i);

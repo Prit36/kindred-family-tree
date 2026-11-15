@@ -410,6 +410,10 @@ export const useStore = create<State>((set, get) => ({
   toggleTheme: () => {
     const theme: Theme = get().theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = theme;
+    document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute(
+      'content',
+      theme === 'dark' ? '#15130f' : '#f5f1e8',
+    );
     try {
       localStorage.setItem(THEME_KEY, theme);
     } catch {

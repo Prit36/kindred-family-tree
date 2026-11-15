@@ -2,7 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- The views zoom themselves; page zoom would only knock the layout off (and iOS
+         would zoom into every text box it focuses). The keyboard shrinks the page, so
+         dialogs stay above it. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, interactive-widget=resizes-content"
+    />
+    <meta name="theme-color" content="#f5f1e8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Kindred" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Kindred - Family Tree</title>
@@ -12,6 +23,8 @@
         var t = localStorage.getItem('kindred.theme');
         if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         document.documentElement.dataset.theme = t;
+        // A phone's browser bar takes the page's colour.
+        document.querySelector('meta[name="theme-color"]').content = t === 'dark' ? '#15130f' : '#f5f1e8';
       } catch (e) {}
     </script>
   </head>

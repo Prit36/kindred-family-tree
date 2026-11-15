@@ -357,7 +357,9 @@ export function Canvas() {
       // When opening a tree too big to read at "fit" size, start on the home person instead.
       const homeId = useStore.getState().tree.homeId;
       const home = homeId ? nodes[homeId] : undefined;
-      if (!animate && k < 0.4 && home) {
+      // A phone needs a little more size before names can be read.
+      const readable = area.width < 600 ? 0.55 : 0.4;
+      if (!animate && k < readable && home) {
         const hk = 0.8;
         const hx = area.left + area.width / 2 - (home.x + CARD_W / 2) * hk;
         const hy = area.top + area.height / 2 - (home.y + CARD_H / 2) * hk;
