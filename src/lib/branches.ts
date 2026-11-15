@@ -3,12 +3,15 @@ import type { Tree } from '../types';
 import { ancestorIds, descendantIds, indexOf, partnersOf, siblingsOf } from './tree';
 import { LruMap, RecentMap } from './lru';
 import { sideMembers } from './sides';
+import { lineIds } from './lines';
 
 /**
  * Which part of a large tree is drawn.
  *
- * Two independent ways to cut a tree down to size:
+ * Ways to cut a tree down to size:
  *
+ * - **One family at a time** (lib/lines.ts): the tree drawn one family line at a time,
+ *   with bridges where families married into each other. Takes the place of folds.
  * - **Focus** shows one person's branch on its own - their direct line, their whole
  *   family by blood, or their close family (see FocusScope).
  * - **Collapsing** folds a branch away at a connector. `down:<parents>` stops at a couple
@@ -391,16 +394,29 @@ export function focusSet(tree: Tree, focus: Focus): ReadonlySet<string> {
 // Visibility
 // ---------------------------------------------------------------------------
 
-const visibleCache = new RecentMap<Shape, { focus: Focus | null; collapsed: Collapsed; ids: ReadonlySet<string> }>(6);
+const visibleCache = new RecentMap<
+  Shape,
+  { focus: Focus | null; collapsed: Collapsed; line: string | null; ids: ReadonlySet<string> }
+>(6);
 
-/** The people drawn on the canvas for this focus and these folds. */
-export function visibleIds(tree: Tree, focus: Focus | null, collapsed: Collapsed): ReadonlySet<string> {
+/**
+ * The people drawn on the canvas: a focused branch if there is one, else one family line
+ * (lib/lines.ts) when the tree is shown a family at a time, else the whole tree minus its folds.
+ */
+export function visibleIds(
+  tree: Tree,
+  focus: Focus | null,
+  collapsed: Collapsed,
+  line: string | null = null,
+): ReadonlySet<string> {
   const hit = visibleCache.get(shapeOf(tree));
-  if (hit && sameFocus(hit.focus, focus) && hit.collapsed === collapsed) return hit.ids;
+  if (hit && sameFocus(hit.focus, focus) && hit.collapsed === collapsed && hit.line === line) return hit.ids;
 
   let ids: ReadonlySet<string>;
   if (focus && tree.people[focus.id]) {
     ids = focusSet(tree, focus);
+  } else if (line) {
+    ids = lineIds(tree, line);
   } else {
     const g = graphOf(tree);
     const seen = reach(g, collapsed);
@@ -410,7 +426,7 @@ export function visibleIds(tree: Tree, focus: Focus | null, collapsed: Collapsed
     });
     ids = reached;
   }
-  visibleCache.set(shapeOf(tree), { focus, collapsed, ids });
+  visibleCache.set(shapeOf(tree), { focus, collapsed, line, ids });
   return ids;
 }
 

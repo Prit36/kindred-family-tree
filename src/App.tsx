@@ -45,7 +45,7 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
       [['D'], "Show the selected person's descendants as a tree of generations"],
       [['L'], 'Switch names and relationships between English, ગુજરાતી and Gujarati in English letters'],
       [['H'], 'Jump back to yourself'],
-      [['F'], 'Fit the whole tree on screen'],
+      [['F'], 'Fit the tree on screen'],
       [['+', '−'], 'Zoom in and out'],
       [['Esc'], 'Deselect'],
     ],
@@ -56,7 +56,7 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
       [['Enter'], 'Edit - or double-click their card'],
       [['P'], 'View their photo full size'],
       [['Del'], 'Delete'],
-      [['B'], 'Show only their direct line - press again for the whole tree'],
+      [['B'], 'Show only their direct line - press again to go back'],
       [['Shift', 'B'], 'Show only their family: every blood relative, aunts to cousins'],
       [['Shift', 'click'], 'See how someone else is related to them'],
     ],
@@ -320,6 +320,7 @@ const SCOPES: { scope: FocusScope; label: string; tip: string }[] = [
 function FocusBanner() {
   const tree = useStore((s) => s.tree);
   const focus = useStore((s) => s.focus);
+  const linesOn = useStore((s) => s.lines.on);
   const { select, clearFocus, focusOn } = useStore.getState();
 
   const person = focus ? tree.people[focus.id] : undefined;
@@ -367,7 +368,13 @@ function FocusBanner() {
         </>
       )}
       <span className="focus-divider" aria-hidden="true" />
-      <button type="button" className="icon-btn focus-exit" aria-label="Show everyone" onClick={clearFocus} data-tip="Back to the whole tree (B)">
+      <button
+        type="button"
+        className="icon-btn focus-exit"
+        aria-label={linesOn ? 'Back to the family' : 'Show everyone'}
+        onClick={clearFocus}
+        data-tip={linesOn ? 'Back to the family (B)' : 'Back to the whole tree (B)'}
+      >
         <Users size={15} />
       </button>
     </div>

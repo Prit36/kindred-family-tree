@@ -1,7 +1,8 @@
 import { memo, type CSSProperties } from 'react';
-import { House, Plus, ScrollText } from 'lucide-react';
+import { ArrowUpRight, House, Plus, ScrollText } from 'lucide-react';
 import type { Person, Relation } from '../types';
 import { lifespan } from '../lib/dates';
+import type { Bridge } from '../lib/lines';
 import { shortName } from '../lib/tree';
 import { useLinkedByLine } from '../lib/lineHover';
 import { Avatar } from './Avatar';
@@ -33,6 +34,13 @@ interface Props {
   /** Just added to what's drawn (a new person, or an unfolded branch): fades in. */
   fresh: boolean;
   canAddParent: boolean;
+  /**
+   * A way to another family (lib/lines.ts): "from Bhalgamiya" on someone who married in,
+   * "married into Mojidra" on someone born here who is drawn with their partner's family -
+   * whose card here is only a dashed outline.
+   */
+  bridge: Bridge | null;
+  onBridge: (id: string) => void;
   /** Changes whenever the way names are written does (script, or the tree's own spellings), so the card is drawn again */
   nameStyle: unknown;
   onSelect: (id: string) => void;
@@ -90,6 +98,8 @@ export const PersonCard = memo(function PersonCard({
   far,
   fresh,
   canAddParent,
+  bridge,
+  onBridge,
   onSelect,
   onCompare,
   onEdit,
@@ -102,6 +112,8 @@ export const PersonCard = memo(function PersonCard({
   // The home person's relation is what they're called: "You", or "તમે" in Gujarati.
   const glance = isHome ? relation || 'You' : glanceLabel(relation);
   const linked = useLinkedByLine(person.id);
+  /** Born here but drawn with the family they married into: their partner and children are there. */
+  const elsewhere = bridge?.kind === 'into';
 
   const cls = [
     'card',
@@ -113,6 +125,7 @@ export const PersonCard = memo(function PersonCard({
     placeholder && 'is-placeholder',
     dimmed && 'is-dimmed',
     linked && 'is-linked',
+    elsewhere && 'is-elsewhere',
     fresh && 'is-fresh',
   ]
     .filter(Boolean)
@@ -182,8 +195,25 @@ export const PersonCard = memo(function PersonCard({
         )}
       </div>
 
+      {bridge && (
+        <button
+          type="button"
+          className={`bridge is-${bridge.kind}${isHome ? ' beside-home' : ''}`}
+          data-tip={bridge.tip}
+          aria-label={bridge.tip}
+          onClick={(e) => {
+            e.stopPropagation();
+            onBridge(person.id);
+          }}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          <span className="bridge-label">{bridge.label}</span>
+          <ArrowUpRight size={11} strokeWidth={2.6} aria-hidden="true" />
+        </button>
+      )}
+
       {selected &&
-        QUICK_ADD.filter((q) => q.relation !== 'parent' || canAddParent).map((q) => {
+        QUICK_ADD.filter((q) => (q.relation !== 'parent' || canAddParent) && !(elsewhere && (q.relation === 'child' || q.relation === 'partner'))).map((q) => {
           const label = q.relation === 'parent' && person.parentIds.length >= 2 ? 'Fill in parent' : q.label;
           return (
             <button

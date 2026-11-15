@@ -1,11 +1,11 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { select } from 'd3-selection';
 import 'd3-transition';
 import { zoom, zoomIdentity, zoomTransform, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-import { EyeOff, House, Maximize, Minus, Plus } from 'lucide-react';
+import { ChevronRight, EyeOff, House, Maximize, Minus, Network, Plus, UsersRound } from 'lucide-react';
 import type { Relation, Tree } from '../types';
-import { useStore } from '../store';
+import { shownLine, trailOf, useStore, type LineStop } from '../store';
 import {
   CARD_H,
   CARD_W,
@@ -20,6 +20,7 @@ import {
   type UnionLine,
 } from '../lib/layout';
 import { branchToggles, focusSet, subTree, visibleIds } from '../lib/branches';
+import { bridgeOf, lineTitle, type Bridge } from '../lib/lines';
 import { familySides } from '../lib/sides';
 import { relationLabels } from '../lib/naming';
 import { shapeOf } from '../lib/shape';
@@ -110,9 +111,14 @@ export function Canvas() {
   const drawWin = exporting ? null : win;
   const drawFar = far && !exporting;
 
-  // Only the people on show are laid out: a focused branch, or the tree minus its folded
-  // branches. Everything drawn below works from `shown`, never from the full tree.
-  const visible = useMemo(() => visibleIds(tree, focus, collapsed), [tree, focus, collapsed]);
+  // Only the people on show are laid out: a focused branch, one family line, or the tree
+  // minus its folded branches. Everything drawn below works from `shown`, never from the
+  // full tree.
+  const lines = useStore((s) => s.lines);
+  const line = useMemo(() => shownLine(tree, lines), [tree, lines]);
+  /** One family is what's on show (a focus takes its place while there is one). */
+  const byLine = line !== null && !focus;
+  const visible = useMemo(() => visibleIds(tree, focus, collapsed, line), [tree, focus, collapsed, line]);
   const shown = useMemo(() => subTree(tree, visible), [tree, visible]);
   const total = Object.keys(tree.people).length;
   const hiddenCount = total - visible.size;
@@ -210,7 +216,7 @@ export function Canvas() {
   // A small button on each line that can be folded: under a couple to tuck their children's
   // branches away, above a person to tuck away their parents' side of the family.
   const toggles = useMemo(() => {
-    if (focusId) return [];
+    if (focusId || byLine) return [];
     return branchToggles(tree, collapsed).flatMap((t) => {
       let x: number;
       let y: number;
@@ -232,7 +238,34 @@ export function Canvas() {
       const box: Box = [x - 20, Math.min(y, from) - 14, x + 20, Math.max(y, from) + 14];
       return [{ ...t, x, y, from, label, box }];
     });
-  }, [tree, collapsed, focusId, layout]);
+  }, [tree, collapsed, focusId, byLine, layout]);
+
+  // --- Bridges between families ---------------------------------------------------
+  // Someone who married in carries a tag for the family they came from; someone who married
+  // out is a dashed card, tagged with the family they married into. Each leads there.
+  const bridges = useMemo(() => {
+    const out = new Map<string, Bridge>();
+    if (!byLine || !line) return out;
+    for (const id of visible) {
+      const b = bridgeOf(tree, line, id);
+      if (b) out.set(id, b);
+    }
+    return out;
+  }, [tree, byLine, line, visible]);
+  const showLine = useStore((s) => s.showLine);
+  const bridgesRef = useRef(bridges);
+  bridgesRef.current = bridges;
+  const onBridge = useCallback(
+    (id: string) => {
+      const b = bridgesRef.current.get(id);
+      if (!b) return;
+      // The same person is on both sides of the bridge, so they stay where they are.
+      foldedAt.current = id;
+      showLine(b.line, id);
+    },
+    [showLine],
+  );
+
   const toggleKeysBefore = useRef<Set<string> | null>(null);
   const freshToggles = useMemo(() => {
     const before = toggleKeysBefore.current;
@@ -284,7 +317,7 @@ export function Canvas() {
         if (e.type === 'wheel') return true;
         if (e.button) return false;
         // Let buttons on the canvas be clicked without starting a drag.
-        return !(e.target as HTMLElement).closest('.quick-add, .branch-toggle, .canvas-controls, .sides');
+        return !(e.target as HTMLElement).closest('.quick-add, .branch-toggle, .bridge, .canvas-controls, .sides, .line-trail');
       })
       .on('zoom', (event: { transform: ZoomTransform }) => {
         const t = event.transform;
@@ -346,17 +379,29 @@ export function Canvas() {
     const { nodes, bounds } = layoutRef.current;
     const area = visibleArea();
     const animate = view.nonce > 0;
+    const margin = 56;
+    const fitK = Math.max(
+      MIN_ZOOM,
+      Math.min(1, (area.width - margin * 2) / bounds.width, (area.height - margin * 2) / bounds.height),
+    );
+
+    // Another family was just shown: all of it in view if the names can still be read,
+    // otherwise whoever led there, in the middle.
+    if (view.kind === 'line' && bounds.width > 0 && fitK >= FAR_ZOOM) {
+      const x = area.left + (area.width - bounds.width * fitK) / 2 - bounds.minX * fitK;
+      const y = area.top + (area.height - bounds.height * fitK) / 2 - bounds.minY * fitK;
+      moveTo(zoomIdentity.translate(x, y).scale(fitK), animate);
+      return;
+    }
 
     if (view.kind === 'fit') {
       if (bounds.width === 0) return;
-      const margin = 56;
-      const k = Math.max(
-        MIN_ZOOM,
-        Math.min(1, (area.width - margin * 2) / bounds.width, (area.height - margin * 2) / bounds.height),
-      );
-      // When opening a tree too big to read at "fit" size, start on the home person instead.
-      const homeId = useStore.getState().tree.homeId;
-      const home = homeId ? nodes[homeId] : undefined;
+      const k = fitK;
+      // When opening a tree too big to read at "fit" size, start on the home person (or
+      // whoever led to the family on show) instead.
+      const { tree: t, lines: l, focus: f } = useStore.getState();
+      const startId = (!f && l.on && trailOf(t, l).at(-1)?.via) || t.homeId;
+      const home = startId ? nodes[startId] : undefined;
       // A phone needs a little more size before names can be read.
       const readable = area.width < 600 ? 0.55 : 0.4;
       if (!animate && k < readable && home) {
@@ -386,7 +431,7 @@ export function Canvas() {
         sy + CARD_H * current.k <= area.bottom - pad;
       if (inView) return;
     }
-    const k = current.k < 0.5 ? 0.85 : current.k;
+    const k = view.kind === 'line' ? Math.min(1, Math.max(current.k, 0.8)) : current.k < 0.5 ? 0.85 : current.k;
     const x = area.left + area.width / 2 - (pos.x + CARD_W / 2) * k;
     const y = area.top + area.height / 2 - (pos.y + CARD_H / 2) * k;
     moveTo(zoomIdentity.translate(x, y).scale(k), animate);
@@ -412,7 +457,7 @@ export function Canvas() {
 
       const key = e.key.toLowerCase();
       if (key === 'f') return fitView();
-      if (key === 'h') return void (t.homeId && go(t.homeId, true));
+      if (key === 'h') return useStore.getState().goHome();
       if (key === '+' || key === '=') return zoomBy(1.35);
       if (key === '-') return zoomBy(1 / 1.35);
 
@@ -571,7 +616,7 @@ export function Canvas() {
       data-zoom={drawFar ? 'far' : 'near'}
       onClick={(e) => {
         if (lineHover.get()) lineHover.set(null);
-        if (!(e.target as HTMLElement).closest('.card-slot, .canvas-controls, .sides')) select_(null);
+        if (!(e.target as HTMLElement).closest('.card-slot, .canvas-controls, .sides, .line-trail')) select_(null);
       }}
     >
       <div ref={worldRef} className={`world${peeked ? ' is-peeking' : ''}`}>
@@ -691,6 +736,8 @@ export function Canvas() {
           peeked={peeked}
           placeholders={placeholders}
           isFresh={isFreshNode}
+          bridges={bridges}
+          onBridge={onBridge}
           onSelect={onSelect}
           onCompare={onCompare}
           onEdit={onEdit}
@@ -721,7 +768,19 @@ export function Canvas() {
               </div>
             ),
         )}
+
       </div>
+
+      {byLine && line && (
+        <LineTrail
+          tree={tree}
+          trail={trailOf(tree, lines)}
+          onGo={(stop) => {
+            foldedAt.current = stop.via;
+            showLine(stop.line, stop.via);
+          }}
+        />
+      )}
 
       <HoverTip tree={tree} layout={layout} families={families} unionById={unionById} toneOf={toneOf} viewportRef={viewportRef} />
 
@@ -739,8 +798,8 @@ export function Canvas() {
               type="button"
               className="icon-btn"
               onClick={() => useStore.getState().fitView()}
-              data-tip="Fit whole tree (F)"
-              aria-label="Fit whole tree"
+              data-tip={byLine ? 'Fit (F)' : 'Fit whole tree (F)'}
+              aria-label={byLine ? 'Fit the family in view' : 'Fit whole tree'}
             >
               <Maximize size={16} />
             </button>
@@ -748,15 +807,25 @@ export function Canvas() {
               <button
                 type="button"
                 className="icon-btn"
-                onClick={() => select_(home.id, true)}
+                onClick={() => useStore.getState().goHome()}
                 data-tip={`Go to ${shortName(home)} (H)`}
                 aria-label={`Go to ${shortName(home)}, the home person`}
               >
                 <House size={16} />
               </button>
             )}
+            <span className="control-sep" aria-hidden="true" />
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => useStore.getState().setLines(!lines.on)}
+              data-tip={lines.on ? 'Whole tree' : 'One family at a time'}
+              aria-label={lines.on ? 'Show the whole tree' : 'Show one family at a time'}
+            >
+              {lines.on ? <Network size={16} /> : <UsersRound size={16} />}
+            </button>
           </div>
-          {hiddenCount > 0 && !focus ? (
+          {hiddenCount > 0 && !focus && !byLine ? (
             <button
               type="button"
               className="stats-pill is-filtered"
@@ -779,6 +848,38 @@ export function Canvas() {
   );
 }
 
+interface LineTrailProps {
+  tree: Tree;
+  trail: LineStop[];
+  onGo: (stop: LineStop) => void;
+}
+
+/** The families visited, ending with the one on show; each a way back. */
+function LineTrail({ tree, trail, onGo }: LineTrailProps) {
+  return (
+    <nav className="view-bar line-trail" aria-label="Families visited">
+      {trail.map((stop, i) => {
+        const name = lineTitle(tree, stop.line, stop.via);
+        const here = i === trail.length - 1;
+        return (
+          <Fragment key={stop.line}>
+            {i > 0 && <ChevronRight className="line-trail-sep" size={14} aria-hidden="true" />}
+            {here ? (
+              <span className="line-trail-step is-here" aria-current="location">
+                {name}
+              </span>
+            ) : (
+              <button type="button" className="line-trail-step" onClick={() => onGo(stop)} aria-label={`Back to ${name}`}>
+                {name}
+              </button>
+            )}
+          </Fragment>
+        );
+      })}
+    </nav>
+  );
+}
+
 interface CardsProps {
   tree: Tree;
   nameStyle: unknown;
@@ -793,6 +894,8 @@ interface CardsProps {
   peeked: ReadonlySet<string> | null;
   placeholders: ReadonlySet<string>;
   isFresh: (id: string) => boolean;
+  bridges: Map<string, Bridge>;
+  onBridge: (id: string) => void;
   onSelect: (id: string) => void;
   onCompare: (id: string) => void;
   onEdit: (id: string) => void;
@@ -814,6 +917,8 @@ function Cards({
   peeked,
   placeholders,
   isFresh,
+  bridges,
+  onBridge,
   onSelect,
   onCompare,
   onEdit,
@@ -826,6 +931,7 @@ function Cards({
     if (!p) continue;
     if (id !== selectedId && id !== compareId && !inWin(win, cardBox(pos.x, pos.y))) continue;
     const side = sides?.byKey.get(sides.sideOf.get(id) ?? '');
+    const bridge = bridges.get(id);
     out.push(
       <PersonCard
         key={id}
@@ -844,6 +950,8 @@ function Cards({
         far={far}
         fresh={isFresh(id)}
         canAddParent={p.parentIds.length < 2 || p.parentIds.some((pid) => placeholders.has(pid))}
+        bridge={bridge ?? null}
+        onBridge={onBridge}
         nameStyle={nameStyle}
         onSelect={onSelect}
         onCompare={onCompare}

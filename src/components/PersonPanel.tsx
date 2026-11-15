@@ -29,6 +29,7 @@ import { useStore } from '../store';
 import { addRelative, pickPhotoFor, viewPhoto } from '../lib/actions';
 import { focusSet, sameFocus, type FocusScope } from '../lib/branches';
 import { familySides } from '../lib/sides';
+import { familyLabel } from '../lib/lines';
 import { ageOf, compareByBirth, formatDate, lifespan, parseDate, yearOf } from '../lib/dates';
 import { relationLabels, relationName } from '../lib/naming';
 import {
@@ -224,6 +225,7 @@ function Details({
   const tree = useStore((s) => s.tree);
   const focus = useStore((s) => s.focus);
   const naming = useStore((s) => s.naming);
+  const linesOn = useStore((s) => s.lines.on);
   const { select, commit, openDialog, toast, undo, focusOn, clearFocus } = useStore.getState();
 
   const kin = relationLabels(tree, naming);
@@ -702,7 +704,7 @@ function Details({
                 value={focusedScope ?? 'all'}
                 onChange={(e) => e.target.value === 'all' ? clearFocus() : focusOn(person.id, e.target.value as FocusScope)}
               >
-                <option value="all">Everyone ({total.toLocaleString()})</option>
+                <option value="all">{linesOn ? familyLabel(tree, person.id) : `Everyone (${total.toLocaleString()})`}</option>
                 {scopes.map(({ scope, label, size }) => (
                   <option key={scope} value={scope}>{label} ({size.toLocaleString()})</option>
                 ))}

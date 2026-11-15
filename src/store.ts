@@ -13,6 +13,7 @@ import {
   type FocusScope,
 } from './lib/branches';
 import { focusTitle } from './lib/sides';
+import { familyLines } from './lib/lines';
 import type { Naming } from './lib/naming';
 import { emptyTree, indexOf, shortName } from './lib/tree';
 import { NO_SPELLINGS, setNameScriptSource } from './lib/gujaratiNames';
@@ -30,6 +31,72 @@ const MODE_KEY = 'kindred.mode';
 const SIDES_KEY = 'kindred.sides';
 const NAMING_KEY = 'kindred.naming';
 const FAN_KEY = 'kindred.fan';
+const LINES_KEY = 'kindred.lines';
+/** How many families back the trail goes. */
+const TRAIL_MAX = 6;
+
+/** One family visited: which family line (lib/lines.ts), and whose bridge led there. */
+export interface LineStop {
+  line: string;
+  via: string;
+}
+
+/**
+ * The tree shown one family at a time: whether it is, and the families visited, in
+ * order - the last is the one on show.
+ */
+export interface Lines {
+  on: boolean;
+  trail: LineStop[];
+}
+
+function loadLinesOn(): boolean {
+  try {
+    return localStorage.getItem(LINES_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+function saveLinesOn(on: boolean) {
+  try {
+    localStorage.setItem(LINES_KEY, on ? 'on' : 'off');
+  } catch {
+    /* the choice just won't persist */
+  }
+}
+
+/** Where a trail starts: the family "me" is drawn in, or the first person's. */
+function homeStop(tree: Tree): LineStop | null {
+  const start = tree.homeId && tree.people[tree.homeId] ? tree.homeId : Object.keys(tree.people)[0];
+  return start ? { line: familyLines(tree).lineOf.get(start)!, via: start } : null;
+}
+
+/**
+ * The family on show: the last one in the trail still in the tree, else "me"'s. Null when
+ * the whole tree is shown (or it's empty).
+ */
+export function shownLine(tree: Tree, lines: Lines): string | null {
+  if (!lines.on) return null;
+  const known = familyLines(tree).members;
+  for (let i = lines.trail.length - 1; i >= 0; i--) if (known.has(lines.trail[i].line)) return lines.trail[i].line;
+  return homeStop(tree)?.line ?? null;
+}
+
+/** The families visited, still in the tree, starting from "me"'s if nothing else is left. */
+export function trailOf(tree: Tree, lines: Lines): LineStop[] {
+  const known = familyLines(tree).members;
+  const trail = lines.trail.filter((s) => known.has(s.line));
+  const home = homeStop(tree);
+  return trail.length || !home ? trail : [home];
+}
+
+/** The trail after going to a family: back along it if it was visited, else on to it. */
+function trailTo(tree: Tree, lines: Lines, stop: LineStop): LineStop[] {
+  const trail = trailOf(tree, lines);
+  const at = trail.findIndex((s) => s.line === stop.line);
+  return at >= 0 ? trail.slice(0, at + 1) : [...trail, stop].slice(-TRAIL_MAX);
+}
 
 /** Whose descendants the fan shows, whether it follows only the sons' line, and whether husbands and wives are named. */
 export interface FanPrefs {
@@ -114,7 +181,8 @@ export interface Toast {
 }
 
 export interface ViewRequest {
-  kind: 'fit' | 'focus' | 'reveal';
+  /** `line`: another family was just shown - all of it in view if it can be read that way, else `id` */
+  kind: 'fit' | 'focus' | 'reveal' | 'line';
   id?: string;
   nonce: number;
 }
@@ -176,8 +244,10 @@ interface State {
   peek: Focus | null;
   /** Colour cards by side of the family, and show the list of sides. */
   sides: SidesPrefs;
-  /** Branches folded away at a connector (see lib/branches.ts). Ignored while focused. */
+  /** Branches folded away at a connector (see lib/branches.ts). Ignored while focused or shown a family at a time. */
   collapsed: Collapsed;
+  /** The tree shown one family at a time, unless a focus is set. */
+  lines: Lines;
   dialog: Dialog | null;
   toasts: Toast[];
   view: ViewRequest;
@@ -208,6 +278,12 @@ interface State {
   toggleCollapse: (key: string) => void;
   /** Leave focus and unfold everything. */
   showAll: () => void;
+  /** Show one family line, reached through `via` (who stays in place on screen). */
+  showLine: (line: string, via: string) => void;
+  /** Show the tree one family at a time, or the whole of it. */
+  setLines: (on: boolean) => void;
+  /** Back to "me": their family, with them selected. */
+  goHome: () => void;
   openDialog: (dialog: Dialog) => void;
   closeDialog: () => void;
   toast: (message: string, opts?: { tone?: Toast['tone']; action?: Toast['action'] }) => void;
@@ -246,14 +322,17 @@ let toastId = 1;
 /** True when two trees share nobody - the view needs re-fitting after swapping between them. */
 const unrelated = (a: Tree, b: Tree) => !Object.keys(a.people).some((id) => b.people[id]);
 
-type ViewState = Pick<State, 'selectedId' | 'compareId' | 'focus' | 'collapsed'>;
+type ViewState = Pick<State, 'selectedId' | 'compareId' | 'focus' | 'collapsed' | 'lines'>;
+
+/** Everyone on the canvas in this view. */
+const onScreen = (tree: Tree, s: ViewState) => visibleIds(tree, s.focus, s.collapsed, shownLine(tree, s.lines));
 
 /** Only people who are on the canvas can stay selected. */
 const onCanvas = (tree: Tree, s: ViewState): ViewState => {
-  const visible = visibleIds(tree, s.focus, s.collapsed);
+  const visible = onScreen(tree, s);
   const selectedId = s.selectedId && visible.has(s.selectedId) ? s.selectedId : null;
   const compareId = selectedId && s.compareId && visible.has(s.compareId) ? s.compareId : null;
-  return { selectedId, compareId, focus: s.focus, collapsed: s.collapsed };
+  return { selectedId, compareId, focus: s.focus, collapsed: s.collapsed, lines: s.lines };
 };
 
 /** View state that still makes sense in `tree` (people can vanish on delete or undo). */
@@ -264,6 +343,7 @@ const surviving = (tree: Tree, s: ViewState & Pick<State, 'tree'>): ViewState =>
     focus: s.focus && tree.people[s.focus.id] ? s.focus : null,
     // Which side of a fold is hidden depends on who "me" is, so a new home person starts afresh.
     collapsed: tree.homeId === s.tree.homeId ? pruneCollapsed(tree, s.collapsed) : NOTHING_COLLAPSED,
+    lines: s.lines,
   });
 
 // The saved tree is loaded asynchronously (see lib/treeStore.ts) and put in place by
@@ -280,6 +360,7 @@ export const useStore = create<State>((set, get) => ({
   peek: null,
   sides: loadSidesPrefs(),
   collapsed: loadCollapsed(initialTree),
+  lines: { on: loadLinesOn(), trail: [] },
   dialog: null,
   toasts: [],
   view: { kind: 'fit', nonce: 0 },
@@ -327,17 +408,29 @@ export const useStore = create<State>((set, get) => ({
 
   select: (id, center = false) => {
     const { tree, toast } = get();
-    let { focus, collapsed } = get();
-    if (id && tree.people[id] && !visibleIds(tree, focus, collapsed).has(id)) {
+    let { focus, collapsed, lines } = get();
+    let moved = false;
+    if (id && tree.people[id] && !onScreen(tree, get()).has(id)) {
       if (focus) {
         // Say why the view just changed.
-        toast(`${shortName(tree.people[id])} isn't part of ${focusTitle(tree, focus)} - showing the whole tree again`);
+        const where = lines.on ? '' : ' - showing the whole tree again';
+        toast(`${shortName(tree.people[id])} isn't part of ${focusTitle(tree, focus)}${where}`);
         focus = null;
       }
-      if (!visibleIds(tree, null, collapsed).has(id)) collapsed = unfoldTo(tree, collapsed, id);
+      const line = shownLine(tree, lines);
+      if (line) {
+        // Someone from another family: that family is shown instead.
+        const theirs = familyLines(tree).lineOf.get(id)!;
+        if (theirs !== line) {
+          lines = { on: true, trail: trailTo(tree, lines, { line: theirs, via: id }) };
+          moved = true;
+        }
+      } else if (!visibleIds(tree, null, collapsed).has(id)) {
+        collapsed = unfoldTo(tree, collapsed, id);
+      }
     }
-    set({ selectedId: id, compareId: null, focus, collapsed });
-    if (id) set({ view: { kind: center ? 'focus' : 'reveal', id, nonce: nonce++ } });
+    set({ selectedId: id, compareId: null, focus, collapsed, lines });
+    if (id) set({ view: { kind: moved ? 'line' : center ? 'focus' : 'reveal', id, nonce: nonce++ } });
   },
 
   compare: (id) => {
@@ -358,9 +451,9 @@ export const useStore = create<State>((set, get) => ({
       toast(`Everyone in the tree is already part of ${focusTitle(tree, focus)}`);
       return;
     }
-    const { selectedId, compareId, collapsed } = get();
+    const { selectedId, compareId, collapsed, lines } = get();
     set({
-      ...onCanvas(tree, { selectedId: selectedId && branch.has(selectedId) ? selectedId : null, compareId, focus, collapsed }),
+      ...onCanvas(tree, { selectedId: selectedId && branch.has(selectedId) ? selectedId : null, compareId, focus, collapsed, lines }),
       peek: null,
       view: { kind: 'fit', nonce: nonce++ },
     });
@@ -379,10 +472,23 @@ export const useStore = create<State>((set, get) => ({
   },
 
   clearFocus: () => {
-    const { tree, selectedId, collapsed, focus } = get();
+    const { tree, selectedId, collapsed, focus, lines } = get();
     if (!focus) return;
-    // Whoever is selected stays on screen, even if that means opening a fold.
-    const keep = selectedId && tree.people[selectedId] ? unfoldTo(tree, collapsed, selectedId) : collapsed;
+    // Whoever is selected stays on screen, even if that means opening a fold - or, a
+    // family at a time, showing theirs.
+    const selected = selectedId && tree.people[selectedId] ? selectedId : null;
+    const line = shownLine(tree, lines);
+    if (line) {
+      const theirs = selected ? familyLines(tree).lineOf.get(selected)! : line;
+      const via = selected ?? focus.id;
+      const next: Lines = theirs === line ? lines : { on: true, trail: trailTo(tree, lines, { line: theirs, via }) };
+      set({
+        ...onCanvas(tree, { ...get(), focus: null, lines: next }),
+        view: { kind: 'line', id: via, nonce: nonce++ },
+      });
+      return;
+    }
+    const keep = selected ? unfoldTo(tree, collapsed, selected) : collapsed;
     set(onCanvas(tree, { ...get(), focus: null, collapsed: keep }));
   },
 
@@ -394,6 +500,42 @@ export const useStore = create<State>((set, get) => ({
   },
 
   showAll: () => set({ focus: null, collapsed: NOTHING_COLLAPSED }),
+
+  showLine: (line, via) => {
+    const { tree, lines } = get();
+    if (!familyLines(tree).members.has(line)) return;
+    const next: Lines = { on: true, trail: trailTo(tree, lines, { line, via }) };
+    if (!lines.on) saveLinesOn(true);
+    set({
+      ...onCanvas(tree, { ...get(), focus: null, lines: next }),
+      peek: null,
+      view: { kind: 'line', id: via, nonce: nonce++ },
+    });
+  },
+
+  setLines: (on) => {
+    const { tree, lines, selectedId } = get();
+    if (on === lines.on) return;
+    saveLinesOn(on);
+    // Turned on with someone selected, it starts from their family.
+    const selected = selectedId && tree.people[selectedId] ? selectedId : null;
+    const trail = on && selected ? [{ line: familyLines(tree).lineOf.get(selected)!, via: selected }] : lines.trail;
+    const next: Lines = { on, trail };
+    // Whoever is in the middle of the view stays there while everyone else moves round them.
+    const id = selected ?? trailOf(tree, next).at(-1)?.via ?? null;
+    set({
+      ...onCanvas(tree, { ...get(), focus: null, lines: next }),
+      view: id ? { kind: on ? 'line' : 'reveal', id, nonce: nonce++ } : get().view,
+    });
+  },
+
+  goHome: () => {
+    const { tree, lines } = get();
+    const home = tree.homeId && tree.people[tree.homeId] ? tree.homeId : null;
+    if (!home) return;
+    if (lines.on) set({ lines: { on: true, trail: [] } });
+    get().select(home, true);
+  },
 
   openDialog: (dialog) => set({ dialog }),
   closeDialog: () => set({ dialog: null }),
@@ -479,7 +621,7 @@ let hydrated = false;
 
 /** Puts the tree loaded from storage in place. Called once, before the first render. */
 export function hydrate(tree: Tree) {
-  useStore.setState({ tree, collapsed: loadCollapsed(tree) });
+  useStore.setState({ tree, collapsed: loadCollapsed(tree), lines: { on: useStore.getState().lines.on, trail: [] } });
   hydrated = true;
   if (Object.keys(tree.people).length > 0) requestPersistence();
 }

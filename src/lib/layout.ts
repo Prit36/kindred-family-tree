@@ -8,6 +8,8 @@ export const CARD_H = 80;
 const PARTNER_GAP = 28;
 const SIBLING_GAP = 24;
 const GROUP_GAP = 48;
+/** Between two family lines joined only by a marriage */
+const LINE_GAP = 96;
 const COMPONENT_GAP = 88;
 const RANK_SEP = 80;
 const LANE_STEP = 11;
@@ -196,39 +198,6 @@ function rankLayers(n: number, down: number[][]): Int32Array {
   return rank;
 }
 
-/**
- * Counts pairs of lines that cross between two rows: each line is [top position, bottom
- * position], and two cross when their ends are in opposite orders (ties don't cross).
- */
-function countCrossings(edges: [number, number][]): number {
-  if (edges.length < 2) return 0;
-  // Sorted by the top end (then the bottom), a crossing is an inversion in the bottom ends.
-  const sorted = [...edges].sort((x, y) => x[0] - y[0] || x[1] - y[1]);
-  const values = sorted.map((e) => e[1]);
-  const buffer = new Array<number>(values.length);
-  const sortCount = (lo: number, hi: number): number => {
-    if (hi - lo < 2) return 0;
-    const mid = (lo + hi) >> 1;
-    let count = sortCount(lo, mid) + sortCount(mid, hi);
-    let i = lo;
-    let j = mid;
-    let k = lo;
-    while (i < mid && j < hi) {
-      if (values[j] < values[i] - 1e-9) {
-        count += mid - i;
-        buffer[k++] = values[j++];
-      } else {
-        buffer[k++] = values[i++];
-      }
-    }
-    while (i < mid) buffer[k++] = values[i++];
-    while (j < hi) buffer[k++] = values[j++];
-    for (let x = lo; x < hi; x++) values[x] = buffer[x];
-    return count;
-  };
-  return sortCount(0, values.length);
-}
-
 function stemFrom(nodes: Record<string, NodePos>, union: UnionLine | undefined, parents: string[]): Stem | null {
   if (union) {
     return {
@@ -257,9 +226,10 @@ export function familyStem(layout: TreeLayout, parents: string[]): Stem | null {
  * 1. Partners are merged into "groups" that always sit side by side.
  * 2. Each group gets a generation (rankLayers): parents one row above their children,
  *    with lines kept as short as the family allows.
- * 3. The order inside each generation starts from a walk down from the oldest couples, then
- *    is refined (barycenter sweeps, fewest crossings kept) so siblings stay together and
- *    each partner sits on the side of their own family.
+ * 3. Each couple hangs under one partner's parents, so every family line is a tree drawn as
+ *    one block: branches nested, siblings side by side, eldest first. Where a marriage joins
+ *    two lines, the partner's family is set beside as its own block, on the side where the
+ *    couple sits - and their branch leans to that edge, so the line across stays short.
  * 4. Horizontal positions are solved so siblings pack under their parents and parents
  *    centre over their children.
  * 5. Connectors are drawn as orthogonal lines from each couple down to their children.
@@ -506,7 +476,6 @@ function arrange(tree: Tree): Arrangement {
   // --- 2. Generations, and a first left-to-right order ----------------------
   const gIndex = new Map(groupIds.map((g, i) => [g, i]));
   const down: number[][] = groupIds.map(() => []);
-  const up: number[][] = groupIds.map(() => []);
   const linked = new Set<number>();
   const components = makeFinder(groupIds);
   for (const fam of families.values()) {
@@ -522,7 +491,6 @@ function arrange(tree: Tree): Arrangement {
         if (linked.has(key)) continue;
         linked.add(key);
         down[p].push(c);
-        up[c].push(p);
       }
     }
   }
@@ -530,7 +498,6 @@ function arrange(tree: Tree): Arrangement {
   const rankOfGroup = new Map<string, number>(groupIds.map((g, i) => [g, ranks[i]]));
   const rankOf = (personId: string) => rankOfGroup.get(groupOf(personId))!;
 
-  const groupAge = groupIds.map((g) => Math.min(...members.get(g)!.map((m) => birthOrder.get(m)!)));
   /** The families each group is the parents in. */
   const familiesOfGroup = new Map<string, Family[]>();
   for (const fam of families.values()) {
@@ -538,32 +505,35 @@ function arrange(tree: Tree): Arrangement {
     if (!familiesOfGroup.has(g)) familiesOfGroup.set(g, []);
     familiesOfGroup.get(g)!.push(fam);
   }
+  const parentGroup = (fam: Family) => groupOf(fam.parents[0]);
 
   /**
-   * A starting order for one family's generations: a walk from one of its top couples,
-   * each couple's children (eldest first) straight after them and anyone who married in
-   * followed back to their own parents - so branches start out nested. Different starting
-   * couples, and following parents before children, give the refinement below different
-   * places to start from; the one that ends with the fewest crossings is kept.
+   * The partner whose own parents a couple is drawn under. When both partners' parents are
+   * in the tree (two families joined by a marriage), the couple can only sit under one of
+   * them without dragging the two families into each other: "me" if it's my marriage, else
+   * the partner who didn't marry in (no maiden name), the husband by custom, the eldest.
+   * The other partner's family is drawn beside, as its own block (see `layoutComponent`).
    */
-  const seedFor = (groups: string[], start: number, parentsFirst: boolean) => {
-    const order = new Map<string, number>();
-    const walk = (s: number) => {
-      const stack = [s];
-      while (stack.length) {
-        const v = stack.pop()!;
-        const g = groupIds[v];
-        if (order.has(g)) continue;
-        order.set(g, order.size);
-        const next = parentsFirst ? [...up[v], ...down[v]] : [...down[v], ...up[v]];
-        for (let i = next.length - 1; i >= 0; i--) if (!order.has(groupIds[next[i]])) stack.push(next[i]);
-      }
-    };
-    walk(start);
-    // Anything the walk didn't reach (only via edges left out of the ranking) goes last.
-    for (const g of groups) if (!order.has(g)) walk(gIndex.get(g)!);
-    return order;
-  };
+  const placedUnder = new Map<string, string>();
+  for (const g of groupIds) {
+    const rank = rankOfGroup.get(g)!;
+    const candidates = members.get(g)!.filter((m) => {
+      const fam = childFamily.get(m);
+      return fam !== undefined && rankOfGroup.get(parentGroup(fam))! < rank;
+    });
+    if (candidates.length === 0) continue;
+    const male = (m: string) => people[m].gender === 'male';
+    const born = (m: string) => !people[m].birthName;
+    const pick =
+      candidates.find((m) => m === tree.homeId) ??
+      candidates.find((m) => born(m) && male(m)) ??
+      candidates.find(born) ??
+      candidates.find(male) ??
+      candidates.reduce((a, b) => (birthOrder.get(a)! <= birthOrder.get(b)! ? a : b));
+    placedUnder.set(g, pick);
+  }
+  /** Whether this person's group hangs under their own parents (rather than having married in). */
+  const livesWithParents = (personId: string) => placedUnder.get(groupOf(personId)) === personId;
 
   // --- 3 & 4. Order and position each connected family separately ----------
   const groupX = new Map<string, number>();
@@ -594,10 +564,12 @@ function arrange(tree: Tree): Arrangement {
      * for someone with children by more than one partner, each partner on the side of
      * their own children.
      */
+    /** Couples already turned to face the partner's own family, drawn as a block beside. */
+    const facing = new Set<string>();
     const orient = (rowIndex: number) => {
       for (const g of rows[rowIndex]) {
         const list = members.get(g)!;
-        if (list.length < 2) continue;
+        if (list.length < 2 || facing.has(g)) continue;
         const start = pos.get(list[0])!;
         // Where each of the group's families has its children, for those with any below.
         const below: { parents: string[]; at: number }[] = [];
@@ -646,111 +618,192 @@ function arrange(tree: Tree): Arrangement {
       reindexRow(rowIndex);
     };
 
-    const sortRow = (rowIndex: number, weight: (g: string) => number | null, tieBreak?: (g: string) => number) => {
-      const row = rows[rowIndex];
-      const index = new Map(row.map((g, i) => [g, i]));
-      const value = new Map(row.map((g) => [g, weight(g)]));
-      const sortable = row
-        .filter((g) => value.get(g) !== null)
-        .sort((a, b) => {
-          const diff = value.get(a)! - value.get(b)!;
-          if (Math.abs(diff) > 1e-9) return diff;
-          const tie = tieBreak ? tieBreak(a) - tieBreak(b) : 0;
-          return tie || index.get(a)! - index.get(b)!;
-        });
-      let k = 0;
-      rows[rowIndex] = row.map((g) => (value.get(g) === null ? g : sortable[k++]));
-      reindexRow(rowIndex);
-      orient(rowIndex);
-    };
-
-    const fromParents = (rowIndex: number) => (g: string) => {
-      const values: number[] = [];
-      for (const m of members.get(g)!) {
-        const fam = childFamily.get(m);
-        if (fam && rowOf(fam.parents[0]) < rowIndex) values.push(anchorPos(fam));
+    // Every group hangs under one family (see `placedUnder`), so the groups form a forest:
+    // a tree per family line, joined to each other only where someone married across.
+    // Drawing each tree as one block - its branches nested, siblings side by side - keeps
+    // families from being shuffled into each other however many marriages link them.
+    const kidsOf = new Map<string, string[]>();
+    const roots: string[] = [];
+    for (const g of groups) {
+      const under = placedUnder.get(g);
+      if (under === undefined) {
+        roots.push(g);
+        continue;
       }
-      return values.length ? mean(values) : null;
-    };
-    const fromChildren = (rowIndex: number) => (g: string) => {
-      const values: number[] = [];
-      for (const m of members.get(g)!) {
-        for (const c of childrenOf.get(m) ?? []) if (rowOf(c) > rowIndex) values.push(pos.get(c)!);
+      const pg = parentGroup(childFamily.get(under)!);
+      if (!kidsOf.has(pg)) kidsOf.set(pg, []);
+      kidsOf.get(pg)!.push(g);
+    }
+    /**
+     * Which way a group's branch leans: toward the side where a family it married into is
+     * drawn (negative left, positive right). Filled in once those sides are known.
+     */
+    const lean = new Map<string, number>();
+    const leanOf = new Map<string, number>();
+    const branchLean = (g: string): number => {
+      let total = leanOf.get(g);
+      if (total === undefined) {
+        total = lean.get(g) ?? 0;
+        for (const k of kidsOf.get(g) ?? []) total += branchLean(k);
+        leanOf.set(g, total);
       }
-      return values.length ? mean(values) : null;
+      return total;
     };
-    // Oldest sibling first; people without a birth date keep the order they were added in.
-    const age = (g: string) =>
-      Math.min(...members.get(g)!.map((m) => (childFamily.has(m) ? birthOrder.get(m)! : Infinity)));
+    /**
+     * A group's children, by partner (each partner's side) and then eldest first - except
+     * that a branch with a marriage into a family drawn beside goes to that edge, so the
+     * line between them stays short.
+     */
+    const kidOrder = (g: string): string[] => {
+      const list = kidsOf.get(g);
+      if (!list || list.length < 2) return list ?? [];
+      const at = new Map(members.get(g)!.map((m, i) => [m, i]));
+      const side = (k: string) => mean(childFamily.get(placedUnder.get(k)!)!.parents.map((p) => at.get(p)!));
+      // The branch with the most marriages that way goes nearest the edge.
+      const toward = branchLean;
+      const born = (k: string) => birthOrder.get(placedUnder.get(k)!)!;
+      return [...list].sort((a, b) => side(a) - side(b) || toward(a) - toward(b) || born(a) - born(b));
+    };
+    /** Appends a tree's groups to the rows, depth first, so every branch stays together. */
+    const emit = (root: string, into: string[][]) => {
+      const visit = (g: string) => {
+        into[rankOfGroup.get(g)! - minRank].push(g);
+        for (const k of kidOrder(g)) visit(k);
+      };
+      visit(root);
+    };
+    const emptyRows = () => Array.from({ length: maxRank - minRank + 1 }, (): string[] => []);
 
-    const crossings = () => {
-      const buckets = new Map<string, [number, number][]>();
+    let treeOrder = roots;
+    /** Which way from its partner's tree a tree is drawn: -1 left, 1 right (0: the main one). */
+    const sideOf = new Map<string, number>();
+    const orderInRows = new Map<string, number>();
+    if (roots.length > 1) {
+      const rootOf = new Map<string, string>();
+      const size = new Map<string, number>();
+      for (const r of roots) {
+        const stack = [r];
+        let count = 0;
+        while (stack.length) {
+          const g = stack.pop()!;
+          rootOf.set(g, r);
+          count += members.get(g)!.length;
+          for (const k of kidsOf.get(g) ?? []) stack.push(k);
+        }
+        size.set(r, count);
+      }
+      // Where each group sits across its own tree, 0 (left edge) to 1 (right edge).
+      const across = new Map<string, number>();
+      /** How many cards the widest row of each tree holds. */
+      const breadth = new Map<string, number>();
+      for (const r of roots) {
+        const local = emptyRows();
+        emit(r, local);
+        let widest = 0;
+        for (const row of local) {
+          row.forEach((g, i) => across.set(g, row.length > 1 ? i / (row.length - 1) : 0.5));
+          widest = Math.max(widest, row.reduce((n, g) => n + members.get(g)!.length, 0));
+        }
+        breadth.set(r, widest);
+      }
+      // The marriages between trees: from the tree on one side, at the group it leaves from.
+      const links = new Map<string, { to: string; at: number; group: string }[]>();
+      const link = (from: string, to: string, at: string) => {
+        if (!links.has(from)) links.set(from, []);
+        links.get(from)!.push({ to, at: across.get(at)!, group: at });
+      };
       for (const g of groups) {
         for (const m of members.get(g)!) {
           const fam = childFamily.get(m);
-          if (!fam) continue;
-          const key = `${rowOf(fam.parents[0])}>${rowOf(m)}`;
-          if (!buckets.has(key)) buckets.set(key, []);
-          buckets.get(key)!.push([anchorPos(fam), pos.get(m)!]);
+          if (!fam || placedUnder.get(g) === m) continue;
+          const natal = parentGroup(fam);
+          const a = rootOf.get(g)!;
+          const b = rootOf.get(natal)!;
+          if (a === b) continue;
+          link(a, b, g);
+          link(b, a, natal);
         }
       }
-      let count = 0;
-      for (const edges of buckets.values()) count += countCrossings(edges);
-      return count;
-    };
-
-    const snapshot = () => ({
-      rows: rows.map((r) => [...r]),
-      members: groups.map((g) => [g, [...members.get(g)!]] as const),
-    });
-    const initial = snapshot().members;
-
-    /** Orders the rows from one starting order: barycentre sweeps, keeping the best seen. */
-    const refine = (seed: Map<string, number>) => {
-      for (const [g, list] of initial) members.set(g, [...list]);
-      rows = Array.from({ length: maxRank - minRank + 1 }, () => []);
-      for (const g of groups) rows[rankOfGroup.get(g)! - minRank].push(g);
-      for (const row of rows) row.sort((a, b) => seed.get(a)! - seed.get(b)!);
-      reindex();
-      for (let r = 0; r < rows.length; r++) orient(r);
-      for (let r = 1; r < rows.length; r++) sortRow(r, fromParents(r), age);
-      let best = snapshot();
-      let bestScore = crossings();
-      // A sweep that changes nothing would be followed by identical ones, so stop there.
-      const orderNow = () => rows.map((row) => row.map((g) => members.get(g)!.join(',')).join(';')).join('/');
-      let last = orderNow();
-      for (let pass = 0; pass < 8 && bestScore > 0; pass++) {
-        for (let r = rows.length - 2; r >= 0; r--) sortRow(r, fromChildren(r));
-        for (let r = 1; r < rows.length; r++) sortRow(r, fromParents(r));
-        const now = orderNow();
-        if (now === last) break;
-        last = now;
-        const score = crossings();
-        if (score < bestScore) {
-          best = snapshot();
-          bestScore = score;
+      // Start from my own family (else the largest), and set each tree it married into
+      // beside it - on the side where the marriage is - then theirs further out, and so on.
+      const home = tree.homeId && people[tree.homeId] ? rootOf.get(groupOf(tree.homeId)) : undefined;
+      const main =
+        home ?? roots.reduce((a, b) => (size.get(b)! > size.get(a)! ? b : a));
+      sideOf.set(main, 0);
+      const beside = new Map<string, { tree: string; side: number; at: number }[]>();
+      const queue = [main];
+      for (let i = 0; i < queue.length; i++) {
+        const t = queue[i];
+        const list: { tree: string; side: number; at: number }[] = [];
+        beside.set(t, list);
+        for (const { to, at, group } of [...(links.get(t) ?? [])].sort((p, q) => Math.abs(q.at - 0.5) - Math.abs(p.at - 0.5))) {
+          if (sideOf.has(to)) {
+            // Another marriage into a tree already set beside this one, or the way back to
+            // the tree this one hangs beside.
+            if (list.some((s) => s.tree === to)) lean.set(group, (lean.get(group) ?? 0) + sideOf.get(to)!);
+            else if (beside.get(to)?.some((s) => s.tree === t)) lean.set(group, (lean.get(group) ?? 0) - sideOf.get(t)!);
+            continue;
+          }
+          let side = sideOf.get(t)!;
+          if (side === 0) {
+            if (at < 0.5) side = -1;
+            else if (at > 0.5) side = 1;
+            else side = list.filter((s) => s.side < 0).length < list.filter((s) => s.side > 0).length ? -1 : 1;
+          }
+          sideOf.set(to, side);
+          lean.set(group, (lean.get(group) ?? 0) + side);
+          list.push({ tree: to, side, at });
+          queue.push(to);
         }
       }
-      return { best, score: bestScore };
-    };
+      leanOf.clear();
+      // Anything not reached through a marriage (only possible with very unusual data) goes last.
+      for (const r of roots) {
+        if (sideOf.has(r)) continue;
+        sideOf.set(r, 1);
+        beside.get(main)!.push({ tree: r, side: 1, at: 1 });
+        beside.set(r, []);
+      }
+      // Narrowest nearest: each family set beside pushes the ones beyond it further out,
+      // so this keeps the lines across, together, as short as they can be.
+      treeOrder = [];
+      const place = (t: string) => {
+        const list = beside.get(t)!;
+        const width = (s: { tree: string }) => breadth.get(s.tree)!;
+        const left = list.filter((s) => s.side < 0).sort((p, q) => width(q) - width(p));
+        const right = list.filter((s) => s.side > 0).sort((p, q) => width(p) - width(q));
+        for (const s of left) place(s.tree);
+        treeOrder.push(t);
+        for (const s of right) place(s.tree);
+      };
+      place(main);
+      treeOrder.forEach((t, i) => orderInRows.set(t, i));
 
-    // Starting points: the family's top couples, oldest first. Small families can afford
-    // to try more of them.
-    const tops = groups
-      .map((g) => gIndex.get(g)!)
-      .filter((v) => ranks[v] === minRank)
-      .sort((a, b) => groupAge[a] - groupAge[b] || a - b);
-    const tries = Math.max(1, Math.min(tops.length, Math.floor(1000 / groups.length)));
-    let chosen: ReturnType<typeof refine> | null = null;
-    for (let t = 0; t < tries && chosen?.score !== 0; t++) {
-      for (const parentsFirst of [false, true]) {
-        const result = refine(seedFor(groups, tops[t], parentsFirst));
-        if (!chosen || result.score < chosen.score) chosen = result;
-        if (chosen.score === 0) break;
+      // Someone who married into another tree sits on the side their own family is drawn.
+      for (const g of groups) {
+        const list = members.get(g)!;
+        if (list.length !== 2) continue;
+        const under = placedUnder.get(g);
+        const other = list.find((m) => m !== under);
+        const fam = other === undefined ? undefined : childFamily.get(other);
+        if (under === undefined || !fam) continue;
+        const here = orderInRows.get(rootOf.get(g)!)!;
+        const there = orderInRows.get(rootOf.get(parentGroup(fam))!)!;
+        if (here === there) continue;
+        members.set(g, there > here ? [under, other!] : [other!, under]);
+        facing.add(g);
       }
     }
-    rows = chosen!.best.rows;
-    for (const [g, list] of chosen!.best.members) members.set(g, [...list]);
+
+    const build = () => {
+      rows = emptyRows();
+      for (const t of treeOrder) emit(t, rows);
+      reindex();
+      for (let r = 0; r < rows.length; r++) orient(r);
+    };
+    build();
+    // Turning a couple round can change which side their children go, so order once more.
+    build();
 
     // ---- horizontal positions ----
     const x = new Map<string, number>();
@@ -765,8 +818,23 @@ function arrange(tree: Tree): Arrangement {
         const fam = childFamily.get(m);
         return fam !== undefined && members.get(b)!.some((n) => childFamily.get(n) === fam);
       });
+    // Separate family lines get a wider gap, so each reads as its own block.
+    const lineOf = new Map<string, string>();
+    const lineRoot = (g: string): string => {
+      let root = lineOf.get(g);
+      if (root === undefined) {
+        const under = placedUnder.get(g);
+        root = under === undefined ? g : lineRoot(parentGroup(childFamily.get(under)!));
+        lineOf.set(g, root);
+      }
+      return root;
+    };
     const gaps = rows.map((row) =>
-      row.slice(1).map((g, i) => (areSiblings(row[i], g) ? SIBLING_GAP : GROUP_GAP)),
+      row
+        .slice(1)
+        .map((g, i) =>
+          areSiblings(row[i], g) ? SIBLING_GAP : lineRoot(row[i]) === lineRoot(g) ? GROUP_GAP : LINE_GAP,
+        ),
     );
 
     for (const [r, row] of rows.entries()) {
@@ -822,13 +890,14 @@ function arrange(tree: Tree): Arrangement {
     let packing = new Map<Family, Map<string, number>>();
     const underParents = (rowIndex: number) => (g: string) => {
       const shifts: number[] = [];
-      for (const m of members.get(g)!) {
-        const fam = childFamily.get(m);
-        if (!fam || rowOf(fam.parents[0]) >= rowIndex) continue;
+      // Only the partner the couple hangs under: the other's family is a block of its own.
+      const m = placedUnder.get(g);
+      const fam = m === undefined ? undefined : childFamily.get(m);
+      if (m !== undefined && fam && rowOf(fam.parents[0]) < rowIndex) {
         let offsets = packing.get(fam);
         if (!offsets) {
           const siblings = fam.children
-            .filter((c) => rowOf(c) === rowIndex)
+            .filter((c) => rowOf(c) === rowIndex && livesWithParents(c))
             .sort((a, b) => centerOf(a) - centerOf(b));
           let cursor = 0;
           let previous: string | null = null;
@@ -854,7 +923,7 @@ function arrange(tree: Tree): Arrangement {
     const overChildren = (rowIndex: number) => (g: string) => {
       const shifts: number[] = [];
       for (const fam of familiesOfGroup.get(g) ?? []) {
-        const centers = fam.children.filter((c) => rowOf(c) > rowIndex).map(centerOf);
+        const centers = fam.children.filter((c) => rowOf(c) > rowIndex && livesWithParents(c)).map(centerOf);
         if (centers.length === 0) continue;
         shifts.push((Math.min(...centers) + Math.max(...centers)) / 2 - anchorX(fam));
       }

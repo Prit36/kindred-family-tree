@@ -1,6 +1,6 @@
 import { shapeOf, type Shape } from './shape';
 import type { Gender, Tree, Union } from '../types';
-import { partnersOf } from './tree';
+import { bloodRelatives, partnersOf } from './tree';
 import { LruMap, RecentMap } from './lru';
 
 /** Describes how everyone in the tree is related to the "home" person. */
@@ -200,12 +200,15 @@ export function kinshipMap(tree: Tree, homeId: string | null): Map<string, strin
     const ex = union.status === 'divorced';
     const spouseLabel = spouseWord(spouse.gender, union);
     const siblingsOfSpouse: string[] = [];
+    /** The partner's blood relatives named here, nearest first once sorted. */
+    const named: { id: string; near: number }[] = [];
     for (const p of Object.values(tree.people)) {
       if (p.id === spouse.id) continue;
       const link = bloodLink(spouseUp, upOf(p.id));
       if (!link) continue;
       if (link.up === 1 && link.down === 1) siblingsOfSpouse.push(p.id);
       if (out.has(p.id)) continue;
+      named.push({ id: p.id, near: link.up + link.down });
       const g = p.gender;
       let label = '';
       if (!ex) {
@@ -223,6 +226,38 @@ export function kinshipMap(tree: Tree, homeId: string | null): Map<string, strin
           if (out.has(person.id) || u.status === 'divorced') continue;
           out.set(person.id, pick(person.gender, 'Brother-in-law', 'Sister-in-law', 'Sibling-in-law'));
         }
+      }
+      // …and the partners of their other relatives: "Wife's aunt's husband".
+      for (const { id } of named.sort((a, b) => a.near - b.near)) {
+        for (const { person, union: u } of partnersOf(tree, id)) {
+          if (out.has(person.id) || u.status === 'divorced') continue;
+          out.set(person.id, `${out.get(id)}'s ${spouseWord(person.gender, u).toLowerCase()}`);
+        }
+      }
+    }
+  }
+
+  // The families of people who married my blood relatives: my brother's wife's father,
+  // my daughter-in-law's sister. Nearest relatives first, so each person is named through
+  // the closest marriage.
+  const byNearness = [...blood].filter(([id]) => id !== homeId).sort(([, a], [, b]) => a.up + a.down - (b.up + b.down));
+  for (const [relId, link] of byNearness) {
+    const rel = tree.people[relId];
+    for (const { person: spouse, union } of partnersOf(tree, relId)) {
+      if (blood.has(spouse.id) || union.status === 'divorced') continue;
+      // "Daughter-in-law" says it already; past that, "Brother's wife" is clearer than
+      // "Sister-in-law", which could as well be a wife's sister.
+      const inLaw = link.up === 0 && link.down === 1;
+      const prefix = inLaw
+        ? (out.get(spouse.id) ?? '')
+        : `${describeBlood(link, rel.gender, false)}'s ${spouseWord(spouse.gender, union).toLowerCase()}`;
+      if (!prefix) continue;
+      const spouseUp = upOf(spouse.id);
+      for (const otherId of bloodRelatives(tree, spouse.id)) {
+        if (otherId === spouse.id || out.has(otherId)) continue;
+        const other = bloodLink(spouseUp, upOf(otherId));
+        if (!other) continue;
+        out.set(otherId, `${prefix}'s ${describeBlood(other, tree.people[otherId].gender, false).toLowerCase()}`);
       }
     }
   }
