@@ -593,7 +593,7 @@ export function Timeline() {
     const span = rs[i];
     const barX = nw + x(span.start);
     let scrollLeft = el.scrollLeft;
-    // The details panel floats over the right of the timeline on wide screens.
+    // (On wide screens the timeline ends at the details panel, so only a sheet could cover it.)
     const visibleW = panel && panel.width <= box.width * 0.6 && panel.left < box.right ? panel.left - box.left : el.clientWidth;
     if (barX - el.scrollLeft < nw + 16 || barX - el.scrollLeft > visibleW - 80) scrollLeft = barX - nw - 48;
 
@@ -889,8 +889,7 @@ export function Timeline() {
         ) : (
           <div
             className="tl-grid"
-            // Room to scroll the latest years out from under the details panel, which floats over the timeline.
-            style={{ width: `calc(${nameW + trackW}px + var(--tl-panel-room, 0px))`, paddingBottom: BOTTOM_ROOM }}
+            style={{ width: nameW + trackW, paddingBottom: BOTTOM_ROOM }}
           >
             <div className="tl-axis" style={{ height: AXIS_H }}>
               <div className="tl-corner" style={{ width: nameW }}>

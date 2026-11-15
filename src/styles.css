@@ -6031,14 +6031,11 @@ kbd {
   max-width: 100%;
 }
 
-/* Lets the latest years be scrolled out from under the floating details panel. */
-.timeline.has-panel {
-  --tl-panel-room: var(--panel-offset);
-}
-
-@media (max-width: 859px) {
+/* On a wide screen the timeline ends where the details panel begins, so the panel never
+   covers it (on a narrow one the panel is a sheet over the bottom). */
+@media (min-width: 860px) {
   .timeline.has-panel {
-    --tl-panel-room: 0px;
+    right: var(--panel-offset);
   }
 }
 
