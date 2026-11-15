@@ -841,16 +841,18 @@ export function FanView() {
   return (
     <section className="fan" aria-label={`Descendants of ${displayName(root)}`}>
       <div className="view-bar fan-toolbar">
-        <RootPicker tree={tree} root={root} kin={kin} naming={naming} />
-        <select
-          className="toolbar-select fan-lineage"
-          aria-label="Which descendants"
-          value={prefs.sonsOnly ? 'sons' : 'everyone'}
-          onChange={(e) => setFan({ sonsOnly: e.target.value === 'sons' })}
-        >
-          <option value="everyone">Everyone</option>
-          <option value="sons">Sons' line</option>
-        </select>
+        <span className="fan-lineage">
+          <select
+            aria-label="Which descendants"
+            value={prefs.sonsOnly ? 'sons' : 'everyone'}
+            onChange={(e) => setFan({ sonsOnly: e.target.value === 'sons' })}
+          >
+            <option value="everyone">Everyone</option>
+            <option value="sons">Sons' line</option>
+          </select>
+          <ChevronDown size={15} aria-hidden="true" />
+        </span>
+        <span className="view-bar-sep" aria-hidden="true" />
         <button
           type="button"
           className="fan-toggle"
@@ -870,6 +872,9 @@ export function FanView() {
           <HeartHandshake size={15} />
           <span>Spouses</span>
         </button>
+        {/* Last in the bar, so a longer or shorter name never moves the other controls. */}
+        <span className="view-bar-sep" aria-hidden="true" />
+        <RootPicker tree={tree} root={root} kin={kin} naming={naming} />
       </div>
 
       <div className="view-foot">

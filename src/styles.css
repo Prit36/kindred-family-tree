@@ -5125,15 +5125,12 @@ kbd {
 .fan {
   position: absolute;
   top: var(--content-top);
-  left: var(--chrome-inset);
-  right: var(--chrome-inset);
-  bottom: var(--chrome-inset);
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: 8px;
   background: var(--surface);
-  box-shadow: var(--shadow-card);
   overflow: hidden;
   animation: fade-in 0.2s var(--ease) both;
   container-type: inline-size;
@@ -5160,9 +5157,9 @@ kbd {
   gap: 5px;
   height: var(--h-control);
   padding: 0 8px;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: var(--r-control);
-  background: var(--surface-3);
+  background: transparent;
   color: var(--text-2);
   font-size: var(--fs-body);
   font-weight: 550;
@@ -5178,7 +5175,6 @@ kbd {
 }
 
 .fan-toggle[aria-pressed='true'] {
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
   background: var(--accent-soft);
   color: var(--accent-strong);
 }
@@ -5195,9 +5191,9 @@ kbd {
   gap: 6px;
   height: 36px;
   padding: 4px 7px;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  background: var(--surface);
+  border: 0;
+  border-radius: var(--r-control);
+  background: transparent;
   font-weight: 600;
   font-size: var(--fs-body);
   transition:
@@ -5209,8 +5205,7 @@ kbd {
 
 .fan-picker-btn:hover,
 .fan-picker-btn[aria-expanded='true'] {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  background: var(--surface-2);
 }
 
 .fan-picker-name {
@@ -5226,9 +5221,6 @@ kbd {
 }
 
 .fan-picker-rel {
-  padding: 2px 8px;
-  border-radius: 99px;
-  background: var(--accent-soft);
   color: var(--accent-strong);
   font-size: var(--fs-meta);
   font-weight: 600;
@@ -5777,7 +5769,7 @@ kbd {
 }
 @media (max-width: 859px) {
   .panel { top: auto; left: 4px; right: 4px; bottom: 4px; max-height: calc(100dvh - 92px); }
-  .timeline, .fan { top: var(--content-top); left: 4px; right: 4px; bottom: 4px; }
+  .timeline { top: var(--content-top); left: 4px; right: 4px; bottom: 4px; }
   .canvas-controls { top: var(--content-top); }
   .compare-wrap { top: 90px; left: 4px; right: 4px; }
 }
@@ -5949,7 +5941,7 @@ kbd {
   z-index: 6;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   max-width: calc(100% - 16px);
   padding: 3px;
   border: 1px solid var(--border);
@@ -5958,17 +5950,28 @@ kbd {
   box-shadow: var(--shadow-card);
 }
 
-/* A fixed width, so a longer or shorter name never pushes the other controls along. */
+/* A thin rule between the bar's controls, which have no outlines of their own. */
+.view-bar-sep {
+  flex: none;
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--border);
+}
+
+/* Whose family: last in the bar and as wide as its text, so a name change moves nothing. */
 .view-bar .fan-picker {
+  /* Its list opens from the bar's left edge, wherever the button sits in it. */
+  position: static;
   flex: 0 1 auto;
   min-width: 0;
 }
 
 .view-bar .fan-picker-btn {
-  width: 320px;
+  max-width: 380px;
   height: 30px;
-  padding: 0 7px 0 4px;
-  border-color: var(--border);
+  gap: 8px;
+  padding: 0 6px 0 3px;
 }
 
 /* The name keeps its room; the relationship gives way first. */
@@ -5980,6 +5983,8 @@ kbd {
 
 .view-bar .fan-picker-rel {
   flex: 0 100 auto;
+  color: var(--text-2);
+  font-weight: 500;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -5987,13 +5992,43 @@ kbd {
 }
 
 .view-bar .fan-picker-chev {
-  margin-left: auto;
+  margin-left: -2px;
 }
 
+/* "Everyone ⌄": as wide as its longest choice, with the same arrow as the picker. */
 .fan-lineage {
+  position: relative;
   flex: none;
-  width: 124px;
-  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-2);
+}
+
+.fan-lineage select {
+  height: var(--h-control);
+  padding: 0 26px 0 8px;
+  border: 0;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-body);
+  font-weight: 550;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fan-lineage select:hover {
+  background: var(--surface-2);
+}
+
+.fan-lineage svg {
+  position: absolute;
+  right: 6px;
+  color: var(--text-3);
+  pointer-events: none;
 }
 
 .view-foot {
@@ -6073,10 +6108,6 @@ kbd {
     width: 30px;
     padding: 0;
     justify-content: center;
-  }
-
-  .fan-lineage {
-    width: 104px;
   }
 }
 
@@ -6288,7 +6319,7 @@ body {
 
   /* The descendants' settings stay clear of the panel, whether or not it is open. */
   .view-bar .fan-picker-btn {
-    width: 200px;
+    max-width: 200px;
   }
 
   /* No room for the branches list beside the fan. */
