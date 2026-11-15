@@ -340,26 +340,19 @@ function FocusBanner() {
       {scopes.length > 1 && (
         <>
           <span className="focus-divider" aria-hidden="true" />
-          <div className="segmented focus-scopes" role="radiogroup" aria-label={`How much around ${shortName(person)} to show`}>
-            {scopes.map(({ scope, label, tip }) => (
-              <button
-                key={scope}
-                type="button"
-                role="radio"
-                aria-checked={scope === focus.scope}
-                data-tip={tip}
-                onClick={() => scope !== focus.scope && focusOn(person.id, scope)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <select
+            className="toolbar-select focus-scopes"
+            aria-label={`How much around ${shortName(person)} to show`}
+            value={focus.scope}
+            onChange={(e) => focusOn(person.id, e.target.value as FocusScope)}
+          >
+            {scopes.map(({ scope, label }) => <option key={scope} value={scope}>{label}</option>)}
+          </select>
         </>
       )}
       <span className="focus-divider" aria-hidden="true" />
-      <button type="button" className="btn focus-exit" onClick={clearFocus} data-tip="Back to the whole tree (B)">
+      <button type="button" className="icon-btn focus-exit" aria-label="Show everyone" onClick={clearFocus} data-tip="Back to the whole tree (B)">
         <Users size={15} />
-        Show everyone
       </button>
     </div>
   );

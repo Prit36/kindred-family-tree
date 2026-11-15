@@ -439,7 +439,7 @@ function Details({ person }: { person: Person }) {
         aria-label="View full photo"
         data-tip="View full photo (P)"
       >
-        <Avatar person={person} size={84} />
+        <Avatar person={person} size={48} />
         <span className="photo-view-icon" aria-hidden="true">
           <Expand size={18} />
         </span>
@@ -462,7 +462,7 @@ function Details({ person }: { person: Person }) {
       aria-label="Add photo"
       data-tip="Add a photo - or drop one here"
     >
-      <Avatar person={person} size={84} />
+      <Avatar person={person} size={48} />
       <span className="photo-badge">
         <Camera size={13} />
       </span>
@@ -496,6 +496,7 @@ function Details({ person }: { person: Person }) {
             </span>
           )}
           {birthName && <span className="pp-aka">{birthName}</span>}
+        </div>
           {(relation || side) && (
             <div className="pp-meta">
               {relation && (
@@ -527,17 +528,18 @@ function Details({ person }: { person: Person }) {
           {via.length > 0 && (
             <nav className="pp-via" aria-label="How you're connected">
               <span className="pp-via-label">via</span>
-              {via.map((id, i) => (
-                <span key={id} className="pp-via-step">
-                  {i > 0 && <ChevronRight size={12} aria-hidden="true" />}
-                  <button type="button" onClick={() => select(id, true)}>
-                    {shortName(tree.people[id])}
-                  </button>
-                </span>
-              ))}
+              <span className="pp-via-path">
+                {via.map((id, i) => (
+                  <span key={id} className="pp-via-step">
+                    {i > 0 && <ChevronRight size={12} aria-hidden="true" />}
+                    <button type="button" onClick={() => select(id, true)}>
+                      {shortName(tree.people[id])}
+                    </button>
+                  </span>
+                ))}
+              </span>
             </nav>
           )}
-        </div>
       </header>
 
       <div className="pp-body" ref={bodyRef}>
@@ -563,32 +565,21 @@ function Details({ person }: { person: Person }) {
         )}
 
         <section className="pp-family" aria-label="Family">
-          {/* FAMILY shares its line with [Line 13 | Close 14 | Family 25]: how much of the
-              tree to keep around this person, and how many people each keeps. Pressing the
-              active one again shows everyone. */}
+          {/* Keep the family heading and scope selector on one balanced line. */}
           <div className="pp-family-head">
             <h3>Family</h3>
             {scopes.length > 0 && (
-              <div className="segmented focus-options" role="group" aria-label="Show only">
-                {scopes.map(({ scope, label, tip: why, key, size }) => {
-                  const on = focusedScope === scope;
-                  const count = `${size} ${size === 1 ? 'person' : 'people'}`;
-                  return (
-                    <button
-                      key={scope}
-                      type="button"
-                      className="focus-option"
-                      aria-pressed={on}
-                      aria-label={`Show only ${label.toLowerCase()}, ${count}`}
-                      data-tip={on ? 'Show everyone again (B)' : `Show only ${why}${key ? ` (${key})` : ''}`}
-                      onClick={() => (on ? clearFocus() : focusOn(person.id, scope))}
-                    >
-                      {label}
-                      <span className="focus-option-count">{size}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              <select
+                className="toolbar-select focus-options"
+                aria-label="Show only"
+                value={focusedScope ?? 'all'}
+                onChange={(e) => e.target.value === 'all' ? clearFocus() : focusOn(person.id, e.target.value as FocusScope)}
+              >
+                <option value="all">Everyone ({total.toLocaleString()})</option>
+                {scopes.map(({ scope, label, size }) => (
+                  <option key={scope} value={scope}>{label} ({size.toLocaleString()})</option>
+                ))}
+              </select>
             )}
           </div>
 

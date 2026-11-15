@@ -5,11 +5,11 @@ import { shapeOf, type Shape } from './shape';
 
 export const CARD_W = 224;
 export const CARD_H = 80;
-const PARTNER_GAP = 40;
-const SIBLING_GAP = 36;
-const GROUP_GAP = 68;
-const COMPONENT_GAP = 120;
-const RANK_SEP = 104;
+const PARTNER_GAP = 28;
+const SIBLING_GAP = 24;
+const GROUP_GAP = 48;
+const COMPONENT_GAP = 88;
+const RANK_SEP = 80;
 const LANE_STEP = 11;
 const CORNER = 12;
 const STEP = CARD_W + PARTNER_GAP;

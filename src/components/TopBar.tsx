@@ -153,7 +153,8 @@ function SearchBox() {
       <input
         ref={inputRef}
         className="search-input"
-        placeholder="Find by name, place, year…"
+        placeholder="Search people…"
+        title="Search by name, place, year or relationship"
         aria-label="Find someone in the tree"
         value={query}
         onChange={(e) => {
@@ -218,6 +219,12 @@ function SearchBox() {
 function MainMenu() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const canUndo = useStore((s) => s.past.length > 0);
+  const canRedo = useStore((s) => s.future.length > 0);
+  const { undo, redo } = useStore.getState();
+  const theme = useStore((s) => s.theme);
+  const naming = useStore((s) => s.naming);
+  const { toggleTheme, setNaming } = useStore.getState();
   const empty = useStore((s) => !hasPeople(s.tree));
   const openDialog = useStore((s) => s.openDialog);
 
@@ -237,11 +244,11 @@ function MainMenu() {
     };
   }, [open]);
 
-  const item = (label: string, icon: ReactNode, run: () => void, opts: { disabled?: boolean; danger?: boolean } = {}) => (
+  const item = (label: string, icon: ReactNode, run: () => void, opts: { disabled?: boolean; danger?: boolean; mobileHistory?: boolean; mobilePreference?: boolean } = {}) => (
     <button
       type="button"
       role="menuitem"
-      className={`menu-item${opts.danger ? ' is-danger' : ''}`}
+      className={`menu-item${opts.danger ? ' is-danger' : ''}${opts.mobileHistory ? ' mobile-history' : ''}${opts.mobilePreference ? ' mobile-preference' : ''}`}
       disabled={opts.disabled}
       onClick={() => {
         setOpen(false);
@@ -249,7 +256,7 @@ function MainMenu() {
       }}
     >
       {icon}
-      {label}
+      <span>{label}</span>
     </button>
   );
 
@@ -268,6 +275,15 @@ function MainMenu() {
       </button>
       {open && (
         <div className="menu-pop" role="menu">
+          {item('Undo', <Undo2 size={16} />, undo, { disabled: !canUndo, mobileHistory: true })}
+          {item('Redo', <Redo2 size={16} />, redo, { disabled: !canRedo, mobileHistory: true })}
+          {item('Calendar & checks', <CalendarHeart size={16} />, () => openDialog({ type: 'insights', tab: 'upcoming' }), { mobilePreference: true, disabled: empty })}
+          {item(theme === 'dark' ? 'Light theme' : 'Dark theme', theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />, toggleTheme, { mobilePreference: true })}
+          {NAMINGS.map((n) => (
+            <button key={n.value} type="button" role="menuitemradio" aria-checked={naming === n.value} className="menu-item mobile-preference" onClick={() => { setNaming(n.value); setOpen(false); }}>
+              <Languages size={16} /><span>{n.label}</span>{naming === n.value && <Check size={16} />}
+            </button>
+          ))}
           {item('Save as image', <Image size={16} />, () => void exportImage(), { disabled: empty })}
           {item('Export backup', <Download size={16} />, () => void exportBackup(), { disabled: empty })}
           {item('Export GEDCOM (.ged)', <FileText size={16} />, exportGedcom, { disabled: empty })}
@@ -382,7 +398,7 @@ function InsightsButton() {
   return (
     <button
       type="button"
-      className="icon-btn insights-btn"
+      className="icon-btn insights-btn header-secondary"
       onClick={() => openDialog({ type: 'insights', tab: 'upcoming' })}
       aria-label={label}
       data-tip={today.length > 0 ? `${today.length} today` : 'Birthdays & checks'}
@@ -413,21 +429,24 @@ export function TopBar() {
         </div>
       )}
 
-      <div className="topbar-group">
-        <button type="button" className="icon-btn" onClick={undo} disabled={!canUndo} aria-label="Undo" data-tip="Undo (Ctrl+Z)">
-          <Undo2 size={17} />
-        </button>
-        <button type="button" className="icon-btn" onClick={redo} disabled={!canRedo} aria-label="Redo" data-tip="Redo (Ctrl+Shift+Z)">
-          <Redo2 size={17} />
-        </button>
-        <span className="divider" />
-        {!empty && <ViewSwitch />}
-        {!empty && <span className="divider" />}
+      {!empty && <ViewSwitch />}
+      <div id="view-controls" />
+      <div className="topbar-group topbar-actions">
+        <div className="topbar-history">
+          <button type="button" className="icon-btn" onClick={undo} disabled={!canUndo} aria-label="Undo" data-tip="Undo (Ctrl+Z)">
+            <Undo2 size={17} />
+          </button>
+          <button type="button" className="icon-btn" onClick={redo} disabled={!canRedo} aria-label="Redo" data-tip="Redo (Ctrl+Shift+Z)">
+            <Redo2 size={17} />
+          </button>
+          <span className="divider" />
+        </div>
+
         {!empty && <InsightsButton />}
-        {!empty && <NamingMenu />}
+        {!empty && <span className="header-secondary"><NamingMenu /></span>}
         <button
           type="button"
-          className="icon-btn"
+          className="icon-btn header-secondary"
           onClick={toggleTheme}
           aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
           data-tip={theme === 'dark' ? 'Light theme' : 'Dark theme'}

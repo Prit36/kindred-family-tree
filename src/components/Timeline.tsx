@@ -33,6 +33,7 @@ import {
 } from '../lib/timeline';
 import { childrenOf, displayName, fullName, parentsOf, partnersOf, shortName } from '../lib/tree';
 import { Avatar } from './Avatar';
+import { HeaderControls } from './HeaderControls';
 
 const ROW_H = 44;
 const AXIS_H = 36;
@@ -865,15 +866,12 @@ export function Timeline() {
 
   return (
     <section className={`timeline${panelOpen ? ' is-panel-open' : ''}`} aria-label="Family timeline">
+      <HeaderControls>
       <div className="tl-toolbar">
-        <div className="segmented tl-order" role="radiogroup" aria-label="Order people">
-          <button type="button" role="radio" aria-checked={order === 'birth'} onClick={() => setOrder('birth')}>
-            Oldest first
-          </button>
-          <button type="button" role="radio" aria-checked={order === 'family'} onClick={() => setOrder('family')}>
-            By family
-          </button>
-        </div>
+        <select className="toolbar-select tl-order" aria-label="Order people" value={order} onChange={(e) => setOrder(e.target.value as TimelineOrder)}>
+          <option value="birth">Oldest first</option>
+          <option value="family">By family</option>
+        </select>
 
         <div className="tl-status" aria-live="polite">
           {sel ? (
@@ -964,6 +962,8 @@ export function Timeline() {
           )}
         </div>
       </div>
+
+      </HeaderControls>
 
       <div
         ref={scrollRef}

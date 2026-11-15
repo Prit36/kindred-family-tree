@@ -25,11 +25,11 @@ export function Welcome() {
           Everything is saved on this device.
         </p>
         <div className="welcome-actions">
-          <button type="button" className="btn btn-primary btn-lg" onClick={() => openDialog({ type: 'first' })}>
+          <button type="button" className="btn btn-primary" onClick={() => openDialog({ type: 'first' })}>
             <UserPlus size={17} /> Add yourself
           </button>
-          <button type="button" className="btn btn-lg" onClick={loadSample}>
-            <Sparkles size={16} /> Explore a sample family
+          <button type="button" className="btn" onClick={loadSample}>
+            <Sparkles size={16} /> Sample family
           </button>
         </div>
         <button type="button" className="link-btn" onClick={pickBackupFile}>

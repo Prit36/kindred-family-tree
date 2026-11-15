@@ -45,6 +45,10 @@
 
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   color-scheme: light;
+  --chrome-inset: 4px;
+  --content-top: 52px;
+  --panel-width: 352px;
+  --panel-offset: 360px;
 }
 
 :root[data-theme='dark'] {
@@ -187,11 +191,11 @@ ul {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  height: 36px;
-  padding: 0 14px;
+  gap: 5px;
+  height: 32px;
+  padding: 0 10px;
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--surface);
   font-weight: 550;
   font-size: 13.5px;
@@ -258,10 +262,10 @@ ul {
 .icon-btn {
   display: inline-grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 6px;
   background: transparent;
   color: var(--text-2);
   transition:
@@ -297,21 +301,22 @@ ul {
 
 .input {
   width: 100%;
-  height: 38px;
-  padding: 0 11px;
+  height: 34px;
+  padding: 0 8px;
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--surface);
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
+  min-width: 0;
 }
 
 textarea.input {
   height: auto;
-  padding: 9px 11px;
+  padding: 6px 8px;
   resize: vertical;
-  min-height: 72px;
+  min-height: 60px;
 }
 
 .input:focus {
@@ -326,16 +331,16 @@ textarea.input {
 
 .segmented {
   display: flex;
-  padding: 3px;
-  border-radius: 11px;
+  padding: 2px;
+  border-radius: 7px;
   background: var(--surface-3);
 }
 
 .segmented button {
   flex: 1;
-  height: 32px;
+  height: 28px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 5px;
   background: transparent;
   color: var(--text-2);
   font-weight: 550;
@@ -519,12 +524,12 @@ textarea.input {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 13px;
+  gap: 10px;
   width: 100%;
   height: 100%;
-  padding: 0 14px 0 14px;
+  padding: 0 10px;
   border: 1.5px solid var(--border);
-  border-radius: 18px;
+  border-radius: 10px;
   background: var(--surface);
   box-shadow: var(--shadow-card);
   cursor: pointer;
@@ -844,20 +849,20 @@ textarea.input {
 
 .canvas-controls {
   position: absolute;
-  left: 14px;
-  bottom: 14px;
+  left: 6px;
+  bottom: 6px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   cursor: default;
 }
 
 .control-group {
   display: flex;
-  gap: 2px;
-  padding: 4px;
+  gap: 0;
+  padding: 2px;
   border: 1px solid var(--border);
-  border-radius: 13px;
+  border-radius: 7px;
   background: var(--surface);
   box-shadow: var(--shadow-card);
 }
@@ -868,7 +873,7 @@ textarea.input {
 }
 
 .stats-pill {
-  padding: 6px 12px;
+  padding: 5px 8px;
   border-radius: 99px;
   background: color-mix(in srgb, var(--surface) 80%, transparent);
   border: 1px solid var(--border);
@@ -945,34 +950,42 @@ textarea.input {
 
 .topbar {
   position: absolute;
-  top: 12px;
-  left: 12px;
-  right: 12px;
+  top: var(--chrome-inset);
+  left: var(--chrome-inset);
+  right: var(--chrome-inset);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  pointer-events: none;
+  gap: 6px;
+  pointer-events: auto;
   z-index: 20;
+  padding: 3px 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 .topbar-group {
   display: flex;
   align-items: center;
   gap: 2px;
-  height: 48px;
-  padding: 0 7px;
-  border: 1px solid var(--border);
-  border-radius: 15px;
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   pointer-events: auto;
+  min-width: 0;
+  flex-shrink: 0;
 }
 
 .brand {
-  gap: 8px;
-  padding-left: 9px;
+  gap: 6px;
+  padding-left: 2px;
   min-width: 0;
+  flex: 0 1 220px;
 }
 
 .logo {
@@ -984,8 +997,8 @@ textarea.input {
 .tree-name {
   min-width: 0;
   max-width: 280px;
-  height: 34px;
-  padding: 0 8px;
+  height: 30px;
+  padding: 0 4px;
   border: 1px solid transparent;
   border-radius: 9px;
   background: transparent;
@@ -994,6 +1007,7 @@ textarea.input {
   font-weight: 600;
   letter-spacing: -0.01em;
   text-overflow: ellipsis;
+  width: 100%;
 }
 
 .tree-name:hover {
@@ -1009,8 +1023,10 @@ textarea.input {
 
 .topbar-search {
   padding: 0;
-  flex: 0 1 320px;
-  min-width: 0;
+  flex: 1 1 240px;
+  min-width: 160px;
+  max-width: 320px;
+  margin-inline: 0;
 }
 
 .search {
@@ -1018,12 +1034,12 @@ textarea.input {
   display: flex;
   align-items: center;
   width: 100%;
-  height: 100%;
+  height: 34px;
 }
 
 .search-icon {
   position: absolute;
-  left: 14px;
+  left: 10px;
   color: var(--text-3);
   pointer-events: none;
 }
@@ -1031,10 +1047,11 @@ textarea.input {
 .search-input {
   width: 100%;
   height: 100%;
-  padding: 0 40px 0 40px;
-  border: 0;
-  border-radius: 14px;
-  background: transparent;
+  padding: 0 32px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-2);
+  min-width: 0;
 }
 
 .search-input:focus {
@@ -1048,11 +1065,11 @@ textarea.input {
 
 .search-kbd {
   position: absolute;
-  right: 12px;
+  right: 7px;
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 20px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface-2);
@@ -1066,6 +1083,8 @@ textarea.input {
 }
 
 .search-results {
+  max-height: min(480px, calc(100dvh - 76px));
+  overflow-y: auto;
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
@@ -1118,15 +1137,19 @@ textarea.input {
 
 .menu-pop {
   position: absolute;
-  top: calc(100% + 14px);
-  right: -7px;
-  width: 224px;
-  padding: 6px;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  padding: 4px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   animation: drop-in 0.16s var(--ease) both;
+  min-width: 260px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 64px);
+  overflow-y: auto;
 }
 
 .menu-pop hr {
@@ -1139,19 +1162,22 @@ textarea.input {
 .menu-item {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 8px;
   width: 100%;
-  height: 36px;
-  padding: 0 10px;
+  height: auto;
+  padding: 6px 9px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 5px;
   background: transparent;
   text-align: left;
   font-weight: 500;
+  min-height: 34px;
+  line-height: 1.4;
 }
 
 .menu-item svg {
   color: var(--text-2);
+  flex: none;
 }
 
 .menu-item:hover:not(:disabled) {
@@ -1215,33 +1241,38 @@ textarea.input {
    height however big the family is. */
 .panel {
   position: absolute;
-  top: 72px;
-  right: 12px;
-  bottom: 12px;
-  width: 368px;
+  top: var(--content-top);
+  right: var(--chrome-inset);
+  bottom: auto;
+  width: var(--panel-width);
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   z-index: 10;
   animation: panel-in 0.28s var(--ease) both;
+  max-height: calc(100dvh - var(--content-top) - var(--chrome-inset));
 }
 
 .pp-head {
   position: relative;
   flex: none;
-  display: flex;
+  display: grid;
   align-items: center;
-  gap: 16px;
-  padding: 24px 20px 18px;
+  gap: 6px 16px;
+  padding: 16px 16px 10px;
+  grid-template-columns: 48px minmax(0, 1fr) 28px;
 }
 
 .pp-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
+  position: static;
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
+  width: 28px;
+  height: 28px;
 }
 
 .pp-id {
@@ -1250,35 +1281,40 @@ textarea.input {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
-  /* Clear of the close button in the corner */
-  padding-right: 22px;
+  gap: 0;
+  /* The close control has its own column, clear of both name lines. */
+  padding-right: 0;
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .pp-name {
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.015em;
-  overflow-wrap: anywhere;
+  font-family: var(--font-ui);
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  overflow-wrap: break-word;
+  padding-right: 0;
 }
 
 /* The name in the other script: ભરતભાઈ મોજીદ્રા under "Bharatbhai Mojidra" */
 .pp-other-name {
-  margin-top: -4px;
+  margin-top: 0;
   color: var(--text-2);
-  font-size: 15px;
-  font-weight: 500;
-  overflow-wrap: anywhere;
+  font-size: 12.5px;
+  font-weight: 450;
+  overflow-wrap: break-word;
+  line-height: 1.45;
 }
 
 .pp-aka {
-  margin-top: -4px;
+  margin-top: 0;
   color: var(--text-2);
   font-family: var(--font-display);
   font-style: italic;
-  font-size: 14.5px;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 /* "Maternal grandmother · ■ Mother's side" */
@@ -1286,7 +1322,9 @@ textarea.input {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px 8px;
+  gap: 3px 8px;
+  grid-column: 1 / -1;
+  margin-top: 0;
 }
 
 .pp-rel {
@@ -1294,8 +1332,9 @@ textarea.input {
   align-items: center;
   gap: 5px;
   color: var(--accent-strong);
-  font-size: 13.5px;
-  font-weight: 650;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.5;
 }
 
 .pp-rel[data-tip]::after {
@@ -1317,11 +1356,12 @@ textarea.input {
   border-radius: 7px;
   background: transparent;
   color: var(--text-2);
-  font-size: 13px;
-  font-weight: 550;
+  font-size: 12px;
+  font-weight: 500;
   transition:
     background 0.15s,
     color 0.15s;
+  line-height: 1.5;
 }
 
 .pp-side .side-swatch {
@@ -1357,30 +1397,36 @@ textarea.input {
 /* "via Helen > Arthur" - the people between you and them */
 .pp-via {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0 1px;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 6px;
   color: var(--text-3);
-  font-size: 12.5px;
+  font-size: 11.5px;
+  grid-column: 1 / -1;
+  margin-top: 0;
+  min-width: 0;
 }
 
 .pp-via-label {
-  margin-right: 1px;
+  margin-right: 0;
+  flex: none;
 }
 
 .pp-via-step {
   display: inline-flex;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
+  flex: none;
 }
 
 .pp-via-step button {
-  padding: 1px 5px;
+  padding: 2px 3px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: var(--text-2);
-  font-weight: 550;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .pp-via-step button:hover {
@@ -1389,24 +1435,24 @@ textarea.input {
 }
 
 .pp-body {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 2px 20px 18px;
+  padding: 4px 16px 14px;
   scrollbar-width: thin;
 }
 
 /* --- Life line: birth to today (or death), a dot for each child born ------------- */
 
 .pp-life {
-  margin-bottom: 18px;
+  margin-bottom: 8px;
 }
 
 .pp-life-bar {
   position: relative;
-  height: 16px;
-  margin: 0 6px 9px;
+  height: 12px;
+  margin: 0 6px 5px;
 }
 
 .pp-life-track {
@@ -1542,12 +1588,12 @@ textarea.input {
 }
 
 .pp-body .hint-action {
-  margin: 0 0 16px;
+  margin: 0 0 8px;
 }
 
 .pp-notes {
-  margin-bottom: 18px;
-  padding-left: 12px;
+  margin-bottom: 8px;
+  padding-left: 8px;
   border-left: 2px solid var(--border-strong);
   color: var(--text-2);
   font-family: var(--font-display);
@@ -1569,20 +1615,20 @@ textarea.input {
 /* "FAMILY      [Line 13 | Close 14 | Family 25]" - wraps under the heading only when it must. */
 .pp-family-head {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 6px 12px;
-  min-height: 30px;
-  margin-bottom: 10px;
+  gap: 12px;
+  min-height: 28px;
+  margin-bottom: 6px;
 }
 
 .pp-family-head h3 {
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
 }
 
 /* --- The family tree: parents / siblings, them and partners / children ----------- */
@@ -1591,11 +1637,11 @@ textarea.input {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  /* A little wider than the text above it: every pixel counts on a busy line. */
-  margin: 0 -10px;
-  padding: 14px 6px 12px;
-  border-radius: 16px;
+  gap: 14px;
+  /* Align the family surface with the content inset above it. */
+  margin: 0;
+  padding: 8px 4px;
+  border-radius: 6px;
   background: var(--surface-2);
 }
 
@@ -1649,9 +1695,9 @@ textarea.input {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 4px 2px 5px;
+  padding: 3px 2px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 6px;
   background: transparent;
   text-align: center;
   transition: background 0.15s;
@@ -1907,8 +1953,8 @@ textarea.input {
 .pp-foot {
   flex: none;
   display: flex;
-  gap: 8px;
-  padding: 12px 16px;
+  gap: 4px;
+  padding: 10px 14px;
   border-top: 1px solid var(--border);
 }
 
@@ -2122,7 +2168,7 @@ kbd {
   max-height: calc(100dvh - 40px);
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: 22px;
+  border-radius: 10px;
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   animation: modal-in 0.26s var(--ease) both;
@@ -2134,10 +2180,10 @@ kbd {
 
 .modal-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 20px 16px 4px 24px;
+  gap: 8px;
+  padding: 8px 10px 4px 12px;
 }
 
 .modal-head h2 {
@@ -2146,7 +2192,7 @@ kbd {
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.015em;
-  padding-top: 3px;
+  padding-top: 0;
 }
 
 .modal-head p {
@@ -2157,14 +2203,14 @@ kbd {
 .form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px 24px 22px;
+  gap: 8px;
+  padding: 6px 12px 12px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
   min-width: 0;
 }
 
@@ -2182,8 +2228,8 @@ kbd {
 
 .name-row {
   display: flex;
-  align-items: center;
-  gap: 18px;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .name-fields {
@@ -2191,7 +2237,7 @@ kbd {
   min-width: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 6px 10px;
 }
 
 .name-middle {
@@ -2202,7 +2248,7 @@ kbd {
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 10px;
   align-items: end;
 }
 
@@ -2247,8 +2293,8 @@ kbd {
 
 .photo-meta {
   display: flex;
-  gap: 12px;
-  margin-top: -8px;
+  gap: 10px;
+  margin-top: 0;
   font-size: 13px;
 }
 
@@ -2288,8 +2334,8 @@ kbd {
 
 .date-input {
   display: grid;
-  grid-template-columns: 72px 1fr 92px;
-  gap: 8px;
+  grid-template-columns: 48px minmax(64px, 1fr) 64px;
+  gap: 4px;
 }
 
 .check {
@@ -2332,7 +2378,7 @@ kbd {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 2px;
 }
 
 /* ==========================================================================
@@ -2354,10 +2400,10 @@ kbd {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding: 36px 36px 28px;
+  gap: 10px;
+  padding: 18px;
   border: 1px solid var(--border);
-  border-radius: 26px;
+  border-radius: 12px;
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   text-align: center;
@@ -2366,9 +2412,9 @@ kbd {
 }
 
 .welcome-art {
-  width: 220px;
-  height: 120px;
-  margin-bottom: 4px;
+  width: 118px;
+  height: 64px;
+  margin-bottom: 0;
 }
 
 .welcome-card h1 {
@@ -2388,10 +2434,10 @@ kbd {
 
 .welcome-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
-  gap: 10px;
-  margin: 10px 0 4px;
+  gap: 6px;
+  margin: 0;
 }
 
 /* ==========================================================================
@@ -2401,9 +2447,9 @@ kbd {
 /* Centred in the space left of the details panel */
 .compare-wrap {
   position: absolute;
-  top: 72px;
-  left: 12px;
-  right: 392px;
+  top: var(--content-top);
+  left: var(--chrome-inset);
+  right: var(--panel-offset);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2421,11 +2467,11 @@ kbd {
 .compare {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   max-width: 100%;
-  padding: 6px 6px 6px 10px;
+  padding: 3px 4px;
   border: 1px solid var(--accent);
-  border-radius: 15px;
+  border-radius: 7px;
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   pointer-events: auto;
@@ -2447,49 +2493,32 @@ kbd {
 
 /* "[◎] Arthur's direct line / Showing 12 of 54 people | Side Line Close | Show everyone" */
 .focus-banner {
-  gap: 10px;
-  padding: 6px;
+  gap: 6px;
+  padding: 3px 4px;
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border-strong));
-  border-radius: 16px;
+  border-radius: 7px;
 }
 
 .focus-icon {
   flex: none;
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 11px;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
   background: var(--accent-soft);
   color: var(--accent-strong);
 }
 
 .focus-summary {
-  flex: none;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  max-width: 280px;
-  padding-right: 4px;
+  max-width: none;
+  padding-right: 0;
   line-height: 1.25;
-}
-
-/* Not enough room for one row: the title on top, the controls under it. */
-@container banners (max-width: 660px) {
-  .focus-banner {
-    flex-wrap: wrap;
-    justify-content: center;
-    row-gap: 8px;
-  }
-
-  .focus-banner .focus-divider {
-    display: none;
-  }
-
-  .focus-summary {
-    flex: 1 1 calc(100% - 52px);
-    max-width: none;
-  }
+  min-width: 0;
 }
 
 .focus-name {
@@ -2536,8 +2565,8 @@ kbd {
 
 .focus-exit {
   flex: none;
-  gap: 6px;
-  padding: 0 12px;
+  gap: 0;
+  padding: 0;
 }
 
 .focus-exit svg {
@@ -3261,15 +3290,15 @@ kbd {
 .insights {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px 24px 22px;
+  gap: 6px;
+  padding: 4px 12px 12px;
 }
 
 .insights-tabs {
   display: flex;
   gap: 4px;
-  padding: 3px;
-  border-radius: 12px;
+  padding: 2px;
+  border-radius: 6px;
   background: var(--surface-2);
 }
 
@@ -3279,9 +3308,9 @@ kbd {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 7px 10px;
+  padding: 5px 8px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 4px;
   background: transparent;
   color: var(--text-2);
   font-weight: 550;
@@ -3318,7 +3347,7 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 120px;
+  min-height: 0;
 }
 
 .insights-list {
@@ -3341,11 +3370,11 @@ kbd {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
-  padding: 8px 10px;
+  padding: 6px 8px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 6px;
   background: transparent;
   color: var(--text);
   text-align: left;
@@ -3474,16 +3503,16 @@ kbd {
 
 .view-switch {
   flex: none;
-  padding: 3px;
-  margin: 0 2px;
+  padding: 2px;
+  margin: 0;
 }
 
 .view-switch button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 10px;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
 }
 
 .view-switch button svg {
@@ -3510,23 +3539,24 @@ kbd {
 
 .timeline {
   position: absolute;
-  top: 72px;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
+  top: var(--content-top);
+  left: var(--chrome-inset);
+  right: var(--chrome-inset);
+  bottom: var(--chrome-inset);
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow-card);
   overflow: hidden;
   animation: fade-in 0.2s var(--ease) both;
+  container-type: inline-size;
 }
 
 /* Leave room for the details panel docked on the right. */
 .timeline.is-panel-open {
-  right: 392px;
+  right: var(--panel-offset);
 }
 
 /* Toolbar ------------------------------------------------------------------ */
@@ -3534,10 +3564,12 @@ kbd {
 .tl-toolbar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  min-height: 54px;
-  padding: 8px 10px 8px 12px;
-  border-bottom: 1px solid var(--border);
+  gap: 6px;
+  min-height: 36px;
+  padding: 0;
+  border-bottom: 0;
+  flex-wrap: nowrap;
+  background: transparent;
 }
 
 .tl-order {
@@ -3563,14 +3595,15 @@ kbd {
 .tl-focus {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
-  height: 34px;
-  padding: 0 4px 0 5px;
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
-  border-radius: 99px;
+  height: 30px;
+  padding: 0 3px;
+  border: 0;
+  border-radius: 5px;
   background: color-mix(in srgb, var(--accent) 7%, var(--surface));
   animation: fade-in 0.15s var(--ease) both;
+  max-width: 100%;
 }
 
 .tl-focus-avatars {
@@ -3622,14 +3655,15 @@ kbd {
 
 .tl-zoom {
   flex: none;
-  padding: 3px;
+  padding: 0;
   box-shadow: none;
-  border-radius: 12px;
+  border-radius: 0;
+  border: 0;
 }
 
 .tl-zoom .icon-btn {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
 }
 
 /* Tooltips at the right edge open leftwards so they aren't clipped. */
@@ -5015,8 +5049,8 @@ kbd {
 .focus-options {
   flex: 0 1 auto;
   margin-left: auto;
-  padding: 2px;
-  border-radius: 9px;
+  padding: 0 6px;
+  border-radius: 5px;
 }
 
 .segmented .focus-option {
@@ -5101,20 +5135,7 @@ kbd {
 }
 
 @media (max-width: 859px) {
-  .sides {
-    top: calc(100% + 10px);
-    bottom: auto;
-    max-height: 48dvh;
-  }
-
-  .focus-banner {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .focus-banner .focus-divider {
-    display: none;
-  }
+  .sides { top: calc(100% + 6px); bottom: auto; max-height: 48dvh; }
 }
 
 /* ==========================================================================
@@ -5369,22 +5390,23 @@ kbd {
 
 .fan {
   position: absolute;
-  top: 72px;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
+  top: var(--content-top);
+  left: var(--chrome-inset);
+  right: var(--chrome-inset);
+  bottom: var(--chrome-inset);
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow-card);
   overflow: hidden;
   animation: fade-in 0.2s var(--ease) both;
+  container-type: inline-size;
 }
 
 .fan.is-panel-open {
-  right: 392px;
+  right: var(--panel-offset);
 }
 
 .fan-toolbar {
@@ -5392,11 +5414,12 @@ kbd {
   z-index: 3;
   display: flex;
   align-items: center;
-  gap: 14px;
-  min-height: 54px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  gap: 6px;
+  min-height: 36px;
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
+  flex-wrap: nowrap;
 }
 
 .fan-stats {
@@ -5423,7 +5446,11 @@ kbd {
 
 .fan-zoom {
   flex: none;
-  box-shadow: none;
+  box-shadow: var(--shadow-card);
+  position: absolute;
+  z-index: 4;
+  right: 8px;
+  bottom: 8px;
 }
 
 /* Show husbands and wives: an on/off switch beside the lineage choice */
@@ -5431,11 +5458,11 @@ kbd {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 38px;
-  padding: 0 13px;
+  gap: 5px;
+  height: 30px;
+  padding: 0 8px;
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: 5px;
   background: var(--surface-3);
   color: var(--text-2);
   font-size: 13px;
@@ -5466,17 +5493,19 @@ kbd {
 .fan-picker-btn {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  height: 40px;
-  padding: 0 10px 0 6px;
+  gap: 6px;
+  height: 36px;
+  padding: 4px 7px;
   border: 1px solid var(--border-strong);
-  border-radius: 99px;
+  border-radius: 6px;
   background: var(--surface);
   font-weight: 600;
   font-size: 14px;
   transition:
     border-color 0.15s,
     background 0.15s;
+  max-width: 100%;
+  overflow: visible;
 }
 
 .fan-picker-btn:hover,
@@ -5486,12 +5515,15 @@ kbd {
 }
 
 .fan-picker-name {
-  max-width: 220px;
+  max-width: 180px;
   font-family: var(--font-display);
   font-size: 16px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 1 auto;
+  line-height: 1.5;
 }
 
 .fan-picker-rel {
@@ -5501,10 +5533,12 @@ kbd {
   color: var(--accent-strong);
   font-size: 12px;
   font-weight: 600;
+  flex: none;
 }
 
 .fan-picker-chev {
   color: var(--text-3);
+  flex: none;
 }
 
 .fan-picker-pop {
@@ -5517,10 +5551,12 @@ kbd {
   flex-direction: column;
   padding: 6px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow-pop);
   animation: drop-in 0.16s var(--ease) both;
+  z-index: 30;
+  max-width: calc(100vw - 24px);
 }
 
 .fan-picker-search {
@@ -5540,6 +5576,8 @@ kbd {
   outline: 0;
   background: transparent;
   font-size: 14px;
+  min-width: 0;
+  width: 100%;
 }
 
 .fan-picker-heading {
@@ -6000,3 +6038,175 @@ kbd {
     right: 12px;
   }
 }
+
+/* Shared dense controls keep choices on one line at every supported width. */
+.toolbar-select {
+  height: 28px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 550;
+}
+.pp-head > .photo-btn, .pp-head > .photo-wrap { grid-column: 1; grid-row: 1; align-self: center; }
+.pp-head > .photo-wrap { padding: 0; }
+.person-form .form-photo .avatar { width: 48px !important; height: 48px !important; }
+.person-form .form-photo > .photo-btn { width: 48px; height: 48px; align-self: flex-start; }
+.person-form .identity-row { grid-template-columns: minmax(92px, 0.65fr) minmax(0, 1.35fr); }
+.person-form textarea { height: 64px; }
+.fan-toolbar .fan-picker { flex: 0 1 auto; min-width: 0; }
+.fan-lineage { width: 128px; flex: none; }
+.fan-toolbar .fan-toggle { flex: none; }
+.fan-zoom .icon-btn { width: 30px; height: 30px; }
+.fan-zoom [data-tip]::after { top: auto; bottom: calc(100% + 6px); left: auto; right: 0; transform: none; }
+.focus-banner { flex-wrap: nowrap; width: max-content; }
+.focus-banner .focus-divider { display: none; }
+.focus-banner .focus-scopes { flex: 0 0 94px; }
+.focus-banner .focus-summary { flex-basis: auto; }
+.focus-count { white-space: nowrap; }
+.topbar-history { display: flex; align-items: center; gap: 0; }
+.menu-item.mobile-history { display: none; }
+
+@media (max-width: 1100px) {
+  .view-switch-label { display: none; }
+  .view-switch button { padding-inline: 7px; }
+}
+@container (max-width: 760px) {
+  .fan-stats, .fan-picker-rel, .tl-legend { display: none; }
+  .fan-toolbar .fan-picker { flex: 1 1 0; }
+  .fan-picker-btn { max-width: 100%; }
+  .fan-picker-name { min-width: 0; }
+  .fan-spacer { display: none; }
+  .fan-picker-pop { width: min(360px, calc(100cqw - 14px)); }
+  .tl-focus-detail { display: none; }
+}
+@container (max-width: 480px) {
+  .fan-toggle span { display: none; }
+  .fan-toggle { width: 30px; padding: 0; justify-content: center; }
+  .tl-status { display: none; }
+  .tl-zoom { margin-left: auto; }
+}
+@media (max-width: 859px) {
+  .panel { top: auto; left: 4px; right: 4px; bottom: 4px; max-height: calc(100dvh - 92px); }
+  .timeline, .timeline.is-panel-open, .fan, .fan.is-panel-open {
+    top: var(--content-top); left: 4px; right: 4px; bottom: 4px;
+  }
+  .canvas-controls { top: var(--content-top); }
+  .compare-wrap { top: 90px; left: 4px; right: 4px; }
+}
+@media (max-width: 700px) {
+  .topbar-history { display: none; }
+  .menu-item.mobile-history { display: flex; }
+  .brand { flex: 0 1 150px; }
+}
+@media (max-width: 640px) {
+  .topbar { gap: 4px; }
+  .brand { flex: none; padding: 0; }
+  .topbar-search { flex: 1 1 0; margin: 0; }
+  .search-icon { left: 6px; }
+  .search-results { position: fixed; top: var(--content-top); left: 4px; right: 4px; }
+  .search-input { padding-left: 26px; padding-right: 4px; }
+  .view-switch button { width: 30px; height: 30px; }
+  .name-row { flex-direction: row; align-items: flex-start; }
+  .name-fields, .field-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .welcome { padding: 54px 10px 10px; overflow-y: auto; pointer-events: auto; }
+  .welcome-card { padding: 16px; }
+  .fan-picker-pop { max-width: calc(100vw - 26px); }
+  .modal-backdrop { padding: 8px; }
+  .modal { max-height: calc(100dvh - 16px); }
+}
+@media (pointer: coarse) {
+  .icon-btn, .btn, .toolbar-select { min-height: 34px; }
+  .icon-btn { min-width: 34px; }
+}
+
+.fan-tools { position: relative; flex: none; }
+.fan-tools summary { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 5px; cursor: pointer; list-style: none; }
+.fan-tools summary::-webkit-details-marker { display: none; }
+.fan-tools summary:hover, .fan-tools[open] summary { background: var(--surface-3); }
+.fan-tools .fan-zoom { top: calc(100% + 6px); right: 0; bottom: auto; }
+@media (max-width: 640px) {
+  .person-form .field-row.is-death { grid-template-columns: minmax(88px, 0.75fr) minmax(184px, 1.25fr); }
+}
+
+.form-photo { flex: 0 0 48px; }
+.photo-actions { position: relative; margin-top: 6px; }
+.photo-actions summary { display: flex; align-items: center; justify-content: center; gap: 2px; min-height: 26px; cursor: pointer; list-style: none; color: var(--text-2); }
+.photo-actions summary::-webkit-details-marker { display: none; }
+.photo-actions .photo-meta { position: absolute; z-index: 5; top: 100%; left: 0; display: flex; flex-direction: column; align-items: stretch; width: max-content; min-width: 142px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); box-shadow: var(--shadow-pop); gap: 6px; }
+
+/* One app header, including the active view's controls. */
+#view-controls:empty { display: none; }
+#view-controls { min-width: 0; }
+.topbar-actions { margin-left: auto; }
+.view-context { position: relative; min-width: 0; }
+.view-options-trigger { display: none; }
+.view-context-content { display: flex; align-items: center; min-width: 0; }
+.view-context .fan-toolbar, .view-context .tl-toolbar { flex: 1; min-width: 0; gap: 6px; }
+.view-context .fan-picker { flex: 0 1 240px; min-width: 120px; max-width: 260px; }
+.view-context .fan-spacer { display: none; }
+.view-context .fan-stats { flex: none; max-width: 240px; }
+.view-context .fan-toggle { flex: none; }
+.view-context .tl-status { max-width: 220px; }
+.view-context .tl-legend { display: none; }
+.view-context .fan-picker-pop { width: 360px; }
+.menu-item > span { min-width: 0; overflow-wrap: anywhere; }
+.topbar .menu-item { white-space: nowrap; }
+.topbar .menu-pop { z-index: 40; }
+
+@media (max-width: 1700px) {
+  .view-context .fan-stats, .view-context .fan-picker-rel { display: none; }
+  .brand { flex-basis: 180px; }
+  .view-context .fan-picker { max-width: 200px; }
+  .view-context .tl-status { display: none; }
+}
+@media (max-width: 1350px) {
+  .view-context .fan-toggle span { display: none; }
+  .view-context .fan-toggle { width: 30px; padding: 0; justify-content: center; }
+  .brand { flex-basis: 150px; }
+  .topbar-history { display: none; }
+  .menu-item.mobile-history { display: flex; }
+}
+@media (max-width: 1250px) {
+  .view-options-trigger { display: inline-grid; }
+  .view-context-content { display: none; position: fixed; top: var(--content-top); right: 8px; width: min(520px, calc(100vw - 16px)); padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-pop); }
+  .view-context.is-open .view-context-content { display: flex; }
+  .view-context .fan-picker { flex: 1 1 0; min-width: 0; max-width: none; }
+  .view-context .fan-toolbar, .view-context .tl-toolbar { width: 100%; }
+  .view-context .fan-picker-pop { width: min(360px, calc(100vw - 36px)); }
+  .view-context .tl-zoom { margin-left: auto; }
+  .view-context .fan-toggle { width: 30px; padding: 0; justify-content: center; }
+  .view-context .fan-toggle span { display: none; }
+}
+@media (max-width: 700px) {
+  .header-secondary { display: none; }
+  .topbar-search { min-width: 100px; }
+  .brand { flex: 0 0 auto; }
+  .tree-name { display: none; }
+}
+@media (max-width: 640px) {
+  .search-input { padding-left: 28px; padding-right: 8px; }
+  .search-icon { left: 8px; }
+  .topbar { gap: 6px; }
+}
+@media (max-width: 480px) {
+  .topbar .menu-item { white-space: normal; }
+  .topbar .menu-item > span { overflow-wrap: break-word; }
+  .topbar .menu-pop { min-width: min(290px, calc(100vw - 16px)); }
+  .view-context .fan-lineage { width: 112px; }
+  .view-context .fan-picker-btn { gap: 4px; padding-inline: 5px; }
+}
+
+.menu-item.mobile-preference { display: none; }
+@media (max-width: 700px) {
+  .menu-item.mobile-preference { display: flex; }
+}
+
+/* Secondary identity text and family filters support the person's name. */
+.pp-via-path { display: flex; align-items: center; flex: 1; min-width: 0; overflow-x: auto; gap: 2px; scrollbar-width: thin; }
+.pp-family-head .focus-options { height: 28px; min-height: 28px; max-width: 170px; padding: 0 6px 0 8px; font-size: 12px; font-weight: 500; background: var(--surface-2); border-color: var(--border); color: var(--text-2); }
+.pp-family-head .focus-options:hover, .pp-family-head .focus-options:focus-visible { color: var(--text); border-color: var(--border-strong); }

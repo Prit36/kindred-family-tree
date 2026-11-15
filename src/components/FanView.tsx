@@ -31,6 +31,7 @@ import { searchIndex, searchPeople } from '../lib/search';
 import { SIDE_TONES } from '../lib/sides';
 import { displayName, fullName, indexOf, partnersOf, shortName } from '../lib/tree';
 import { Avatar } from './Avatar';
+import { HeaderControls } from './HeaderControls';
 
 const MIN_ZOOM = 0.04;
 const MAX_ZOOM = 4;
@@ -120,7 +121,9 @@ function RootPicker({ tree, root, kin, naming }: { tree: Tree; root: Person; kin
       <button
         type="button"
         className="fan-picker-btn"
-        aria-haspopup="listbox"
+        aria-label="Choose whose descendants to show"
+        title={treeName(tree, root, naming)}
+        aria-haspopup="dialog"
         aria-expanded={open}
         data-tip={open ? undefined : 'Whose family to show'}
         onClick={() => {
@@ -129,7 +132,7 @@ function RootPicker({ tree, root, kin, naming }: { tree: Tree; root: Person; kin
           requestAnimationFrame(() => inputRef.current?.focus());
         }}
       >
-        <Avatar person={root} size={28} />
+        <Avatar person={root} size={24} />
         <span className="fan-picker-name">{treeName(tree, root, naming)}</span>
         {relation && <span className="fan-picker-rel">{relation}</span>}
         <ChevronDown size={15} className="fan-picker-chev" />
@@ -813,33 +816,24 @@ export function FanView() {
 
   return (
     <section className={`fan${panelOpen ? ' is-panel-open' : ''}`} aria-label={`Descendants of ${displayName(root)}`}>
+      <HeaderControls>
       <div className="fan-toolbar">
         <RootPicker tree={tree} root={root} kin={kin} naming={naming} />
         <span className="fan-stats">{statsText(gens, fan.nodes.length - 1, fan.living, naming)}</span>
         <span className="fan-spacer" />
-        <div className="segmented fan-lineage" role="radiogroup" aria-label="Which descendants">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={!prefs.sonsOnly}
-            data-tip="Sons' and daughters' families"
-            onClick={() => setFan({ sonsOnly: false })}
-          >
-            Everyone
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={prefs.sonsOnly}
-            data-tip={naming === 'en' ? 'Only the line carried on by sons' : naming === 'gu' ? 'દીકરાઓનો વંશ - વંશાવળી' : 'Dikra no vansh - vanshavali'}
-            onClick={() => setFan({ sonsOnly: true })}
-          >
-            Sons' line
-          </button>
-        </div>
+        <select
+          className="toolbar-select fan-lineage"
+          aria-label="Which descendants"
+          value={prefs.sonsOnly ? 'sons' : 'everyone'}
+          onChange={(e) => setFan({ sonsOnly: e.target.value === 'sons' })}
+        >
+          <option value="everyone">Everyone</option>
+          <option value="sons">Sons' line</option>
+        </select>
         <button
           type="button"
           className="fan-toggle"
+          aria-label="Show spouses"
           aria-pressed={prefs.spouses}
           data-tip={
             naming === 'gu'
@@ -853,20 +847,25 @@ export function FanView() {
           onClick={() => setFan({ spouses: !prefs.spouses })}
         >
           <HeartHandshake size={15} />
-          Spouses
+          <span>Spouses</span>
         </button>
-        <div className="control-group fan-zoom">
-          <button type="button" className="icon-btn" onClick={() => zoomBy(1 / 1.35)} aria-label="Zoom out" data-tip="Zoom out (−)">
-            <Minus size={16} />
-          </button>
-          <button type="button" className="icon-btn" onClick={() => zoomBy(1.35)} aria-label="Zoom in" data-tip="Zoom in (+)">
-            <Plus size={16} />
-          </button>
-          <button type="button" className="icon-btn" onClick={() => fit()} aria-label="Fit the whole family" data-tip="Fit (F)">
-            <Maximize size={15} />
-          </button>
-        </div>
+        <details className="fan-tools">
+          <summary aria-label="Zoom controls" title="Zoom controls"><Maximize size={16} /></summary>
+          <div className="control-group fan-zoom">
+            <button type="button" className="icon-btn" onClick={() => zoomBy(1 / 1.35)} aria-label="Zoom out" data-tip="Zoom out (−)">
+              <Minus size={16} />
+            </button>
+            <button type="button" className="icon-btn" onClick={() => zoomBy(1.35)} aria-label="Zoom in" data-tip="Zoom in (+)">
+              <Plus size={16} />
+            </button>
+            <button type="button" className="icon-btn" onClick={() => fit()} aria-label="Fit the whole family" data-tip="Fit (F)">
+              <Maximize size={15} />
+            </button>
+          </div>
+        </details>
       </div>
+
+      </HeaderControls>
 
       <div
         ref={stageRef}

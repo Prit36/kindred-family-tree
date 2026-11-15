@@ -63,7 +63,7 @@ const MIN_ZOOM = 0.15;
  */
 const FAR_ZOOM = 0.62;
 const MAX_ZOOM = 2;
-const TOP_INSET = 76;
+const TOP_INSET = 52;
 /** From this many people on show, the overview map appears in the corner. */
 const MINIMAP_FROM = 25;
 /** How long after the tree changes newly shown people and lines fade in. */

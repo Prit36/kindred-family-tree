@@ -307,7 +307,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
       <form
         ref={formRef}
         onSubmit={submit}
-        className="form"
+        className="form person-form"
         // A photo can be dropped anywhere on the form.
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -344,6 +344,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
         ) : (
           <>
             <div className="name-row">
+              <div className="form-photo">
               <button
                 type="button"
                 className="photo-btn"
@@ -366,6 +367,30 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
                   e.target.value = '';
                 }}
               />
+            {(draft.photo || photoError) && (
+              <details className="photo-actions">
+                <summary aria-label="Photo actions">Photo <ChevronDown size={12} /></summary>
+                <div className="photo-meta">
+                {photoError && <span className="error-text">{photoError}</span>}
+                {draft.photo && (
+                  <button type="button" className="link-btn" onClick={() => setViewing(true)}>
+                    <Expand size={14} /> View
+                  </button>
+                )}
+                {draft.photo && draft.photoOriginal && (
+                  <button type="button" className="link-btn" onClick={() => void adjustPhoto()}>
+                    <Crop size={14} /> Adjust
+                  </button>
+                )}
+                {draft.photo && (
+                  <button type="button" className="link-btn" onClick={removePhoto}>
+                    Remove photo
+                  </button>
+                )}
+                </div>
+              </details>
+            )}
+              </div>
               <div className="name-fields">
                 <label className="field">
                   <span className="field-label">First name</span>
@@ -423,48 +448,19 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
                 )}
               </div>
             </div>
-            {(draft.photo || photoError) && (
-              <div className="photo-meta">
-                {photoError && <span className="error-text">{photoError}</span>}
-                {draft.photo && (
-                  <button type="button" className="link-btn" onClick={() => setViewing(true)}>
-                    <Expand size={14} /> View
-                  </button>
-                )}
-                {draft.photo && draft.photoOriginal && (
-                  <button type="button" className="link-btn" onClick={() => void adjustPhoto()}>
-                    <Crop size={14} /> Adjust
-                  </button>
-                )}
-                {draft.photo && (
-                  <button type="button" className="link-btn" onClick={removePhoto}>
-                    Remove photo
-                  </button>
-                )}
-              </div>
-            )}
 
-            <div className="field-row">
+
+            <div className="field-row identity-row">
               <div className="field">
                 <span className="field-label">Gender</span>
-                <div className="segmented" role="radiogroup" aria-label="Gender">
-                  {GENDERS.map((g) => (
-                    <button
-                      key={g.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={draft.gender === g.value}
-                      onClick={() => set({ gender: g.value })}
-                    >
-                      {g.label}
-                    </button>
-                  ))}
-                </div>
+                <select className="input" aria-label="Gender" value={draft.gender} onChange={(e) => set({ gender: e.target.value as Gender })}>
+                  {GENDERS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+                </select>
               </div>
 
               <div className="field">
                 <span className="field-label">
-                  Born <small>- just the year is fine</small>
+                  Born
                 </span>
                 <DateInput label="Born" value={draft.birthDate} onChange={(v) => set({ birthDate: v })} />
               </div>
