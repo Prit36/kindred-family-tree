@@ -729,10 +729,10 @@ export function Canvas() {
         <div className="canvas-controls">
           <SidesLegend />
           <div className="control-group">
-            <button type="button" className="icon-btn" onClick={() => zoomBy(1 / 1.35)} data-tip="Zoom out (−)" aria-label="Zoom out">
+            <button type="button" className="icon-btn zoom-step" onClick={() => zoomBy(1 / 1.35)} data-tip="Zoom out (−)" aria-label="Zoom out">
               <Minus size={17} />
             </button>
-            <button type="button" className="icon-btn" onClick={() => zoomBy(1.35)} data-tip="Zoom in (+)" aria-label="Zoom in">
+            <button type="button" className="icon-btn zoom-step" onClick={() => zoomBy(1.35)} data-tip="Zoom in (+)" aria-label="Zoom in">
               <Plus size={17} />
             </button>
             <button

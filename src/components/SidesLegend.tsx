@@ -71,7 +71,7 @@ export function SidesLegend() {
           data-tip={prefs.open ? 'Hide the sides of the family' : 'Sides of the family'}
         >
           <Users size={15} />
-          Sides
+          <span className="sides-label">Sides</span>
         </button>
       </div>
 

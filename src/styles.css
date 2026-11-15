@@ -4006,9 +4006,14 @@ kbd {
 }
 
 /* The selected person's life events, hanging under their bar */
+/* The row grows to fit them; the name stays centred in the first 44px, exactly where it
+   sat before it was selected. */
 .tl-row.is-selected .tl-name {
-  align-items: flex-start;
-  padding-top: 8px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: 44px;
+  align-items: center;
+  align-content: start;
 }
 
 .tl-events {
@@ -6576,5 +6581,74 @@ body {
 
   .panel .pp-body {
     flex: 1 1 auto;
+  }
+}
+
+/* --- Canvas controls on phones -------------------------------------------------------
+   One slim rail in the top-right corner instead of two boxes across the top: the sides
+   list, then fit and home. Pinching zooms on a touch screen, so − and + step aside. */
+@media (max-width: 640px) {
+  .canvas-controls {
+    left: auto;
+    right: 6px;
+    top: calc(var(--content-top) + 2px);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-float);
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-card);
+  }
+
+  .canvas-controls .control-group {
+    flex-direction: column;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .canvas-controls .control-group ~ .control-group {
+    margin-top: 3px;
+    padding-top: 3px;
+    border-top: 1px solid var(--border);
+  }
+
+  .canvas-controls .icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .sides-toggle {
+    padding: 0;
+    justify-content: center;
+  }
+
+  .sides-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* The list opens beside the rail, toward the middle of the screen. */
+  .canvas-controls .sides {
+    top: 0;
+    left: auto;
+    right: calc(100% + 8px);
+    width: min(300px, calc(100vw - 72px));
+    max-width: none;
+  }
+}
+
+@media (max-width: 640px) and (pointer: coarse) {
+  .canvas-controls .zoom-step {
+    display: none;
   }
 }
