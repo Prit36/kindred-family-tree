@@ -1,6 +1,7 @@
 import type { Person, Tree } from '../types';
 import { formatDate, isBefore, parseDate, yearOf } from './dates';
-import { childrenOf, displayName, isPlaceholder, shortName } from './tree';
+import { childrenOf, displayName, fullName, isPlaceholder, shortName } from './tree';
+import { middleNameOf } from './names';
 
 // ---------------------------------------------------------------------------
 // Coming up: birthdays and anniversaries
@@ -85,7 +86,7 @@ const norm = (s: string) =>
 export function checkTree(tree: Tree, today = new Date()): Issue[] {
   const issues: Issue[] = [];
   const people = Object.values(tree.people);
-  const name = (p: Person) => displayName(p);
+  const name = (p: Person) => fullName(tree, p);
 
   for (const p of people) {
     if (p.birthDate && p.deathDate && isBefore(p.deathDate, p.birthDate)) {
@@ -169,10 +170,10 @@ export function checkTree(tree: Tree, today = new Date()): Issue[] {
     }
   }
 
-  // Possible duplicates: same first and last name, and birth years that don't rule it out.
+  // Possible duplicates: same whole name (father's included), and birth years that don't rule it out.
   const byName = new Map<string, Person[]>();
   for (const p of people) {
-    const first = norm(p.firstName);
+    const first = norm(`${p.firstName} ${middleNameOf(tree, p)}`);
     const last = norm(p.birthName || p.lastName);
     if (!first || !last) continue;
     const key = `${first}|${last}`;

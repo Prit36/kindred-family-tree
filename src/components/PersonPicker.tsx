@@ -5,7 +5,7 @@ import { useStore } from '../store';
 import { lifespan } from '../lib/dates';
 import { relationLabels } from '../lib/naming';
 import { searchIndex } from '../lib/search';
-import { displayName, indexOf, parentsOf, partnersOf, shortName } from '../lib/tree';
+import { fullName, indexOf, parentsOf, partnersOf, shortName } from '../lib/tree';
 import { Avatar } from './Avatar';
 
 /** How many rows are drawn at once; the rest are counted. */
@@ -116,9 +116,9 @@ export function PersonPicker({
   // Names that appear more than once among these, so the details under them matter.
   const repeated = useMemo(() => {
     const seen = new Map<string, number>();
-    for (const p of results) seen.set(displayName(p), (seen.get(displayName(p)) ?? 0) + 1);
+    for (const p of results) seen.set(fullName(tree, p), (seen.get(fullName(tree, p)) ?? 0) + 1);
     return seen;
-  }, [results]);
+  }, [results, tree]);
 
   useEffect(() => setActive(0), [query]);
   useEffect(() => {
@@ -182,11 +182,11 @@ export function PersonPicker({
               <Avatar person={p} size={34} />
               <span className="picker-text">
                 <span className="picker-name">
-                  <span className="picker-name-text">{displayName(p)}</span>
+                  <span className="picker-name-text">{fullName(tree, p)}</span>
                   {lifespan(p) && <span className="picker-years">{lifespan(p)}</span>}
-                  {(repeated.get(displayName(p)) ?? 0) > 1 && (
+                  {(repeated.get(fullName(tree, p)) ?? 0) > 1 && (
                     <span className="picker-same" data-tip="More than one person has this name">
-                      ×{repeated.get(displayName(p))}
+                      ×{repeated.get(fullName(tree, p))}
                     </span>
                   )}
                 </span>

@@ -26,6 +26,7 @@ import { relationLabels, relationName } from '../lib/naming';
 import {
   childrenOf,
   displayName,
+  fullName,
   gujaratiName,
   isPlaceholder,
   latinName,
@@ -136,7 +137,7 @@ function Details({ person }: { person: Person }) {
 
   // The name in the other script too: ભરતભાઈ મોજીદ્રા under "Bharatbhai Mojidra", or the other way round.
   const named = Boolean(person.firstName.trim() || person.lastName.trim());
-  const otherName = !named ? '' : naming === 'gu' ? latinName(person) : gujaratiName(person, tree.spellings);
+  const otherName = !named ? '' : naming === 'gu' ? latinName(tree, person) : gujaratiName(tree, person, tree.spellings);
 
   const birthName =
     person.birthName && person.birthName !== person.lastName
@@ -471,7 +472,7 @@ function Details({ person }: { person: Person }) {
   return (
     <aside
       className={`panel${isFolded('compact') ? ' is-compact' : ''}`}
-      aria-label={`Details for ${displayName(person)}`}
+      aria-label={`Details for ${fullName(tree, person)}`}
       data-person-id={person.id}
     >
       <header className="pp-head">
@@ -488,7 +489,7 @@ function Details({ person }: { person: Person }) {
         {photo}
 
         <div className="pp-id">
-          <h2 className="pp-name">{displayName(person)}</h2>
+          <h2 className="pp-name">{fullName(tree, person)}</h2>
           {otherName && (
             <span className="pp-other-name" lang={naming === 'gu' ? 'en' : 'gu'}>
               {otherName}

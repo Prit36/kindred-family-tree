@@ -27,6 +27,7 @@ import {
   updatePerson,
 } from '../lib/tree';
 import { learnSpellings, NO_SPELLINGS, toGujarati } from '../lib/gujaratiNames';
+import { derivedMiddleName, middleNameForNew, tidyMiddleName } from '../lib/names';
 import { Avatar } from './Avatar';
 import { DateInput } from './DateInput';
 import { Modal } from './Modal';
@@ -156,6 +157,17 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
 
   const set = (patch: Partial<PersonInput>) => setDraft((d) => ({ ...d, ...patch }));
 
+  // The father's (a wife's: husband's) name the tree already gives them - left blank, it's used.
+  const patronymic = Boolean(tree.patronymic);
+  const editing = spec.type === 'edit' ? tree.people[spec.personId] : undefined;
+  const middleFromTree = !patronymic
+    ? ''
+    : editing
+      ? derivedMiddleName(tree, { ...editing, gender: draft.gender })
+      : anchor && relation && mode === 'new'
+        ? middleNameForNew(tree, anchor, relation, draft.gender, otherParentId)
+        : '';
+
   // The name in Gujarati: worked out from the English until it's typed over, and then
   // remembered for everyone with that name (see learnSpellings).
   const [guFirst, setGuFirst] = useState<string | null>(null);
@@ -233,6 +245,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
     const clean: PersonInput = {
       ...draft,
       firstName: draft.firstName.trim(),
+      middleName: draft.middleName.trim(),
       lastName,
       // Only worth keeping when it says something the surname doesn't.
       birthName: birthName.toLowerCase() === lastName.toLowerCase() ? '' : birthName,
@@ -244,14 +257,14 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
     const named = (t: Tree) => withSpellings(t, clean.firstName, clean.lastName);
 
     if (spec.type === 'edit') {
-      commit(named(updatePerson(tree, spec.personId, clean)));
+      commit(named(tidyMiddleName(updatePerson(tree, spec.personId, clean), spec.personId)));
       closeDialog();
       return;
     }
 
     if (spec.type === 'first') {
       const created = createPerson(tree, clean);
-      commit(named(created.tree));
+      commit(named(tidyMiddleName(created.tree, created.id)));
       closeDialog();
       select(created.id, true);
       return;
@@ -284,7 +297,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
         break;
       }
     }
-    commit(mode === 'new' ? named(next) : next);
+    commit(mode === 'new' ? named(tidyMiddleName(next, targetId)) : next);
     closeDialog();
     select(targetId);
   };
@@ -393,6 +406,21 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
                     onChange={(e) => setGuLast(e.target.value)}
                   />
                 </label>
+                {(patronymic || draft.middleName) && (
+                  <label className="field name-middle">
+                    <span className="field-label">
+                      {!patronymic ? 'Middle name' : draft.gender === 'female' ? "Husband's or father's name" : "Father's name"}
+                    </span>
+                    <input
+                      className="input"
+                      value={draft.middleName}
+                      // What the tree says already; typing here replaces it.
+                      placeholder={middleFromTree}
+                      autoComplete="off"
+                      onChange={(e) => set({ middleName: e.target.value })}
+                    />
+                  </label>
+                )}
               </div>
             </div>
             {(draft.photo || photoError) && (

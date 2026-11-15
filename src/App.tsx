@@ -17,7 +17,7 @@ import { releasePhoto, type PhotoSource } from './lib/files';
 import { focusSet, type FocusScope } from './lib/branches';
 import { familySides, focusTitle, sideForFocus } from './lib/sides';
 import { NAMINGS, relationName } from './lib/naming';
-import { deletePerson, displayName, pathBetween, shortName } from './lib/tree';
+import { deletePerson, fullName, pathBetween, shortName } from './lib/tree';
 import { Avatar } from './components/Avatar';
 import { Canvas } from './components/Canvas';
 import { FanView } from './components/FanView';
@@ -157,7 +157,7 @@ function Dialogs() {
       if (!person) return null;
       return (
         <ConfirmDialog
-          title={`Delete ${displayName(person)}?`}
+          title={`Delete ${fullName(tree, person)}?`}
           confirmLabel="Delete"
           danger
           onClose={closeDialog}

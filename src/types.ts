@@ -6,7 +6,13 @@ export type UnionStatus = 'married' | 'partner' | 'divorced';
 /** Dates are partial ISO strings: '', 'YYYY', 'YYYY-MM' or 'YYYY-MM-DD'. */
 export interface Person {
   id: string;
+  /** The given name alone: "Prit" */
   firstName: string;
+  /**
+   * Father's (a wife's: husband's) name, written in only where the tree can't say it -
+   * see lib/names.ts. Otherwise ''.
+   */
+  middleName: string;
   lastName: string;
   /** Surname at birth when it differs from `lastName` (maiden name), or '' */
   birthName: string;
@@ -48,6 +54,11 @@ export interface Tree {
    * a lowercase name ("katudiya") or whole name ("ramesh d.") → its Gujarati ("કટુડિયા").
    */
   spellings?: Record<string, string>;
+  /**
+   * Names follow the Gujarati custom (given name, father's or husband's name, surname):
+   * the middle name is worked out from the tree. See lib/names.ts.
+   */
+  patronymic?: boolean;
 }
 
 export type Relation = 'parent' | 'partner' | 'child' | 'sibling';

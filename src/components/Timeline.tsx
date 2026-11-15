@@ -31,7 +31,7 @@ import {
   type Span,
   type TimelineOrder,
 } from '../lib/timeline';
-import { childrenOf, displayName, parentsOf, partnersOf, shortName } from '../lib/tree';
+import { childrenOf, displayName, fullName, parentsOf, partnersOf, shortName } from '../lib/tree';
 import { Avatar } from './Avatar';
 
 const ROW_H = 44;
@@ -1174,6 +1174,7 @@ interface HoverCardProps {
 /** A floating card with the details behind a bar or a life event. */
 function HoverCard({ tip, rows, rowIndex, events, pins, sel, relationOf, childCount }: HoverCardProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const tree = useStore((s) => s.tree);
 
   // Placed once its size is known: a person's card sits beside the pointer, an event's beside its chip.
   useLayoutEffect(() => {
@@ -1215,7 +1216,7 @@ function HoverCard({ tip, rows, rowIndex, events, pins, sel, relationOf, childCo
           <Avatar person={p} size={40} />
           <div>
             {relation && <span className="tl-card-eyebrow">{relation}</span>}
-            <strong>{displayName(p)}</strong>
+            <strong>{fullName(tree, p)}</strong>
           </div>
         </div>
         <dl className="tl-card-facts">
@@ -1291,7 +1292,7 @@ function HoverCard({ tip, rows, rowIndex, events, pins, sel, relationOf, childCo
               <li key={child.id}>
                 <Avatar person={child} size={28} />
                 <div>
-                  <strong>{displayName(child)}</strong>
+                  <strong>{fullName(tree, child)}</strong>
                   <span>{formatDate(child.birthDate)}</span>
                 </div>
                 {parentAge !== null && (
@@ -1334,6 +1335,7 @@ interface EventCardProps {
 
 /** "Peter's father · George Bennett", then when it happened and how old everyone was. */
 function EventCard({ person, kind, role, of, date, ofAge }: EventCardProps) {
+  const tree = useStore((s) => s.tree);
   const theirAge = kind === 'died' ? ageOf(person) : null;
   return (
     <>
@@ -1348,7 +1350,7 @@ function EventCard({ person, kind, role, of, date, ofAge }: EventCardProps) {
           <span className="tl-card-eyebrow">
             {shortName(of)}'s {role}
           </span>
-          <strong>{displayName(person)}</strong>
+          <strong>{fullName(tree, person)}</strong>
         </div>
       </div>
       <dl className="tl-card-facts">

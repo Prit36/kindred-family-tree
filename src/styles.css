@@ -510,6 +510,11 @@ textarea.input {
   z-index: 2;
 }
 
+/* The full name shown under a card on hover sits above the neighbouring cards. */
+.card-slot:hover {
+  z-index: 3;
+}
+
 .card {
   position: relative;
   display: flex;
@@ -2187,6 +2192,10 @@ kbd {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+.name-middle {
+  grid-column: 1 / -1;
 }
 
 /* Two related fields side by side, inputs lined up along the bottom. */

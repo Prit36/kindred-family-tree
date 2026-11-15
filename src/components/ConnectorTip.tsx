@@ -2,7 +2,7 @@ import { Heart, HeartCrack, HeartHandshake, Users } from 'lucide-react';
 import type { Tree, UnionStatus } from '../types';
 import { useStore } from '../store';
 import { relationLabels } from '../lib/naming';
-import { displayName, shortName } from '../lib/tree';
+import { fullName, shortName } from '../lib/tree';
 import { compareByBirth } from '../lib/dates';
 
 /** What a connector line on the tree stands for. */
@@ -74,7 +74,7 @@ export function ConnectorTip({ tree, connector }: { tree: Tree; connector: Conne
       </div>
       <ul className="ctip-list">
         {shown.map((p) => (
-          <li key={p.id} title={displayName(p)}>
+          <li key={p.id} title={fullName(tree, p)}>
             {who(p.id)}
           </li>
         ))}

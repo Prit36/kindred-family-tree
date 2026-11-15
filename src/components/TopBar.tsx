@@ -27,7 +27,7 @@ import { lifespan } from '../lib/dates';
 import { searchIndex, searchPeople } from '../lib/search';
 import { upcomingDates } from '../lib/insights';
 import { NAMINGS, relationLabels } from '../lib/naming';
-import { displayName } from '../lib/tree';
+import { fullName } from '../lib/tree';
 import { Avatar } from './Avatar';
 
 function Logo() {
@@ -200,7 +200,7 @@ function SearchBox() {
               >
                 <Avatar person={p} size={30} />
                 <span className="rel-text">
-                  <span className="rel-name">{displayName(p)}</span>
+                  <span className="rel-name">{fullName(tree, p)}</span>
                   <span className="rel-sub">
                     {[kin.get(p.id), lifespan(p)].filter(Boolean).join(' · ')}
                   </span>

@@ -24,7 +24,7 @@ import { familySides } from '../lib/sides';
 import { relationLabels } from '../lib/naming';
 import { shapeOf } from '../lib/shape';
 import { lineHover, useLineHover, type LineTarget } from '../lib/lineHover';
-import { ancestorIds, childrenOf, descendantIds, isPlaceholder, pathBetween, shortName } from '../lib/tree';
+import { ancestorIds, childrenOf, descendantIds, fullName, isPlaceholder, pathBetween, shortName } from '../lib/tree';
 import { addRelative } from '../lib/actions';
 import { downloadTreePng } from '../lib/files';
 import { canvasHandle } from '../lib/canvasHandle';
@@ -868,6 +868,7 @@ function Cards({
       <PersonCard
         key={id}
         person={p}
+        fullName={fullName(tree, p)}
         x={pos.x}
         y={pos.y}
         selected={id === selectedId}

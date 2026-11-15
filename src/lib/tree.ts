@@ -2,6 +2,7 @@ import type { Person, PersonInput, Tree, Union, UnionStatus } from '../types';
 import type { CropView } from './crop';
 import { isOriginalId } from './photoStore';
 import { firstLetter, nameScript, toGujarati, type Spellings } from './gujaratiNames';
+import { adoptPatronymics, middleNameOf } from './names';
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -14,6 +15,7 @@ export function emptyTree(): Tree {
 export function blankInput(partial: Partial<PersonInput> = {}): PersonInput {
   return {
     firstName: '',
+    middleName: '',
     lastName: '',
     birthName: '',
     gender: 'other',
@@ -50,20 +52,32 @@ export function shortName(p: Person | undefined): string {
   return shown(p.firstName) || shown(p.lastName) || unknown();
 }
 
-/** Someone's given names as shown: "Ramjibhai Mavjibhai", or રામજીભાઈ માવજીભાઈ. */
+/** Someone's given name as shown: "Ramjibhai", or રામજીભાઈ. */
 export function givenName(p: Person): string {
   return shown(p.firstName);
 }
 
-/** The name in English letters, as stored - for files other programs read. */
-export function latinName(p: Person | undefined): string {
-  if (!p) return 'Unknown';
-  return `${p.firstName} ${p.lastName}`.trim() || 'Unknown';
+/**
+ * The whole name as it is written out: given name, father's (a wife: husband's) name and
+ * surname - "Prit Bharatbhai Prajapati", worked out from the tree (see names.ts).
+ */
+export function fullName(tree: Tree, p: Person | undefined): string {
+  if (!p) return unknown();
+  return [shown(p.firstName), shown(middleNameOf(tree, p)), shown(p.lastName)].filter(Boolean).join(' ') || unknown();
 }
 
-/** The name in Gujarati script, whichever script is being shown. */
-export function gujaratiName(p: Person, spellings?: Spellings): string {
-  return `${toGujarati(p.firstName, spellings)} ${toGujarati(p.lastName, spellings)}`.trim();
+/** The whole name in English letters - for files other programs read. */
+export function latinName(tree: Tree, p: Person | undefined): string {
+  if (!p) return 'Unknown';
+  return [p.firstName, middleNameOf(tree, p), p.lastName].map((s) => s.trim()).filter(Boolean).join(' ') || 'Unknown';
+}
+
+/** The whole name in Gujarati script, whichever script is being shown. */
+export function gujaratiName(tree: Tree, p: Person, spellings?: Spellings): string {
+  return [p.firstName, middleNameOf(tree, p), p.lastName]
+    .map((s) => toGujarati(s, spellings))
+    .filter(Boolean)
+    .join(' ');
 }
 
 /** The surname someone was born with - what their parents and siblings most likely share. */
@@ -75,7 +89,7 @@ export function familyName(p: Person | undefined): string {
 /** A stand-in created so siblings could be linked: nothing is known about them yet. */
 export function isPlaceholder(p: Person | undefined): boolean {
   if (!p) return false;
-  return !(p.firstName || p.lastName || p.birthName || p.birthDate || p.deathDate || p.birthPlace || p.photo || p.notes);
+  return !(p.firstName || p.middleName || p.lastName || p.birthName || p.birthDate || p.deathDate || p.birthPlace || p.photo || p.notes);
 }
 
 export function initials(p: Pick<Person, 'firstName' | 'lastName'>): string {
@@ -469,6 +483,7 @@ export function sanitizeTree(raw: unknown): Tree {
     people[id] = {
       id,
       firstName: str(v.firstName),
+      middleName: str(v.middleName),
       lastName: str(v.lastName),
       birthName: str(v.birthName),
       gender,
@@ -535,6 +550,7 @@ export function sanitizeTree(raw: unknown): Tree {
   };
   const spellings = spellingsOf(src.spellings);
   if (spellings) tree.spellings = spellings;
+  if (src.patronymic === true) tree.patronymic = true;
   for (const p of Object.values(people)) {
     if (p.parentIds.length !== 2) continue;
     const [a, b] = p.parentIds;
@@ -543,5 +559,6 @@ export function sanitizeTree(raw: unknown): Tree {
     pairSeen.add(key);
     unions.push({ id: uid(), a, b, status: 'married' });
   }
-  return tree;
+  // "Prit Bharatbhai" becomes "Prit": the father's name is worked out from the tree.
+  return adoptPatronymics(tree);
 }

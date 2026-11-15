@@ -2,12 +2,14 @@ import { memo, type CSSProperties } from 'react';
 import { House, Plus, ScrollText } from 'lucide-react';
 import type { Person, Relation } from '../types';
 import { lifespan } from '../lib/dates';
-import { displayName, givenName } from '../lib/tree';
+import { shortName } from '../lib/tree';
 import { useLinkedByLine } from '../lib/lineHover';
 import { Avatar } from './Avatar';
 
 interface Props {
   person: Person;
+  /** "Prit Bharatbhai Prajapati": shown on hover and read out, while the card shows just "Prit" */
+  fullName: string;
   x: number;
   y: number;
   selected: boolean;
@@ -74,6 +76,7 @@ const QUICK_ADD: { relation: Relation; side: string; label: string }[] = [
 
 export const PersonCard = memo(function PersonCard({
   person,
+  fullName,
   x,
   y,
   selected,
@@ -92,11 +95,12 @@ export const PersonCard = memo(function PersonCard({
   onEdit,
   onAdd,
 }: Props) {
-  const name = displayName(person);
+  // Just the given name, as in the Descendants view: the rest is the father's (or husband's)
+  // name and the surname, which the tree around the card already shows.
+  const first = shortName(person);
   const life = lifespan(person);
   // The home person's relation is what they're called: "You", or "તમે" in Gujarati.
   const glance = isHome ? relation || 'You' : glanceLabel(relation);
-  const first = givenName(person) || name;
   const linked = useLinkedByLine(person.id);
 
   const cls = [
@@ -126,7 +130,8 @@ export const PersonCard = memo(function PersonCard({
         role="button"
         tabIndex={0}
         aria-pressed={selected}
-        aria-label={`${name}${relation ? `, ${relation}` : ''}`}
+        aria-label={`${fullName}${relation ? `, ${relation}` : ''}`}
+        data-tip={!far && !selected && fullName !== first ? fullName : undefined}
         onClick={(e) => (e.shiftKey ? onCompare(person.id) : onSelect(person.id))}
         onDoubleClick={() => onEdit(person.id)}
         onKeyDown={(e) => {
@@ -159,9 +164,7 @@ export const PersonCard = memo(function PersonCard({
           <>
             <Avatar person={person} size={52} />
             <div className="card-text">
-              <div className="card-name" title={name}>
-                {name}
-              </div>
+              <div className="card-name">{first}</div>
               {(relation || isHome) && <div className="card-relation">{relation || 'You'}</div>}
               {life && <div className="card-life">{life}</div>}
             </div>

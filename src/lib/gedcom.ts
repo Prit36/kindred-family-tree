@@ -1,6 +1,7 @@
 import type { Gender, Person, Tree, Union, UnionStatus } from '../types';
 import { MONTHS, buildDate, formatDate, parseDate } from './dates';
-import { blankInput, latinName, sanitizeTree, uid } from './tree';
+import { blankInput, sanitizeTree, uid } from './tree';
+import { middleNameOf } from './names';
 
 /**
  * GEDCOM 5.5.1, the format every genealogy program (Ancestry, FamilySearch, MyHeritage,
@@ -110,12 +111,14 @@ export function toGedcom(tree: Tree, now = new Date()): string {
     `${clean(first.replace(/\//g, ' '))} /${clean(last.replace(/\//g, ' '))}/`.trim();
 
   for (const p of people) {
+    // Other programs have no idea of a name worked out from the tree, so the middle name is written in.
+    const given = [p.firstName, middleNameOf(tree, p)].map((s) => s.trim()).filter(Boolean).join(' ');
     lines.push(`0 ${xref.get(p.id)} INDI`);
-    lines.push(`1 NAME ${nameLine(p.firstName, p.lastName)}`);
-    if (p.firstName.trim()) lines.push(`2 GIVN ${clean(p.firstName)}`);
+    lines.push(`1 NAME ${nameLine(given, p.lastName)}`);
+    if (given) lines.push(`2 GIVN ${clean(given)}`);
     if (p.lastName.trim()) lines.push(`2 SURN ${clean(p.lastName)}`);
     if (p.birthName.trim() && p.birthName.trim() !== p.lastName.trim()) {
-      lines.push(`1 NAME ${nameLine(p.firstName, p.birthName)}`, '2 TYPE birth', `2 SURN ${clean(p.birthName)}`);
+      lines.push(`1 NAME ${nameLine(given, p.birthName)}`, '2 TYPE birth', `2 SURN ${clean(p.birthName)}`);
     }
     lines.push(`1 SEX ${SEX[p.gender]}`);
     if (p.birthDate || p.birthPlace.trim()) {
@@ -239,6 +242,8 @@ function readName(n: Node): { given: string; surname: string } {
   return { given: tidy(given), surname: tidy(surname) };
 }
 
+/** A name as read from the file, before the tree has worked anything out. */
+const plainName = (p: Person) => `${p.firstName} ${p.lastName}`.trim() || 'Unknown';
 const place = (event: Node | undefined) => (child(event, 'PLAC') ? fullText(child(event, 'PLAC')!) : '');
 
 export interface GedcomResult {
@@ -352,7 +357,7 @@ export function parseGedcom(text: string, fallbackName = 'My Family', now = new 
       if (when || where) {
         for (const [me, other] of [spouses, [...spouses].reverse()]) {
           const detail = [when && `on ${when}`, where && `in ${where}`].filter(Boolean).join(' ');
-          addNote(me, `Married ${latinName(people[other])} ${detail}`);
+          addNote(me, `Married ${plainName(people[other])} ${detail}`);
         }
       }
     }
@@ -377,7 +382,7 @@ export function parseGedcom(text: string, fallbackName = 'My Family', now = new 
     people[cid].parentIds = spousesOf(chosen.fam).filter((pid) => pid !== cid);
     const others = ordered.filter((o) => o !== chosen && spousesOf(o.fam).length > 0);
     for (const o of others) {
-      const names = spousesOf(o.fam).map((pid) => latinName(people[pid])).join(' and ');
+      const names = spousesOf(o.fam).map((pid) => plainName(people[pid])).join(' and ');
       addNote(cid, `${o.pedi === 'adopted' ? 'Adopted by' : o.pedi === 'foster' ? 'Fostered by' : 'Also listed as the child of'} ${names}`);
     }
   }

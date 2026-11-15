@@ -29,7 +29,7 @@ import { downloadFanPng, type FanPicture } from '../lib/fanExport';
 import { relationLabels, relationName, type Naming } from '../lib/naming';
 import { searchIndex, searchPeople } from '../lib/search';
 import { SIDE_TONES } from '../lib/sides';
-import { displayName, indexOf, partnersOf, shortName } from '../lib/tree';
+import { displayName, fullName, indexOf, partnersOf, shortName } from '../lib/tree';
 import { Avatar } from './Avatar';
 
 const MIN_ZOOM = 0.04;
@@ -176,7 +176,7 @@ function RootPicker({ tree, root, kin, naming }: { tree: Tree; root: Person; kin
                 >
                   <Avatar person={p} size={30} />
                   <span className="rel-text">
-                    <span className="rel-name">{standInName(tree, p, naming) || displayName(p)}</span>
+                    <span className="rel-name">{standInName(tree, p, naming) || fullName(tree, p)}</span>
                     <span className="rel-sub">
                       {[kin.get(p.id), lifespan(p), count ? descendantsText(count, naming) : '']
                         .filter(Boolean)
@@ -381,7 +381,7 @@ function FanCard({ tree, node, root, kin, naming, at, parentId }: CardProps) {
         <Avatar person={p} size={40} />
         <div>
           {toMe && <span className="tl-card-eyebrow">{toMe}</span>}
-          <strong>{standInName(tree, p, naming) || latePrefix(p, naming) + displayName(p)}</strong>
+          <strong>{standInName(tree, p, naming) || latePrefix(p, naming) + fullName(tree, p)}</strong>
         </div>
       </div>
       <dl className="tl-card-facts">
