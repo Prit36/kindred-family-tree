@@ -207,7 +207,7 @@ function computeSides(tree: Tree): FamilySides {
       {
         key: 'unconnected',
         title: 'Not connected to you',
-        subtitle: 'No link to you in this tree',
+        subtitle: '', // the title says it all; a repeat only got cut to "No lin…"
         tone: -1,
         parentKey: null,
         depth: 0,

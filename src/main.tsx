@@ -7,8 +7,11 @@ import '@fontsource-variable/noto-sans-gujarati';
 import './styles.css';
 import App from './App';
 import { tidyPhotoStore } from './lib/actions';
+import { installTipPlacement } from './lib/tips';
 import { loadTree } from './lib/treeStore';
 import { hydrate } from './store';
+
+installTipPlacement();
 
 // The saved tree comes from IndexedDB, which is asynchronous; render once it's in place
 // so the welcome screen doesn't flash up for people who already have a tree.

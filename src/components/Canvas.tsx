@@ -31,6 +31,7 @@ import { canvasHandle } from '../lib/canvasHandle';
 import { PersonCard } from './PersonCard';
 import { SidesLegend } from './SidesLegend';
 import { ConnectorTip, type Connector } from './ConnectorTip';
+import { countPeople, num } from '../lib/format';
 
 const STROKE = {
   fill: 'none',
@@ -52,8 +53,6 @@ const familyKey = (parentIds: string[]) => [...parentIds].sort().join('|');
 
 /** How each kind of couple line is drawn: married solid, partners dashed, divorced dotted. */
 const UNION_DASH: Record<string, string | undefined> = { married: undefined, partner: '9 6', divorced: '2 7' };
-
-const countPeople = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`;
 
 const MIN_ZOOM = 0.15;
 /**
@@ -768,7 +767,7 @@ export function Canvas() {
             </button>
           ) : (
             <div className="stats-pill">
-              {hiddenCount > 0 ? `${visible.size} of ${countPeople(total)}` : countPeople(total)} · {layout.generations}{' '}
+              {hiddenCount > 0 ? `${num(visible.size)} of ${countPeople(total)}` : countPeople(total)} · {layout.generations}{' '}
               {layout.generations === 1 ? 'generation' : 'generations'}
             </div>
           )}

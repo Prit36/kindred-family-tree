@@ -31,6 +31,7 @@ import { searchIndex, searchPeople } from '../lib/search';
 import { SIDE_TONES } from '../lib/sides';
 import { displayName, fullName, indexOf, partnersOf, shortName } from '../lib/tree';
 import { Avatar } from './Avatar';
+import { num } from '../lib/format';
 
 const MIN_ZOOM = 0.04;
 const MAX_ZOOM = 4;
@@ -46,9 +47,10 @@ type Box = { minX: number; minY: number; width: number; height: number };
 
 /** "5 generations · 27 descendants · 18 living", in the words relationships are named in. */
 function statsText(gens: number, count: number, living: number, naming: Naming): string {
-  if (naming === 'gu') return `${gens} પેઢી · ${count} વંશજ · ${living} હયાત`;
-  if (naming === 'gu-latn') return `${gens} pedhi · ${count} vanshaj · ${living} hayat`;
-  return `${gens} ${gens === 1 ? 'generation' : 'generations'} · ${count} ${count === 1 ? 'descendant' : 'descendants'} · ${living} living`;
+  const [c, l] = [num(count), num(living)];
+  if (naming === 'gu') return `${gens} પેઢી · ${c} વંશજ · ${l} હયાત`;
+  if (naming === 'gu-latn') return `${gens} pedhi · ${c} vanshaj · ${l} hayat`;
+  return `${gens} ${gens === 1 ? 'generation' : 'generations'} · ${c} ${count === 1 ? 'descendant' : 'descendants'} · ${l} living`;
 }
 
 function descendantsText(n: number, naming: Naming): string {

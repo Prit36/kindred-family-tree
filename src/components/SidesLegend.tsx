@@ -4,8 +4,7 @@ import { useStore } from '../store';
 import { sameFocus } from '../lib/branches';
 import { familySides, type FamilySide } from '../lib/sides';
 import { relationLabels } from '../lib/naming';
-
-const countPeople = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`;
+import { countPeople, num } from '../lib/format';
 
 /**
  * The sides of the family (lib/sides.ts), each in the colour its cards are tinted with.
@@ -123,7 +122,7 @@ export function SidesLegend() {
                       {subtitleOf(side) && <span className="side-sub">{subtitleOf(side)}</span>}
                     </span>
                     <span className="side-count" aria-label={countPeople(side.members.length)}>
-                      {side.members.length}
+                      {num(side.members.length)}
                     </span>
                   </button>
                   {nested > 0 && (

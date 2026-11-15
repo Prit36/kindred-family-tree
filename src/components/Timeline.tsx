@@ -33,6 +33,7 @@ import {
 } from '../lib/timeline';
 import { childrenOf, displayName, fullName, parentsOf, partnersOf, shortName } from '../lib/tree';
 import { Avatar } from './Avatar';
+import { countPeople, num } from '../lib/format';
 
 const ROW_H = 44;
 const AXIS_H = 36;
@@ -64,8 +65,6 @@ function loadOrder(): TimelineOrder {
     return 'birth';
   }
 }
-
-const countPeople = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`;
 
 /** A rough width for a label, to decide whether it fits inside its bar. */
 const textWidth = (s: string) => s.length * 6.4 + 4;
@@ -336,7 +335,7 @@ export function Timeline() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [viewportW, setViewportW] = useState(0);
   const [zoom, setZoom] = useState<number | null>(null); // px per year; null = fit to width
-  const [hover, setHover] = useState<{ year: number; row: string | null } | null>(null);
+  const [hover, setHover] = useState<{ year: number; row: string | null; edge: 'start' | 'end' | null } | null>(null);
   const [tip, setTip] = useState<Tip | null>(null);
 
   const now = useMemo(() => nowYear(), []);
@@ -588,7 +587,8 @@ export function Timeline() {
     let scrollTop = el.scrollTop;
     if (how === 'center') scrollTop = top - Math.max(0, (visibleH - h) / 2);
     else if (top < el.scrollTop) scrollTop = top - ROW_H;
-    else if (top + h > el.scrollTop + visibleH) scrollTop = top + h + ROW_H - visibleH;
+    // Below: leave room for the zoom controls and banner floating over the bottom.
+    else if (top + h + BOTTOM_ROOM > el.scrollTop + visibleH) scrollTop = top + h + BOTTOM_ROOM - visibleH;
 
     const span = rs[i];
     const barX = nw + x(span.start);
@@ -805,8 +805,12 @@ export function Timeline() {
     if (v < nameW) return setHover(null);
     const year = yearAt(v - nameW + el.scrollLeft);
     if (year < from || year > to) return setHover(null);
-    setHover({ year, row: target.closest<HTMLElement>('.tl-row')?.dataset.personId ?? null });
+    // Near either edge of the visible track the readout hangs to one side of the cursor so it stays in view.
+    const half = (cursorLabelRef.current?.offsetWidth ?? 110) / 2 + 4;
+    const edge = v - nameW < half ? 'start' : el.clientWidth - v < half ? 'end' : null;
+    setHover({ year, row: target.closest<HTMLElement>('.tl-row')?.dataset.personId ?? null, edge });
   };
+  const cursorLabelRef = useRef<HTMLSpanElement>(null);
   const readoutRef = useRef(readout);
   readoutRef.current = readout;
   const hoverFrame = useRef(0);
@@ -920,9 +924,9 @@ export function Timeline() {
                   </span>
                 )}
                 {hover && (
-                  <span className="tl-cursor-label" style={{ left: xOf(hover.year) }}>
+                  <span ref={cursorLabelRef} className={`tl-cursor-label${hover.edge ? ` is-${hover.edge}` : ''}`} style={{ left: xOf(hover.year) }}>
                     {Math.floor(hover.year)}
-                    <span>{alive} alive</span>
+                    <span>{num(alive)} alive</span>
                   </span>
                 )}
               </div>
@@ -1057,7 +1061,7 @@ export function Timeline() {
                 <CompareText base={sel} other={comparing} />
               ) : (
                 <span>
-                  <strong>{shortName(sel.person)}</strong> lived alongside {overlapping} of {countPeople(rows.length - 1)}
+                  <strong>{shortName(sel.person)}</strong> lived alongside {num(overlapping)} of {countPeople(rows.length - 1)}
                 </span>
               )
             ) : (
