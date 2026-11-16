@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent,
   type PointerEvent,
   type ReactNode,
@@ -215,6 +216,8 @@ const TimelineRow = memo(function TimelineRow({
     !span.startKnown && 'is-fade-start',
     !span.endKnown && 'is-fade-end',
     span.living && 'is-living',
+    // Ages can only be read off a bar that starts at a known birth.
+    span.startKnown && 'is-ruled',
   ]
     .filter(Boolean)
     .join(' ');
@@ -1011,7 +1014,7 @@ export function Timeline() {
         ) : (
           <div
             className="tl-grid"
-            style={{ width: nameW + trackW, paddingBottom: BOTTOM_ROOM }}
+            style={{ width: nameW + trackW, paddingBottom: BOTTOM_ROOM, '--ppy': ppy } as CSSProperties}
           >
             <div className="tl-axis" style={{ height: AXIS_H }}>
               <div className="tl-corner" style={{ width: nameW }}>

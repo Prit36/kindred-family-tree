@@ -4229,12 +4229,28 @@ kbd {
   border-radius: 8px;
   /* How strongly the bar is tinted: in childhood, through adult life, and from 60 on. */
   --k: 20%;
+  --k-child: 10%;
+  --k-elder: 32%;
   background: color-mix(in srgb, var(--tone) var(--k), var(--surface));
   transition: opacity 0.2s;
 }
 
+/* An age ruler: a notch along the top every ten years, childhood lighter, the years from 60
+   deeper - so anyone's age at any year can be read off their bar. --ppy (pixels per year)
+   comes from the timeline's grid. */
+.tl-bar-fill.is-ruled {
+  background: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--tone) var(--k-child), var(--surface)) calc(var(--ppy) * 18px),
+      color-mix(in srgb, var(--tone) var(--k), var(--surface)) 0 calc(var(--ppy) * 60px),
+      color-mix(in srgb, var(--tone) var(--k-elder), var(--surface)) 0
+    );
+}
+
 .tl-bar:hover > .tl-bar-fill {
   --k: 28%;
+  --k-child: 17%;
+  --k-elder: 41%;
 }
 
 /* Still alive: the bar runs on into today. */
@@ -4264,6 +4280,8 @@ kbd {
 .tl-row.is-selected .tl-bar-fill {
   border: 1.5px solid var(--tone);
   --k: 34%;
+  --k-child: 21%;
+  --k-elder: 48%;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 16%, transparent);
 }
 
@@ -4284,6 +4302,8 @@ kbd {
 .tl-bar-lit > .tl-bar-fill {
   right: auto;
   --k: 26%;
+  --k-child: 15%;
+  --k-elder: 38%;
 }
 
 .tl-bar-label {
