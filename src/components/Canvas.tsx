@@ -1,11 +1,11 @@
-import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { select } from 'd3-selection';
 import 'd3-transition';
 import { zoom, zoomIdentity, zoomTransform, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-import { ChevronRight, EyeOff, House, Maximize, Minus, Network, Plus, UsersRound } from 'lucide-react';
+import { EyeOff, House, Maximize, Minus, Network, Plus, UsersRound } from 'lucide-react';
 import type { Relation, Tree } from '../types';
-import { shownLine, trailOf, useStore, type LineStop } from '../store';
+import { shownLine, trailOf, useStore } from '../store';
 import {
   CARD_H,
   CARD_W,
@@ -20,7 +20,7 @@ import {
   type UnionLine,
 } from '../lib/layout';
 import { branchToggles, focusSet, subTree, visibleIds } from '../lib/branches';
-import { bridgeOf, lineTitle, type Bridge } from '../lib/lines';
+import { bridgeOf, familyWords, type Bridge } from '../lib/lines';
 import { familySides } from '../lib/sides';
 import { relationLabels } from '../lib/naming';
 import { shapeOf } from '../lib/shape';
@@ -31,6 +31,8 @@ import { downloadTreePng } from '../lib/files';
 import { canvasHandle } from '../lib/canvasHandle';
 import { PersonCard } from './PersonCard';
 import { SidesLegend } from './SidesLegend';
+import type { DeckCard } from './FamilyDeck';
+import { FamilyBar } from './FamilyBar';
 import { ConnectorTip, type Connector } from './ConnectorTip';
 import { countPeople, num } from '../lib/format';
 
@@ -169,6 +171,7 @@ export function Canvas() {
   });
 
   const naming = useStore((s) => s.naming);
+  const words = familyWords(naming);
   const kin = relationLabels(tree, naming);
   // Cards redraw their names when the script changes, or a Gujarati spelling is corrected.
   const nameStyle = naming === 'gu' ? (tree.spellings ?? naming) : 'latin';
@@ -247,11 +250,11 @@ export function Canvas() {
     const out = new Map<string, Bridge>();
     if (!byLine || !line) return out;
     for (const id of visible) {
-      const b = bridgeOf(tree, line, id);
+      const b = bridgeOf(tree, line, id, naming);
       if (b) out.set(id, b);
     }
     return out;
-  }, [tree, byLine, line, visible]);
+  }, [tree, byLine, line, visible, naming]);
   const showLine = useStore((s) => s.showLine);
   const bridgesRef = useRef(bridges);
   bridgesRef.current = bridges;
@@ -265,6 +268,86 @@ export function Canvas() {
     },
     [showLine],
   );
+
+  // --- The deck of linked families ----------------------------------------------
+  // Every family a bridge leads to is a card in the deck, left to right in the order of the
+  // people leading there, so their threads cross as little as they can.
+  const deck = useMemo<DeckCard[]>(() => {
+    const by = new Map<string, string[]>();
+    for (const [id, b] of bridges) {
+      if (!layout.nodes[id]) continue;
+      const via = by.get(b.line);
+      if (via) via.push(id);
+      else by.set(b.line, [id]);
+    }
+    const x = (id: string) => layout.nodes[id].x;
+    const mean = (ids: string[]) => ids.reduce((sum, id) => sum + x(id), 0) / ids.length;
+    return [...by]
+      .map(([line, via]) => ({ line, via: via.sort((a, b) => x(a) - x(b)) }))
+      .sort((a, b) => mean(a.via) - mean(b.via));
+  }, [bridges, layout]);
+  const onDeck = useCallback(
+    (card: DeckCard) => {
+      foldedAt.current = card.via[0];
+      showLine(card.line, card.via[0]);
+    },
+    [showLine],
+  );
+
+  // A thread runs from each card in the deck down to everyone leading to that family. The
+  // threads are drawn straight onto the page as the tree pans (not re-rendered).
+  const threadsRef = useRef<SVGSVGElement>(null);
+  /** Where each family's card in the deck takes its threads: the middle of its bottom edge. */
+  const anchors = useRef(new Map<string, { x: number; y: number }>());
+  const drawThreads = useCallback((t?: ZoomTransform) => {
+    const svg = threadsRef.current;
+    const vp = viewportRef.current;
+    if (!svg || !vp) return;
+    const { x: tx, y: ty, k } = t ?? zoomTransform(vp);
+    const nodes = layoutRef.current.nodes;
+    for (const g of Array.from(svg.children) as SVGGElement[]) {
+      const from = anchors.current.get(g.dataset.line!);
+      const n = nodes[g.dataset.via!];
+      const cx = n ? tx + (n.x + CARD_W / 2) * k : 0;
+      const cy = n ? ty + n.y * k : 0;
+      // A card passing up behind the deck lets go of its thread.
+      if (!from || !n || cy < from.y + 12) {
+        g.style.display = 'none';
+        continue;
+      }
+      g.style.display = '';
+      const bend = Math.max(36, (cy - from.y) * 0.5);
+      g.firstElementChild!.setAttribute('d', `M${from.x} ${from.y}C${from.x} ${from.y + bend} ${cx} ${cy - bend} ${cx} ${cy}`);
+      g.lastElementChild!.setAttribute('cx', `${cx}`);
+      g.lastElementChild!.setAttribute('cy', `${cy}`);
+    }
+  }, []);
+  const measureDeck = useCallback(() => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    const box = vp.getBoundingClientRect();
+    const out = new Map<string, { x: number; y: number }>();
+    for (const el of vp.querySelectorAll<HTMLElement>('.family-chip')) {
+      const r = el.getBoundingClientRect();
+      out.set(el.dataset.line!, { x: r.left + r.width / 2 - box.left, y: r.bottom - box.top });
+    }
+    anchors.current = out;
+    drawThreads();
+  }, [drawThreads]);
+  // After every render (the deck can shift with the families visited, the trail's length or
+  // a late font) - it's only a few cards to measure.
+  useLayoutEffect(measureDeck);
+  useEffect(() => {
+    document.fonts?.ready.then(measureDeck);
+  }, [measureDeck]);
+  /** Lights up one family's card and threads (resting on the card, or on a bridge to it). */
+  const lightLine = useCallback((line: string | null) => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    for (const el of vp.querySelectorAll<HTMLElement | SVGElement>('.family-chip, .deck-threads > g, .bridge[data-line]')) {
+      el.classList.toggle('is-hot', line !== null && el.dataset.line === line);
+    }
+  }, []);
 
   const toggleKeysBefore = useRef<Set<string> | null>(null);
   const freshToggles = useMemo(() => {
@@ -317,7 +400,7 @@ export function Canvas() {
         if (e.type === 'wheel') return true;
         if (e.button) return false;
         // Let buttons on the canvas be clicked without starting a drag.
-        return !(e.target as HTMLElement).closest('.quick-add, .branch-toggle, .bridge, .canvas-controls, .sides, .line-trail');
+        return !(e.target as HTMLElement).closest('.quick-add, .branch-toggle, .bridge, .canvas-controls, .sides, .line-head');
       })
       .on('zoom', (event: { transform: ZoomTransform }) => {
         const t = event.transform;
@@ -334,6 +417,7 @@ export function Canvas() {
         viewport.style.backgroundSize = `${grid}px ${grid}px`;
         viewport.style.backgroundPosition = `${t.x}px ${t.y}px`;
         syncView(t);
+        drawThreads(t);
       });
     zoomRef.current = behavior;
     select(viewport).call(behavior).on('dblclick.zoom', null);
@@ -341,6 +425,7 @@ export function Canvas() {
     // A bigger window shows more of the tree.
     const resize = new ResizeObserver(() => {
       syncView(zoomTransform(viewport));
+      measureDeck();
     });
     resize.observe(viewport);
     return () => {
@@ -348,13 +433,17 @@ export function Canvas() {
       select(viewport).on('.zoom', null);
       lineHover.set(null);
     };
-  }, [syncView]);
+  }, [syncView, drawThreads, measureDeck]);
 
   /** Screen area not covered by the top bar or the details panel. */
   const visibleArea = useCallback(() => {
     const viewport = viewportRef.current!;
     const left = 0;
-    const top = TOP_INSET;
+    // Below the top bar - and below the family bar, when there is one.
+    const deckEl = viewport.querySelector('.line-head');
+    const top = deckEl
+      ? Math.max(TOP_INSET, deckEl.getBoundingClientRect().bottom - viewport.getBoundingClientRect().top + 16)
+      : TOP_INSET;
     let right = viewport.clientWidth;
     let bottom = viewport.clientHeight;
     // The panel docks to the right on wide screens and becomes a bottom sheet on narrow ones.
@@ -373,24 +462,146 @@ export function Canvas() {
     else select(viewport).interrupt().call(behavior.transform, t);
   }, []);
 
+  // --- Swapping families -----------------------------------------------------------
+  // Moving to another family is a card shuffle: the family on show tilts back into the deck
+  // as the other one's card comes forward and becomes the canvas. The browser's view
+  // transitions do the flying (where there are none, or motion is turned down, it's a cut).
+  const planeRef = useRef<HTMLDivElement>(null);
+  const instantUntil = useRef(0);
+  const lineNow = useRef<string | null>(null);
+  lineNow.current = byLine ? line : null;
+  useEffect(() => {
+    let running: ViewTransition | null = null;
+    // What is named for the shuffle under way. One at a time: a new shuffle cuts the last one
+    // short, and starts by clearing its names (two of a name would spoil both).
+    const named = new Set<HTMLElement>();
+    const name = (el: HTMLElement | null, as: string) => {
+      if (!el) return;
+      el.style.viewTransitionName = as;
+      // Its tip would be pictured with it, and grow with it.
+      el.classList.add('is-flying');
+      named.add(el);
+    };
+    const unname = () => {
+      for (const el of named) {
+        el.style.viewTransitionName = '';
+        el.classList.remove('is-flying');
+      }
+      named.clear();
+    };
+    canvasHandle.swapLine = (to, apply) => {
+      const vp = viewportRef.current;
+      const plane = planeRef.current;
+      const from = lineNow.current;
+      if (
+        !vp ||
+        !plane ||
+        !document.startViewTransition ||
+        from === to ||
+        document.visibilityState !== 'visible' ||
+        matchMedia('(prefers-reduced-motion: reduce)').matches
+      ) {
+        apply();
+        return;
+      }
+      running?.skipTransition();
+      unname();
+      const sheetOf = (l: string | null) =>
+        l ? vp.querySelector<HTMLElement>(`.family-chip[data-line="${CSS.escape(l)}"]`) : null;
+      // Before: the canvas is the card going back, the chosen card in the deck the one coming out.
+      name(plane, 'family-out');
+      name(sheetOf(to), 'family-in');
+      vp.dataset.shuffling = '';
+      const vt = document.startViewTransition(() => {
+        // A shuffle cut short by a newer one still makes its change, but names nothing.
+        const current = running === vt;
+        if (current) unname();
+        instantUntil.current = performance.now() + 250;
+        flushSync(apply);
+        if (!current) return;
+        // After: the canvas is the family come out, and the one it replaced has a card in the deck.
+        name(plane, 'family-in');
+        name(sheetOf(from), 'family-out');
+      });
+      running = vt;
+      vt.finished.finally(() => {
+        if (running !== vt) return;
+        unname();
+        delete vp.dataset.shuffling;
+        running = null;
+        measureDeck();
+      });
+    };
+    return () => {
+      running?.skipTransition();
+      canvasHandle.swapLine = null;
+    };
+  }, [measureDeck]);
+
+  // Whoever led to the family just shown, to pick out once their card is drawn (it may
+  // only be drawn after the view has moved to it).
+  const arrival = useRef<{ id: string; until: number } | null>(null);
+  const markArrival = useCallback(() => {
+    const due = arrival.current;
+    if (!due) return;
+    if (performance.now() > due.until) {
+      arrival.current = null;
+      return;
+    }
+    const card = viewportRef.current?.querySelector<HTMLElement>(`.card-slot[data-person-id="${CSS.escape(due.id)}"] .card`);
+    if (!card) return;
+    arrival.current = null;
+    card.classList.remove('is-arrived');
+    void card.offsetWidth;
+    card.classList.add('is-arrived');
+    const done = (e: AnimationEvent) => {
+      if (e.animationName !== 'card-arrive') return;
+      card.classList.remove('is-arrived');
+      card.removeEventListener('animationend', done);
+    };
+    card.addEventListener('animationend', done);
+  }, []);
+  useLayoutEffect(markArrival);
+
   // Respond to "fit", "focus on person" and "make sure person is visible" requests.
   useEffect(() => {
     const viewport = viewportRef.current!;
     const { nodes, bounds } = layoutRef.current;
     const area = visibleArea();
-    const animate = view.nonce > 0;
+    // While families are swapped the cards fly as a whole, so the view jumps straight there.
+    const animate = view.nonce > 0 && performance.now() > instantUntil.current;
     const margin = 56;
     const fitK = Math.max(
       MIN_ZOOM,
       Math.min(1, (area.width - margin * 2) / bounds.width, (area.height - margin * 2) / bounds.height),
     );
 
-    // Another family was just shown: all of it in view if the names can still be read,
-    // otherwise whoever led there, in the middle.
-    if (view.kind === 'line' && bounds.width > 0 && fitK >= FAR_ZOOM) {
-      const x = area.left + (area.width - bounds.width * fitK) / 2 - bounds.minX * fitK;
-      const y = area.top + (area.height - bounds.height * fitK) / 2 - bounds.minY * fitK;
-      moveTo(zoomIdentity.translate(x, y).scale(fitK), animate);
+    // Another family was just shown: all of it in view if the names can still be read;
+    // otherwise as much of it as fits at a size they can, round its middle, with whoever
+    // led there still in sight. They're picked out for a moment, so the eye finds them.
+    if (view.kind === 'line' && bounds.width > 0) {
+      // FAR_ZOOM: the smallest size cards are drawn in full, names and all.
+      const k = Math.max(fitK, FAR_ZOOM);
+      let x = area.left + area.width / 2 - (bounds.minX + bounds.width / 2) * k;
+      let y = area.top + area.height / 2 - (bounds.minY + bounds.height / 2) * k;
+      if (k > fitK) {
+        // Start from the top of the family rather than its middle generation.
+        y = Math.min(y, area.top + margin - bounds.minY * k);
+        const via = view.id ? nodes[view.id] : undefined;
+        if (via) {
+          const pad = 40;
+          const [l, t] = [x + via.x * k, y + via.y * k];
+          const [r, b] = [l + CARD_W * k, t + CARD_H * k];
+          if (l < area.left + pad) x += area.left + pad - l;
+          else if (r > area.right - pad) x -= r - (area.right - pad);
+          if (t < area.top + pad) y += area.top + pad - t;
+          else if (b > area.bottom - pad) y -= b - (area.bottom - pad);
+        }
+      }
+      moveTo(zoomIdentity.translate(x, y).scale(k), animate);
+      // Not when a family was simply chosen: then it's reached through the person at its top.
+      arrival.current = view.id && view.id !== lineNow.current ? { id: view.id, until: performance.now() + 1500 } : null;
+      markArrival();
       return;
     }
 
@@ -435,7 +646,7 @@ export function Canvas() {
     const x = area.left + area.width / 2 - (pos.x + CARD_W / 2) * k;
     const y = area.top + area.height / 2 - (pos.y + CARD_H / 2) * k;
     moveTo(zoomIdentity.translate(x, y).scale(k), animate);
-  }, [view, moveTo, visibleArea]);
+  }, [view, moveTo, visibleArea, markArrival]);
 
   const zoomBy = (factor: number) => {
     const viewport = viewportRef.current!;
@@ -614,172 +825,200 @@ export function Canvas() {
       ref={viewportRef}
       className="viewport"
       data-zoom={drawFar ? 'far' : 'near'}
+      onPointerOver={(e) => {
+        const bridge = (e.target as Element).closest<HTMLElement>('.bridge[data-line]');
+        if (bridge) lightLine(bridge.dataset.line!);
+      }}
+      onPointerOut={(e) => {
+        const to = e.relatedTarget instanceof Element ? e.relatedTarget.closest('.bridge[data-line]') : null;
+        if ((e.target as Element).closest('.bridge[data-line]') && !to) lightLine(null);
+      }}
       onClick={(e) => {
         if (lineHover.get()) lineHover.set(null);
-        if (!(e.target as HTMLElement).closest('.card-slot, .canvas-controls, .sides, .line-trail')) select_(null);
+        if (!(e.target as HTMLElement).closest('.card-slot, .canvas-controls, .sides, .line-head')) select_(null);
       }}
     >
-      <div ref={worldRef} className={`world${peeked ? ' is-peeking' : ''}`}>
-        {/* Colours come from `currentColor` and shapes from attributes (not CSS classes) so
-            the lines survive being cloned for image export. */}
-        <svg className="links" width="1" height="1" aria-hidden="true" {...STROKE}>
-          {layout.links.map(
-            (l) =>
-              inWin(drawWin, l.box) && (
-                <path
-                  key={l.childId}
-                  className={isFreshNode(l.childId) ? 'child-link is-fresh' : 'child-link'}
-                  d={l.d}
-                  data-tone={toneOf(l.parentIds[0])}
-                />
-              ),
-          )}
-          {/* Couples on top of the lines to their children, a little heavier so a partner
-              line never reads as a parent line. */}
-          {layout.unions.map(
-            (u) =>
-              inWin(drawWin, u.box) && (
-                <path
-                  key={u.id}
-                  className={isFreshUnion(u.id) ? 'union-line is-fresh' : 'union-line'}
-                  d={u.d}
-                  data-tone={toneOf(u.a)}
-                  strokeWidth={2.6}
-                  strokeDasharray={UNION_DASH[u.status]}
-                />
-              ),
-          )}
-          {layout.unions.map(
-            (u) =>
-              inWin(drawWin, u.box) && (
-                <circle
-                  key={`ring-${u.id}`}
-                  className={isFreshUnion(u.id) ? 'union-ring is-fresh' : 'union-ring'}
-                  cx={u.midX}
-                  cy={u.midY}
-                  r={UNION_RING}
-                  data-tone={toneOf(u.a)}
-                />
-              ),
-          )}
-          {/* A folded branch leaves a short stub, so the line visibly leads somewhere. */}
+      <svg ref={threadsRef} className="deck-threads" aria-hidden="true">
+        {deck.flatMap((card) =>
+          card.via.map((id) => (
+            <g key={`${card.line}:${id}`} data-line={card.line} data-via={id}>
+              <path />
+              <circle r={3.5} />
+            </g>
+          )),
+        )}
+      </svg>
+
+      {/* The canvas is the card in front of the deck: it's what flies when families swap. */}
+      <div ref={planeRef} className="plane">
+        <div ref={worldRef} className={`world${peeked ? ' is-peeking' : ''}`}>
+          {/* Colours come from `currentColor` and shapes from attributes (not CSS classes) so
+              the lines survive being cloned for image export. */}
+          <svg className="links" width="1" height="1" aria-hidden="true" {...STROKE}>
+            {layout.links.map(
+              (l) =>
+                inWin(drawWin, l.box) && (
+                  <path
+                    key={l.childId}
+                    className={isFreshNode(l.childId) ? 'child-link is-fresh' : 'child-link'}
+                    d={l.d}
+                    data-tone={toneOf(l.parentIds[0])}
+                  />
+                ),
+            )}
+            {/* Couples on top of the lines to their children, a little heavier so a partner
+                line never reads as a parent line. */}
+            {layout.unions.map(
+              (u) =>
+                inWin(drawWin, u.box) && (
+                  <path
+                    key={u.id}
+                    className={isFreshUnion(u.id) ? 'union-line is-fresh' : 'union-line'}
+                    d={u.d}
+                    data-tone={toneOf(u.a)}
+                    strokeWidth={2.6}
+                    strokeDasharray={UNION_DASH[u.status]}
+                  />
+                ),
+            )}
+            {layout.unions.map(
+              (u) =>
+                inWin(drawWin, u.box) && (
+                  <circle
+                    key={`ring-${u.id}`}
+                    className={isFreshUnion(u.id) ? 'union-ring is-fresh' : 'union-ring'}
+                    cx={u.midX}
+                    cy={u.midY}
+                    r={UNION_RING}
+                    data-tone={toneOf(u.a)}
+                  />
+                ),
+            )}
+            {/* A folded branch leaves a short stub, so the line visibly leads somewhere. */}
+            {toggles.map(
+              (t) =>
+                t.collapsed &&
+                inWin(drawWin, t.box) && (
+                  <path
+                    key={t.key}
+                    className={freshToggles?.has(t.key) && freshNow ? 'branch-stub is-fresh' : 'branch-stub'}
+                    d={`M ${t.x} ${t.from} L ${t.x} ${t.y}`}
+                  />
+                ),
+            )}
+          </svg>
+          <svg
+            className="links links-lit"
+            width="1"
+            height="1"
+            aria-hidden="true"
+            data-no-export=""
+            {...STROKE}
+            strokeWidth={2.6}
+          >
+            <g className={path ? 'lit-lineage is-secondary' : 'lit-lineage'}>
+              {litLinks.map((l) => inWin(drawWin, l.box) && <path key={l.childId} className="child-link" d={l.d} />)}
+            </g>
+            <g className="lit-path" strokeWidth={3.4}>
+              {pathUnions.map((u) => (
+                <path key={u.id} className="union-line" d={u.d} />
+              ))}
+              {pathLinks.map((l) => (
+                <path key={l.childId} className="child-link" d={l.d} />
+              ))}
+              {pathUnions.map((u) => (
+                <circle key={`ring-${u.id}`} className="union-ring" cx={u.midX} cy={u.midY} r={UNION_RING} />
+              ))}
+            </g>
+          </svg>
+          <HoverLines layout={layout} families={families} unionById={unionById} toneOf={toneOf} />
+          {/* Wide invisible strokes over every line, so a line is easy to rest on. Under the
+              cards, so they still get the clicks. */}
+          <svg
+            className="links links-hit"
+            width="1"
+            height="1"
+            aria-hidden="true"
+            data-no-export=""
+            fill="none"
+            {...lineEvents}
+          >
+            {layout.links.map(
+              (l) =>
+                inWin(drawWin, l.box) && (
+                  <path key={l.childId} d={l.d} data-line="family" data-key={familyKey(l.parentIds)} />
+                ),
+            )}
+            {layout.unions.map(
+              (u) => inWin(drawWin, u.box) && <path key={u.id} d={u.d} data-line="union" data-key={u.id} />,
+            )}
+          </svg>
+
+          <Cards
+            tree={tree}
+            nameStyle={nameStyle}
+            layout={layout}
+            win={drawWin}
+            far={drawFar}
+            selectedId={selectedId}
+            compareId={compareId}
+            pathCards={path?.cards ?? null}
+            kin={kin}
+            sides={sideColours ? sides : null}
+            peeked={peeked}
+            placeholders={placeholders}
+            isFresh={isFreshNode}
+            bridges={bridges}
+            onBridge={onBridge}
+            onSelect={onSelect}
+            onCompare={onCompare}
+            onEdit={onEdit}
+            onAdd={onAdd}
+          />
+
           {toggles.map(
             (t) =>
-              t.collapsed &&
               inWin(drawWin, t.box) && (
-                <path
-                  key={t.key}
-                  className={freshToggles?.has(t.key) && freshNow ? 'branch-stub is-fresh' : 'branch-stub'}
-                  d={`M ${t.x} ${t.from} L ${t.x} ${t.y}`}
-                />
+                <div key={t.key} className="branch-slot" style={{ transform: `translate(${t.x}px, ${t.y}px)` }}>
+                  <button
+                    type="button"
+                    className={`branch-toggle is-${t.kind}${t.collapsed ? ' is-collapsed' : ''}${freshToggles?.has(t.key) && freshNow ? ' is-fresh' : ''}`}
+                    // Folded branches stay marked in an exported image; the fold buttons themselves don't.
+                    data-no-export={t.collapsed ? undefined : ''}
+                    data-tip={`${t.collapsed ? 'Show' : 'Hide'} ${countPeople(t.count)}`}
+                    aria-label={t.label}
+                    aria-expanded={!t.collapsed}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      foldedAt.current = t.ids[0];
+                      toggleCollapse(t.key);
+                    }}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                  >
+                    {t.collapsed ? `+${t.count}` : <Minus size={10} strokeWidth={3.2} />}
+                  </button>
+                </div>
               ),
           )}
-        </svg>
-        <svg
-          className="links links-lit"
-          width="1"
-          height="1"
-          aria-hidden="true"
-          data-no-export=""
-          {...STROKE}
-          strokeWidth={2.6}
-        >
-          <g className={path ? 'lit-lineage is-secondary' : 'lit-lineage'}>
-            {litLinks.map((l) => inWin(drawWin, l.box) && <path key={l.childId} className="child-link" d={l.d} />)}
-          </g>
-          <g className="lit-path" strokeWidth={3.4}>
-            {pathUnions.map((u) => (
-              <path key={u.id} className="union-line" d={u.d} />
-            ))}
-            {pathLinks.map((l) => (
-              <path key={l.childId} className="child-link" d={l.d} />
-            ))}
-            {pathUnions.map((u) => (
-              <circle key={`ring-${u.id}`} className="union-ring" cx={u.midX} cy={u.midY} r={UNION_RING} />
-            ))}
-          </g>
-        </svg>
-        <HoverLines layout={layout} families={families} unionById={unionById} toneOf={toneOf} />
-        {/* Wide invisible strokes over every line, so a line is easy to rest on. Under the
-            cards, so they still get the clicks. */}
-        <svg
-          className="links links-hit"
-          width="1"
-          height="1"
-          aria-hidden="true"
-          data-no-export=""
-          fill="none"
-          {...lineEvents}
-        >
-          {layout.links.map(
-            (l) =>
-              inWin(drawWin, l.box) && (
-                <path key={l.childId} d={l.d} data-line="family" data-key={familyKey(l.parentIds)} />
-              ),
-          )}
-          {layout.unions.map(
-            (u) => inWin(drawWin, u.box) && <path key={u.id} d={u.d} data-line="union" data-key={u.id} />,
-          )}
-        </svg>
 
-        <Cards
-          tree={tree}
-          nameStyle={nameStyle}
-          layout={layout}
-          win={drawWin}
-          far={drawFar}
-          selectedId={selectedId}
-          compareId={compareId}
-          pathCards={path?.cards ?? null}
-          kin={kin}
-          sides={sideColours ? sides : null}
-          peeked={peeked}
-          placeholders={placeholders}
-          isFresh={isFreshNode}
-          bridges={bridges}
-          onBridge={onBridge}
-          onSelect={onSelect}
-          onCompare={onCompare}
-          onEdit={onEdit}
-          onAdd={onAdd}
-        />
-
-        {toggles.map(
-          (t) =>
-            inWin(drawWin, t.box) && (
-              <div key={t.key} className="branch-slot" style={{ transform: `translate(${t.x}px, ${t.y}px)` }}>
-                <button
-                  type="button"
-                  className={`branch-toggle is-${t.kind}${t.collapsed ? ' is-collapsed' : ''}${freshToggles?.has(t.key) && freshNow ? ' is-fresh' : ''}`}
-                  // Folded branches stay marked in an exported image; the fold buttons themselves don't.
-                  data-no-export={t.collapsed ? undefined : ''}
-                  data-tip={`${t.collapsed ? 'Show' : 'Hide'} ${countPeople(t.count)}`}
-                  aria-label={t.label}
-                  aria-expanded={!t.collapsed}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    foldedAt.current = t.ids[0];
-                    toggleCollapse(t.key);
-                  }}
-                  onDoubleClick={(e) => e.stopPropagation()}
-                >
-                  {t.collapsed ? `+${t.count}` : <Minus size={10} strokeWidth={3.2} />}
-                </button>
-              </div>
-            ),
-        )}
-
+        </div>
       </div>
 
       {byLine && line && (
-        <LineTrail
-          tree={tree}
-          trail={trailOf(tree, lines)}
-          onGo={(stop) => {
-            foldedAt.current = stop.via;
-            showLine(stop.line, stop.via);
-          }}
-        />
+        <div className="line-head">
+          <FamilyBar
+            tree={tree}
+            trail={trailOf(tree, lines)}
+            linked={deck}
+            onGo={(to, via) => {
+              foldedAt.current = via;
+              showLine(to, via);
+            }}
+            onLinked={onDeck}
+            onHot={lightLine}
+            onWholeTree={() => useStore.getState().setLines(false)}
+          />
+        </div>
       )}
 
       <HoverTip tree={tree} layout={layout} families={families} unionById={unionById} toneOf={toneOf} viewportRef={viewportRef} />
@@ -838,45 +1077,17 @@ export function Canvas() {
             </button>
           ) : (
             <div className="stats-pill">
-              {hiddenCount > 0 ? `${num(visible.size)} of ${countPeople(total)}` : countPeople(total)} · {layout.generations}{' '}
-              {layout.generations === 1 ? 'generation' : 'generations'}
+              {byLine
+                ? words.people(visible.size)
+                : hiddenCount > 0
+                  ? `${num(visible.size)} / ${words.people(total)}`
+                  : words.people(total)}{' '}
+              · {words.generations(layout.generations)}
             </div>
           )}
         </div>
       )}
     </div>
-  );
-}
-
-interface LineTrailProps {
-  tree: Tree;
-  trail: LineStop[];
-  onGo: (stop: LineStop) => void;
-}
-
-/** The families visited, ending with the one on show; each a way back. */
-function LineTrail({ tree, trail, onGo }: LineTrailProps) {
-  return (
-    <nav className="view-bar line-trail" aria-label="Families visited">
-      {trail.map((stop, i) => {
-        const name = lineTitle(tree, stop.line, stop.via);
-        const here = i === trail.length - 1;
-        return (
-          <Fragment key={stop.line}>
-            {i > 0 && <ChevronRight className="line-trail-sep" size={14} aria-hidden="true" />}
-            {here ? (
-              <span className="line-trail-step is-here" aria-current="location">
-                {name}
-              </span>
-            ) : (
-              <button type="button" className="line-trail-step" onClick={() => onGo(stop)} aria-label={`Back to ${name}`}>
-                {name}
-              </button>
-            )}
-          </Fragment>
-        );
-      })}
-    </nav>
   );
 }
 

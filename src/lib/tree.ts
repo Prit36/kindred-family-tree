@@ -42,7 +42,8 @@ export function blankInput(partial: Partial<PersonInput> = {}): PersonInput {
  * Names are shown in the script chosen (see gujaratiNames.ts): "Bharatbhai Mojidra", or
  * ભરતભાઈ મોજીદ્રા in Gujarati. They are always stored in English letters.
  */
-function shown(text: string): string {
+/** A name, or part of one, in the script names are shown in: "Mojidra" or મોજીદ્રા. */
+export function shown(text: string): string {
   const script = nameScript();
   return script.gujarati ? toGujarati(text, script.spellings) : text.trim();
 }

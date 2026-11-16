@@ -30,8 +30,8 @@ import { addRelative, pickPhotoFor, viewPhoto } from '../lib/actions';
 import { focusSet, sameFocus, type FocusScope } from '../lib/branches';
 import { familySides } from '../lib/sides';
 import { familyLabel } from '../lib/lines';
-import { ageOf, compareByBirth, formatDate, lifespan, parseDate, yearOf } from '../lib/dates';
-import { relationLabels, relationName } from '../lib/naming';
+import { ageOf, compareByBirth, lifespan, parseDate, shownDate as formatDate, yearOf } from '../lib/dates';
+import { relationLabels, relationName, type Naming } from '../lib/naming';
 import {
   childrenOf,
   displayName,
@@ -68,7 +68,54 @@ const ADD: AddOption[] = [
   { relation: 'child', label: 'Child', icon: <ArrowDown size={16} /> },
 ];
 
-const STATUS_LABEL: Record<UnionStatus, string> = { married: 'married', partner: 'partners', divorced: 'divorced' };
+const STATUS_LABEL: Record<Naming, Record<UnionStatus, string>> = {
+  en: { married: 'married', partner: 'partners', divorced: 'divorced' },
+  gu: { married: 'પરિણીત', partner: 'સાથી', divorced: 'છૂટાછેડા' },
+  'gu-latn': { married: 'parinit', partner: 'sathi', divorced: 'chhutachheda' },
+};
+
+/** The panel's words about a life and a family, in the naming chosen for relationships. */
+const LIFE_WORDS: Record<Naming, {
+  children: (n: number) => string;
+  descendants: (n: number) => string;
+  died: (date: string) => string;
+  aged: (n: number) => string;
+  years: (n: number) => string;
+  family: string;
+  everyone: string;
+  scopes: Record<FocusScope, string>;
+}> = {
+  en: {
+    children: (n) => `${n} ${n === 1 ? 'child' : 'children'}`,
+    descendants: (n) => `${n} descendants`,
+    died: (date) => `Died ${date || 'date unknown'}`,
+    aged: (n) => `aged ${n}`,
+    years: (n) => `${n} ${n === 1 ? 'year' : 'years'}`,
+    family: 'Family',
+    everyone: 'Everyone',
+    scopes: { line: 'Line', close: 'Close', family: 'Family' } as Record<FocusScope, string>,
+  },
+  gu: {
+    children: (n) => `${n} સંતાન`,
+    descendants: (n) => `${n} વંશજ`,
+    died: (date) => `અવસાન ${date || 'તારીખ અજ્ઞાત'}`,
+    aged: (n) => `${n} વર્ષની વયે`,
+    years: (n) => `${n} વર્ષ`,
+    family: 'પરિવાર',
+    everyone: 'બધા',
+    scopes: { line: 'વંશ', close: 'નજીકના', family: 'સગાં' } as Record<FocusScope, string>,
+  },
+  'gu-latn': {
+    children: (n) => `${n} santan`,
+    descendants: (n) => `${n} vanshaj`,
+    died: (date) => `Avsaan ${date || 'tarikh agnyat'}`,
+    aged: (n) => `${n} varsh ni vaye`,
+    years: (n) => `${n} varsh`,
+    family: 'Parivar',
+    everyone: 'Badha',
+    scopes: { line: 'Vansh', close: 'Najik na', family: 'Saga' } as Record<FocusScope, string>,
+  },
+};
 
 /**
  * What gives way, in turn, when there isn't room: a generation too wide for one line
@@ -412,9 +459,9 @@ function Details({
         value={union.status}
         onChange={(e) => commit(setUnionStatus(tree, union.id, e.target.value as UnionStatus))}
       >
-        {(Object.keys(STATUS_LABEL) as UnionStatus[]).map((s) => (
+        {(Object.keys(STATUS_LABEL.en) as UnionStatus[]).map((s) => (
           <option key={s} value={s}>
-            {STATUS_LABEL[s]}
+            {STATUS_LABEL[naming][s]}
           </option>
         ))}
       </select>
@@ -487,14 +534,14 @@ function Details({
     const left = born || person.birthPlace ? { value: born || person.birthPlace, sub: born ? person.birthPlace : '' } : null;
     const middle = children.length
       ? {
-          value: `${children.length} ${children.length === 1 ? 'child' : 'children'}`,
-          sub: descendants > children.length ? `${descendants} descendants` : yearSpan(children),
+          value: LIFE_WORDS[naming].children(children.length),
+          sub: descendants > children.length ? LIFE_WORDS[naming].descendants(descendants) : yearSpan(children),
         }
       : null;
     const right = person.deceased
-      ? { value: `Died ${formatDate(person.deathDate) || 'date unknown'}`, sub: age !== null ? `aged ${age}` : '' }
+      ? { value: LIFE_WORDS[naming].died(formatDate(person.deathDate)), sub: age !== null ? LIFE_WORDS[naming].aged(age) : '' }
       : age !== null
-        ? { value: `${age} ${age === 1 ? 'year' : 'years'}`, sub: '' }
+        ? { value: LIFE_WORDS[naming].years(age), sub: '' }
         : null;
     if (!span && !left && !middle && !right) return null;
 
@@ -696,7 +743,7 @@ function Details({
         <section className="pp-family" aria-label="Family">
           {/* Keep the family heading and scope selector on one balanced line. */}
           <div className="pp-family-head">
-            <h3>Family</h3>
+            <h3>{LIFE_WORDS[naming].family}</h3>
             {scopes.length > 0 && (
               <select
                 className="toolbar-select focus-options"
@@ -704,9 +751,9 @@ function Details({
                 value={focusedScope ?? 'all'}
                 onChange={(e) => e.target.value === 'all' ? clearFocus() : focusOn(person.id, e.target.value as FocusScope)}
               >
-                <option value="all">{linesOn ? familyLabel(tree, person.id) : `Everyone (${total.toLocaleString()})`}</option>
-                {scopes.map(({ scope, label, size }) => (
-                  <option key={scope} value={scope}>{label} ({size.toLocaleString()})</option>
+                <option value="all">{linesOn ? familyLabel(tree, person.id, naming) : `${LIFE_WORDS[naming].everyone} (${total.toLocaleString()})`}</option>
+                {scopes.map(({ scope, size }) => (
+                  <option key={scope} value={scope}>{LIFE_WORDS[naming].scopes[scope]} ({size.toLocaleString()})</option>
                 ))}
               </select>
             )}

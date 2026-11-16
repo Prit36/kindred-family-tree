@@ -15,7 +15,7 @@ import { Baby, CalendarPlus, Flower2, House, Maximize, Minus, Plus } from 'lucid
 import type { Person } from '../types';
 import { useStore } from '../store';
 import { focusSet } from '../lib/branches';
-import { ageOf, formatDate, yearOf } from '../lib/dates';
+import { ageOf, shownDate as formatDate, yearOf } from '../lib/dates';
 import { relationLabels } from '../lib/naming';
 import {
   ageAt,

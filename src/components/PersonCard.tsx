@@ -199,6 +199,7 @@ export const PersonCard = memo(function PersonCard({
         <button
           type="button"
           className={`bridge is-${bridge.kind}${isHome ? ' beside-home' : ''}`}
+          data-line={bridge.line}
           data-tip={bridge.tip}
           aria-label={bridge.tip}
           onClick={(e) => {

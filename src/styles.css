@@ -992,11 +992,351 @@ textarea.input {
   background: var(--border);
 }
 
-/* The families visited, ending with the one on show. */
-.view-bar.line-trail {
+/* --- One family at a time -------------------------------------------------------------
+   One bar at the top left: the family on show, then the families linked to it by marriage,
+   each with a thread down to whoever leads there while it's pointed at. Choosing one swaps
+   them: its chip grows into the canvas (see the view transitions below). */
+
+/* The canvas: the card that flies when families are swapped. */
+.plane {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+}
+
+/* Above the canvas: the family bar. Kept clear of the details panel,
+   whether or not it's open, so nothing moves when it opens. */
+.line-head {
+  position: absolute;
+  z-index: 6;
   top: calc(var(--content-top) + 8px);
+  left: 8px;
+  right: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  pointer-events: none;
+}
+
+/* Where the panel docks at the side rather than rising from the bottom. */
+@media (min-width: 860px) {
+  .line-head {
+    right: calc(var(--panel-width) + 2 * var(--chrome-inset) + 8px);
+  }
+}
+
+/* The families visited, ending with the one on show - which opens the list of families -
+   then the families linked to it by marriage. */
+.family-bar {
+  position: relative;
+  z-index: 1;
+  flex: 0 1 auto;
+  min-width: 0;
+  pointer-events: auto;
+}
+
+.view-bar.line-trail {
+  position: static;
+  max-width: 100%;
   gap: 0;
   cursor: default;
+}
+
+.family-picker {
+  width: 340px;
+}
+
+.family-picker .fan-picker-list {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.family-row .rel-name {
+  font-family: var(--font-display);
+  font-size: var(--fs-strong);
+  font-weight: 600;
+}
+
+.family-row .rel-text {
+  flex: 1 1 auto;
+}
+
+/* The way out of families altogether, kept under the list. */
+.family-picker-whole {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--h-field);
+  margin-top: 4px;
+  padding: 0 10px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--r-control) var(--r-control);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.family-picker-whole:hover,
+.family-picker-whole:focus-visible {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* The families linked by marriage, as chips in the same bar: name and size, nothing more.
+   Short of room, the longest names give way first (not a scrolling row: it would clip the
+   chips' tips). */
+.family-bar-sep {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  margin: 0 6px;
+  background: var(--border-strong);
+}
+
+.family-chips {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.family-chip {
+  flex: 0 1 auto;
+  min-width: 48px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  height: var(--h-control);
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-body);
+  font-weight: 550;
+  line-height: var(--h-control);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.family-chip:hover,
+.family-chip:focus-visible,
+.family-chip.is-hot {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.family-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.family-chip-count {
+  flex: none;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.family-chip:hover .family-chip-count,
+.family-chip.is-hot .family-chip-count {
+  color: inherit;
+}
+
+/* From each linked family's chip down to whoever leads there. Under the canvas, so a
+   thread passes behind the cards on its way. */
+.deck-threads {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  color: var(--accent);
+  transition: opacity 0.3s;
+}
+
+/* A thread shows only while its family is pointed at - on its card in the deck, or on a
+   bridge to it - so the tree isn't crossed by lines that aren't relationships. */
+.deck-threads g {
+  opacity: 0;
+  transition: opacity 0.18s;
+}
+
+.deck-threads g.is-hot {
+  opacity: 1;
+}
+
+.deck-threads path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-dasharray: 2 5;
+  stroke-linecap: round;
+}
+
+.deck-threads circle {
+  fill: currentColor;
+}
+
+/* A bridge lights up with its family's card. */
+.bridge.is-hot {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Whoever led to the family just shown, picked out as it lands. */
+.card.is-arrived {
+  animation: card-arrive 1.5s 0.35s var(--ease) both;
+}
+
+@keyframes card-arrive {
+  0%,
+  100% {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+  15%,
+  55% {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+  }
+}
+
+.family-chip.is-flying::after {
+  display: none;
+}
+
+/* The threads let go while the cards are in the air. */
+.viewport[data-shuffling] .deck-threads {
+  opacity: 0;
+  transition: none;
+}
+
+/* The shuffle. The card taken from the deck grows into the canvas, straightening up as it
+   comes; the family that was on show leans back and shrinks into its place in the deck.
+   Where a family has no card to come from or go to, it rises from (or sinks into) the top. */
+::view-transition-group(family-in),
+::view-transition-group(family-out) {
+  animation-duration: 0.62s;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+::view-transition-group(family-in) {
+  z-index: 2;
+}
+
+/* The small card's own picture shows only while the card is still small. */
+::view-transition-old(family-in) {
+  animation: family-card-out 0.62s linear both;
+}
+
+::view-transition-new(family-out) {
+  animation: family-card-in 0.62s linear both;
+}
+
+::view-transition-new(family-in) {
+  transform-origin: 50% 100%;
+  animation: family-come-forward 0.62s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+::view-transition-old(family-out) {
+  transform-origin: 50% 100%;
+  animation: family-go-back 0.62s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+::view-transition-new(family-in):only-child {
+  transform-origin: 50% 0;
+  animation: family-rise 0.62s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+::view-transition-old(family-out):only-child {
+  transform-origin: 50% 0;
+  animation: family-sink 0.5s cubic-bezier(0.4, 0, 0.6, 1) both;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.36s;
+}
+
+@keyframes family-card-out {
+  22%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes family-card-in {
+  0%,
+  60% {
+    opacity: 0;
+  }
+}
+
+/* In the air, each family is a solid card: the one coming out covers the one going back,
+   and its surface clears away as it lands as the canvas. */
+@keyframes family-come-forward {
+  from {
+    opacity: 0;
+    transform: perspective(900px) rotateX(24deg);
+    border-radius: 10px;
+    background-color: var(--surface);
+  }
+  30% {
+    opacity: 1;
+  }
+  70% {
+    background-color: var(--bg);
+  }
+  to {
+    border-radius: 0;
+    background-color: transparent;
+  }
+}
+
+@keyframes family-go-back {
+  from {
+    background-color: transparent;
+  }
+  30% {
+    background-color: var(--bg);
+  }
+  65% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: perspective(900px) rotateX(28deg);
+    border-radius: 10px;
+    background-color: var(--surface);
+  }
+}
+
+@keyframes family-rise {
+  from {
+    opacity: 0;
+    transform: perspective(1200px) translateY(-10%) scale(0.55) rotateX(34deg);
+  }
+}
+
+@keyframes family-sink {
+  to {
+    opacity: 0;
+    transform: perspective(1200px) translateY(-12%) scale(0.5) rotateX(40deg);
+  }
 }
 
 .line-trail-step {
@@ -1033,9 +1373,34 @@ button.line-trail-step:focus-visible {
 /* The family on show keeps its whole name; earlier ones give way first. */
 .line-trail-step.is-here {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   max-width: 100%;
+  padding-right: 5px;
   color: var(--text);
+  font-family: var(--font-display);
+  font-size: var(--fs-strong);
   font-weight: 650;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.line-trail-step.is-here:hover,
+.line-trail-step.is-here:focus-visible,
+.line-trail-step.is-here[aria-expanded='true'] {
+  background: var(--surface-2);
+}
+
+.line-trail-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.line-trail-chev {
+  flex: none;
+  color: var(--text-3);
 }
 
 .line-trail-sep {
@@ -6797,5 +7162,50 @@ body {
 @media (max-width: 640px) and (pointer: coarse) {
   .canvas-controls .zoom-step {
     display: none;
+  }
+}
+
+/* --- One family at a time, on phones ---------------------------------------------------
+   Clear of the controls' rail on the right. Too narrow for one row, the linked families
+   take a second row of the bar, whole names without counts, scrolling sideways when they
+   don't all fit (no tips to clip on a touch screen). */
+@media (max-width: 640px) {
+  .line-head {
+    right: 56px;
+  }
+
+  .view-bar.line-trail {
+    flex-wrap: wrap;
+  }
+
+  .family-bar-sep,
+  .family-chip-count {
+    display: none;
+  }
+
+  .family-chips {
+    flex: 1 1 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    margin-top: 3px;
+    padding-top: 3px;
+    border-top: 1px solid var(--border);
+  }
+
+  .family-chip {
+    flex: none;
+  }
+
+  .family-picker {
+    width: calc(100vw - 72px);
+  }
+}
+
+/* Between phone and desktop the canvas controls sit across the top left, so the family bar
+   goes just under them. */
+@media (min-width: 641px) and (max-width: 859px) {
+  .line-head {
+    top: calc(var(--content-top) + 46px);
   }
 }

@@ -7,7 +7,7 @@ import { Check, ChevronDown, HeartHandshake, Maximize, Minus, Plus, Search } fro
 import type { Person, Tree } from '../types';
 import { useStore } from '../store';
 import { canvasHandle } from '../lib/canvasHandle';
-import { formatDate, lifespan } from '../lib/dates';
+import { lifespan, shownDate as formatDate } from '../lib/dates';
 import {
   ROOT_R,
   branchBox,

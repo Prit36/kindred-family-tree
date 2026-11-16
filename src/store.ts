@@ -14,6 +14,7 @@ import {
 } from './lib/branches';
 import { focusTitle } from './lib/sides';
 import { familyLines } from './lib/lines';
+import { swapLine } from './lib/canvasHandle';
 import type { Naming } from './lib/naming';
 import { emptyTree, indexOf, shortName } from './lib/tree';
 import { NO_SPELLINGS, setNameScriptSource } from './lib/gujaratiNames';
@@ -409,7 +410,7 @@ export const useStore = create<State>((set, get) => ({
   select: (id, center = false) => {
     const { tree, toast } = get();
     let { focus, collapsed, lines } = get();
-    let moved = false;
+    let moved: string | null = null;
     if (id && tree.people[id] && !onScreen(tree, get()).has(id)) {
       if (focus) {
         // Say why the view just changed.
@@ -423,14 +424,18 @@ export const useStore = create<State>((set, get) => ({
         const theirs = familyLines(tree).lineOf.get(id)!;
         if (theirs !== line) {
           lines = { on: true, trail: trailTo(tree, lines, { line: theirs, via: id }) };
-          moved = true;
+          moved = theirs;
         }
       } else if (!visibleIds(tree, null, collapsed).has(id)) {
         collapsed = unfoldTo(tree, collapsed, id);
       }
     }
-    set({ selectedId: id, compareId: null, focus, collapsed, lines });
-    if (id) set({ view: { kind: moved ? 'line' : center ? 'focus' : 'reveal', id, nonce: nonce++ } });
+    const apply = () => {
+      set({ selectedId: id, compareId: null, focus, collapsed, lines });
+      if (id) set({ view: { kind: moved ? 'line' : center ? 'focus' : 'reveal', id, nonce: nonce++ } });
+    };
+    if (moved) swapLine(moved, apply);
+    else apply();
   },
 
   compare: (id) => {
@@ -506,11 +511,13 @@ export const useStore = create<State>((set, get) => ({
     if (!familyLines(tree).members.has(line)) return;
     const next: Lines = { on: true, trail: trailTo(tree, lines, { line, via }) };
     if (!lines.on) saveLinesOn(true);
-    set({
-      ...onCanvas(tree, { ...get(), focus: null, lines: next }),
-      peek: null,
-      view: { kind: 'line', id: via, nonce: nonce++ },
-    });
+    swapLine(line, () =>
+      set({
+        ...onCanvas(tree, { ...get(), focus: null, lines: next }),
+        peek: null,
+        view: { kind: 'line', id: via, nonce: nonce++ },
+      }),
+    );
   },
 
   setLines: (on) => {
@@ -533,8 +540,14 @@ export const useStore = create<State>((set, get) => ({
     const { tree, lines } = get();
     const home = tree.homeId && tree.people[tree.homeId] ? tree.homeId : null;
     if (!home) return;
-    if (lines.on) set({ lines: { on: true, trail: [] } });
-    get().select(home, true);
+    const go = () => {
+      if (lines.on) set({ lines: { on: true, trail: [] } });
+      get().select(home, true);
+    };
+    // Back to "me"'s family from another one is a move between families like any other.
+    const theirs = familyLines(tree).lineOf.get(home)!;
+    if (lines.on && !get().focus && shownLine(tree, lines) !== theirs) swapLine(theirs, go);
+    else go();
   },
 
   openDialog: (dialog) => set({ dialog }),

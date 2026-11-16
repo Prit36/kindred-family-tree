@@ -1,4 +1,5 @@
 import type { Person } from '../types';
+import { nameScript } from './gujaratiNames';
 
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -59,18 +60,33 @@ export function formatDate(s: string): string {
   return `${d} ${MONTHS[m - 1]} ${y}`;
 }
 
+const GU_MONTHS = ['જાન્યુ', 'ફેબ્રુ', 'માર્ચ', 'એપ્રિલ', 'મે', 'જૂન', 'જુલાઈ', 'ઑગ', 'સપ્ટે', 'ઑક્ટો', 'નવે', 'ડિસે'];
+
+/**
+ * A date as shown beside people's names: in Gujarati when names are ("17 સપ્ટે 2001").
+ * Files and messages keep formatDate's English.
+ */
+export function shownDate(s: string): string {
+  if (!nameScript().gujarati) return formatDate(s);
+  const { y, m, d } = parseDate(s);
+  if (!y) return '';
+  if (!m) return String(y);
+  return d ? `${d} ${GU_MONTHS[m - 1]} ${y}` : `${GU_MONTHS[m - 1]} ${y}`;
+}
+
 export function yearOf(s: string): number | null {
   return parseDate(s).y;
 }
 
-/** Short lifespan for cards: "1950 – 2020", "b. 1990", "d. 2020". */
+/** Short lifespan for cards: "1950 – 2020", "b. 1990", "d. 2020" - in Gujarati with Gujarati names. */
 export function lifespan(p: Person): string {
   const b = yearOf(p.birthDate);
   const d = yearOf(p.deathDate);
+  const gu = nameScript().gujarati;
   if (b && d) return `${b} – ${d}`;
-  if (b) return p.deceased ? `${b} – ?` : `b. ${b}`;
-  if (d) return `d. ${d}`;
-  return p.deceased ? 'Deceased' : '';
+  if (b) return p.deceased ? `${b} – ?` : gu ? `જન્મ ${b}` : `b. ${b}`;
+  if (d) return gu ? `અવસાન ${d}` : `d. ${d}`;
+  return p.deceased ? (gu ? 'સ્વર્ગસ્થ' : 'Deceased') : '';
 }
 
 /** Age today, or age at death. Null when it can't be worked out. */
