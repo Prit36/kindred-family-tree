@@ -7930,11 +7930,6 @@ button.record:hover {
   color: inherit;
 }
 
-.stamp.is-quiet,
-.stamp.is-quiet svg {
-  color: var(--text-3);
-}
-
 /* --- Search results: age at a glance -------------------------------------------- */
 
 .search-result .rel-text {

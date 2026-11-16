@@ -18,9 +18,7 @@ import {
   ChevronRight,
   Droplet,
   Expand,
-  FileText,
   GraduationCap,
-  Hash,
   Heart,
   House,
   Lock,
@@ -28,7 +26,6 @@ import {
   Plus,
   Trash,
   Unlink,
-  Users,
   X,
 } from 'lucide-react';
 import type { Person, Relation, Tree, Union, UnionStatus } from '../types';
@@ -56,7 +53,7 @@ import {
   siblingsOf,
   unlinkParent,
 } from '../lib/tree';
-import { namesakes, nextBirthday } from '../lib/almanac';
+import { nextBirthday } from '../lib/almanac';
 import { factsOf } from '../lib/facts';
 import { Avatar } from './Avatar';
 
@@ -85,7 +82,6 @@ const STATUS_LABEL: Record<Naming, Record<UnionStatus, string>> = {
 
 /** The panel's words about a life and a family, in the naming chosen for relationships. */
 const LIFE_WORDS: Record<Naming, {
-  children: (n: number) => string;
   descendants: (n: number) => string;
   died: (date: string) => string;
   aged: (n: number) => string;
@@ -95,7 +91,6 @@ const LIFE_WORDS: Record<Naming, {
   scopes: Record<FocusScope, string>;
 }> = {
   en: {
-    children: (n) => `${n} ${n === 1 ? 'child' : 'children'}`,
     descendants: (n) => `${n} descendants`,
     died: (date) => `Died ${date || 'date unknown'}`,
     aged: (n) => `aged ${n}`,
@@ -105,7 +100,6 @@ const LIFE_WORDS: Record<Naming, {
     scopes: { line: 'Line', close: 'Close', family: 'Family' } as Record<FocusScope, string>,
   },
   gu: {
-    children: (n) => `${n} સંતાન`,
     descendants: (n) => `${n} વંશજ`,
     died: (date) => `અવસાન ${date || 'તારીખ અજ્ઞાત'}`,
     aged: (n) => `${n} વર્ષની વયે`,
@@ -115,7 +109,6 @@ const LIFE_WORDS: Record<Naming, {
     scopes: { line: 'વંશ', close: 'નજીકના', family: 'સગાં' } as Record<FocusScope, string>,
   },
   'gu-latn': {
-    children: (n) => `${n} santan`,
     descendants: (n) => `${n} vanshaj`,
     died: (date) => `Avsaan ${date || 'tarikh agnyat'}`,
     aged: (n) => `${n} varsh ni vaye`,
@@ -339,11 +332,10 @@ function Details({
 
   /* ---- Facts as stamps --------------------------------------------------------- */
 
-  // What the notes state as "key: value" lines, plus two things worked out from the tree.
+  // What the notes state as "key: value" lines, plus a birthday coming up soon.
   const facts = factsOf(person.notes);
   const birthday = nextBirthday(tree, person);
-  const sameName = person.firstName.trim() ? namesakes(tree, person) : 0;
-  const stamps: { key: string; icon: ReactNode; text: string; tip?: string; title?: string; tone?: 'gold' | 'quiet' }[] = [];
+  const stamps: { key: string; icon: ReactNode; text: string; tip?: string; tone?: 'gold' }[] = [];
   if (birthday && birthday.daysAway <= 30) {
     const when = birthday.daysAway === 0 ? 'today' : birthday.daysAway === 1 ? 'tomorrow' : `in ${birthday.daysAway} days`;
     stamps.push({
@@ -356,9 +348,6 @@ function Details({
   if (facts.blood) stamps.push({ key: 'blood', icon: <Droplet size={13} />, text: facts.blood, tip: 'Blood group' });
   if (facts.occupation) stamps.push({ key: 'work', icon: <Briefcase size={13} />, text: facts.occupation, tip: 'Occupation' });
   if (facts.education) stamps.push({ key: 'school', icon: <GraduationCap size={13} />, text: facts.education, tip: 'Education' });
-  if (facts.memberNo) stamps.push({ key: 'member', icon: <Hash size={13} />, text: facts.memberNo, tip: 'Member number' });
-  if (sameName >= 3) stamps.push({ key: 'name', icon: <Users size={13} />, text: `${sameName} share this name`, tip: `${sameName} people are called ${shortName(person)}` });
-  if (facts.source) stamps.push({ key: 'source', icon: <FileText size={13} />, text: 'Source', title: facts.source, tone: 'quiet' });
 
   /* ---- Fitting it all in ------------------------------------------------------- */
 
@@ -564,12 +553,8 @@ function Details({
 
     const born = formatDate(person.birthDate);
     const left = born || person.birthPlace ? { value: born || person.birthPlace, sub: born ? person.birthPlace : '' } : null;
-    const middle = children.length
-      ? {
-          value: LIFE_WORDS[naming].children(children.length),
-          sub: descendants > children.length ? LIFE_WORDS[naming].descendants(descendants) : yearSpan(children),
-        }
-      : null;
+    // The children themselves sit just below in the family map, so only the wider count is worth saying here.
+    const middle = descendants > children.length ? { value: LIFE_WORDS[naming].descendants(descendants), sub: '' } : null;
     const right = person.deceased
       ? { value: LIFE_WORDS[naming].died(formatDate(person.deathDate)), sub: age !== null ? LIFE_WORDS[naming].aged(age) : '' }
       : age !== null
@@ -766,7 +751,7 @@ function Details({
         {stamps.length > 0 && (
           <ul className="pp-stamps" aria-label="Facts">
             {stamps.map((s) => (
-              <li key={s.key} className={`stamp${s.tone ? ` is-${s.tone}` : ''}`} data-tip={s.tip} title={s.title}>
+              <li key={s.key} className={`stamp${s.tone ? ` is-${s.tone}` : ''}`} data-tip={s.tip}>
                 {s.icon}
                 {s.text}
               </li>

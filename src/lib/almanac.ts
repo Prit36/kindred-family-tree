@@ -285,13 +285,3 @@ export const familyNumbers: (tree: Tree) => FamilyNumbers = memoRecent((tree: Tr
   };
 }, 2);
 
-/** How many people share someone's given name, themselves included. */
-export function namesakes(tree: Tree, p: Person): number {
-  return nameCounts(tree).get(p.firstName.trim().toLowerCase()) ?? 0;
-}
-
-const nameCounts = memoRecent((tree: Tree): Map<string, number> => {
-  const counts = new Map<string, number>();
-  for (const id in tree.people) bump(counts, tree.people[id].firstName.trim().toLowerCase());
-  return counts;
-}, 2);
