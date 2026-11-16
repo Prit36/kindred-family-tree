@@ -1238,6 +1238,15 @@ textarea.input {
   z-index: 2;
 }
 
+/* The bars and controls over the canvas stay on top: the cards fly beneath them. */
+::view-transition-group(chrome-top),
+::view-transition-group(chrome-deck),
+::view-transition-group(chrome-controls),
+::view-transition-group(chrome-panel) {
+  z-index: 3;
+  animation-duration: 0.36s;
+}
+
 /* The small card's own picture shows only while the card is still small. */
 ::view-transition-old(family-in) {
   animation: family-card-out 0.62s linear both;

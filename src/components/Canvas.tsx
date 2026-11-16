@@ -463,6 +463,13 @@ export function Canvas() {
   }, []);
 
   // --- Swapping families -----------------------------------------------------------
+  /** What floats over the canvas, kept above the shuffle (each named on its own for it). */
+  const CHROME = [
+    ['.topbar', 'chrome-top'],
+    ['.line-head', 'chrome-deck'],
+    ['.canvas-controls', 'chrome-controls'],
+    ['.panel', 'chrome-panel'],
+  ] as const;
   // Moving to another family is a card shuffle: the family on show tilts back into the deck
   // as the other one's card comes forward and becomes the canvas. The browser's view
   // transitions do the flying (where there are none, or motion is turned down, it's a cut).
@@ -486,8 +493,30 @@ export function Canvas() {
       for (const el of named) {
         el.style.viewTransitionName = '';
         el.classList.remove('is-flying');
+        // A stand-in made for the flight goes once it has flown.
+        if (el.dataset.ghost !== undefined) el.remove();
       }
       named.clear();
+    };
+    // A chip flies as a copy laid over it, so the bar keeps its own chip and never shows a gap.
+    const ghost = (el: HTMLElement | null) => {
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      const copy = el.cloneNode(true) as HTMLElement;
+      copy.dataset.ghost = '';
+      copy.removeAttribute('data-line');
+      copy.setAttribute('aria-hidden', 'true');
+      Object.assign(copy.style, {
+        position: 'fixed',
+        left: `${r.left}px`,
+        top: `${r.top}px`,
+        width: `${r.width}px`,
+        height: `${r.height}px`,
+        margin: '0',
+        pointerEvents: 'none',
+      });
+      document.body.append(copy);
+      return copy;
     };
     canvasHandle.swapLine = (to, apply) => {
       const vp = viewportRef.current;
@@ -508,9 +537,13 @@ export function Canvas() {
       unname();
       const sheetOf = (l: string | null) =>
         l ? vp.querySelector<HTMLElement>(`.family-chip[data-line="${CSS.escape(l)}"]`) : null;
+      // The chrome stays put, above the cards in the air: they fly under the bars, not over them.
+      const chrome = () =>
+        CHROME.forEach(([sel, as]) => name(document.querySelector<HTMLElement>(sel), as));
       // Before: the canvas is the card going back, the chosen card in the deck the one coming out.
+      chrome();
       name(plane, 'family-out');
-      name(sheetOf(to), 'family-in');
+      name(ghost(sheetOf(to)), 'family-in');
       vp.dataset.shuffling = '';
       const vt = document.startViewTransition(() => {
         // A shuffle cut short by a newer one still makes its change, but names nothing.
@@ -520,8 +553,9 @@ export function Canvas() {
         flushSync(apply);
         if (!current) return;
         // After: the canvas is the family come out, and the one it replaced has a card in the deck.
+        chrome();
         name(plane, 'family-in');
-        name(sheetOf(from), 'family-out');
+        name(ghost(sheetOf(from)), 'family-out');
       });
       running = vt;
       vt.finished.finally(() => {
