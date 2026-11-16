@@ -11,10 +11,16 @@ import {
   ArrowDown,
   ArrowLeftRight,
   ArrowUp,
+  Briefcase,
+  Cake,
   Camera,
   ChevronDown,
   ChevronRight,
+  Droplet,
   Expand,
+  FileText,
+  GraduationCap,
+  Hash,
   Heart,
   House,
   Lock,
@@ -22,6 +28,7 @@ import {
   Plus,
   Trash,
   Unlink,
+  Users,
   X,
 } from 'lucide-react';
 import type { Person, Relation, Tree, Union, UnionStatus } from '../types';
@@ -49,6 +56,8 @@ import {
   siblingsOf,
   unlinkParent,
 } from '../lib/tree';
+import { namesakes, nextBirthday } from '../lib/almanac';
+import { factsOf } from '../lib/facts';
 import { Avatar } from './Avatar';
 
 /** Ways to show only part of the tree around someone, narrowest first. */
@@ -328,6 +337,29 @@ function Details({
 
   const withUndo = (message: string) => toast(message, { action: { label: 'Undo', run: undo } });
 
+  /* ---- Facts as stamps --------------------------------------------------------- */
+
+  // What the notes state as "key: value" lines, plus two things worked out from the tree.
+  const facts = factsOf(person.notes);
+  const birthday = nextBirthday(tree, person);
+  const sameName = person.firstName.trim() ? namesakes(tree, person) : 0;
+  const stamps: { key: string; icon: ReactNode; text: string; tip?: string; title?: string; tone?: 'gold' | 'quiet' }[] = [];
+  if (birthday && birthday.daysAway <= 30) {
+    const when = birthday.daysAway === 0 ? 'today' : birthday.daysAway === 1 ? 'tomorrow' : `in ${birthday.daysAway} days`;
+    stamps.push({
+      key: 'birthday',
+      icon: <Cake size={13} />,
+      text: birthday.turns ? `Turns ${birthday.turns} ${when}` : `Birthday ${when}`,
+      tone: 'gold',
+    });
+  }
+  if (facts.blood) stamps.push({ key: 'blood', icon: <Droplet size={13} />, text: facts.blood, tip: 'Blood group' });
+  if (facts.occupation) stamps.push({ key: 'work', icon: <Briefcase size={13} />, text: facts.occupation, tip: 'Occupation' });
+  if (facts.education) stamps.push({ key: 'school', icon: <GraduationCap size={13} />, text: facts.education, tip: 'Education' });
+  if (facts.memberNo) stamps.push({ key: 'member', icon: <Hash size={13} />, text: facts.memberNo, tip: 'Member number' });
+  if (sameName >= 3) stamps.push({ key: 'name', icon: <Users size={13} />, text: `${sameName} share this name`, tip: `${sameName} people are called ${shortName(person)}` });
+  if (facts.source) stamps.push({ key: 'source', icon: <FileText size={13} />, text: 'Source', title: facts.source, tone: 'quiet' });
+
   /* ---- Fitting it all in ------------------------------------------------------- */
 
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -380,7 +412,7 @@ function Details({
     const notes = body.querySelector<HTMLElement>('.pp-notes');
     setNotesClamped(Boolean(notes && notes.scrollHeight > notes.clientHeight + 1));
     if (body.scrollHeight > body.clientHeight + 1) {
-      const next = (['notes', 'compact'] as const).find((f) => !isFolded(f) && (f !== 'notes' || person.notes));
+      const next = (['notes', 'compact'] as const).find((f) => !isFolded(f) && (f !== 'notes' || facts.rest));
       if (next) fold(next);
     }
   });
@@ -731,12 +763,23 @@ function Details({
           </button>
         )}
 
-        {person.notes && (
+        {stamps.length > 0 && (
+          <ul className="pp-stamps" aria-label="Facts">
+            {stamps.map((s) => (
+              <li key={s.key} className={`stamp${s.tone ? ` is-${s.tone}` : ''}`} data-tip={s.tip} title={s.title}>
+                {s.icon}
+                {s.text}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {facts.rest && (
           <p
             className={`pp-notes${isFolded('notes') ? ' is-clamped' : ''}`}
-            title={notesClamped ? person.notes : undefined}
+            title={notesClamped ? facts.rest : undefined}
           >
-            {person.notes}
+            {facts.rest}
           </p>
         )}
 

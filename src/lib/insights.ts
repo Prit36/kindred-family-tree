@@ -1,62 +1,7 @@
 import type { Person, Tree } from '../types';
-import { formatDate, isBefore, parseDate, yearOf } from './dates';
-import { childrenOf, displayName, fullName, isPlaceholder, shortName } from './tree';
+import { formatDate, isBefore, yearOf } from './dates';
+import { childrenOf, fullName, isPlaceholder, shortName } from './tree';
 import { middleNameOf } from './names';
-
-// ---------------------------------------------------------------------------
-// Coming up: birthdays and anniversaries
-// ---------------------------------------------------------------------------
-
-export interface Upcoming {
-  person: Person;
-  /** A living person's birthday, or the anniversary of someone's death. */
-  kind: 'birthday' | 'remembrance';
-  /** 0 = today. */
-  daysAway: number;
-  /** Day and month, e.g. "12 Mar". */
-  when: string;
-  /** The age they turn, or how many years ago they died; null if the year isn't known. */
-  years: number | null;
-}
-
-const DAY = 24 * 60 * 60 * 1000;
-const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** The next time (from `today`, inclusive) a month/day comes round. 29 Feb falls on 28 Feb in other years. */
-function nextOccurrence(m: number, d: number, today: Date): { daysAway: number; year: number } {
-  const start = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
-  for (const year of [today.getFullYear(), today.getFullYear() + 1]) {
-    const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-    const day = m === 2 && d === 29 && !leap ? 28 : d;
-    const t = Date.UTC(year, m - 1, day);
-    if (t >= start) return { daysAway: Math.round((t - start) / DAY), year };
-  }
-  return { daysAway: 366, year: today.getFullYear() + 1 };
-}
-
-/** Birthdays of the living and anniversaries of deaths in the next `days` days, soonest first. */
-export function upcomingDates(tree: Tree, today = new Date(), days = 30): Upcoming[] {
-  const out: Upcoming[] = [];
-  for (const person of Object.values(tree.people)) {
-    const living = !person.deceased && !person.deathDate;
-    const source = living ? person.birthDate : person.deathDate;
-    const { y, m, d } = parseDate(source);
-    if (!m || !d) continue;
-    const next = nextOccurrence(m, d, today);
-    if (next.daysAway > days) continue;
-    const years = y ? next.year - y : null;
-    if (years !== null && (years < 0 || (living && years > 110))) continue;
-    out.push({
-      person,
-      kind: living ? 'birthday' : 'remembrance',
-      daysAway: next.daysAway,
-      when: `${d} ${SHORT_MONTHS[m - 1]}`,
-      years,
-    });
-  }
-  return out.sort((a, b) => a.daysAway - b.daysAway || displayName(a.person).localeCompare(displayName(b.person)));
-}
-
 
 // ---------------------------------------------------------------------------
 // Checks: likely mistakes in the data

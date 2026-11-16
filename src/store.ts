@@ -172,7 +172,7 @@ export type Dialog =
   /** Upcoming birthdays and anniversaries, and possible mistakes in the data. */
   | { type: 'insights'; tab: InsightsTab };
 
-export type InsightsTab = 'upcoming' | 'checks';
+export type InsightsTab = 'upcoming' | 'family' | 'checks';
 
 export interface Toast {
   id: number;

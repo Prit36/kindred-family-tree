@@ -1076,14 +1076,19 @@ export function Canvas() {
               <strong>Show all</strong>
             </button>
           ) : (
-            <div className="stats-pill">
+            <button
+              type="button"
+              className="stats-pill is-link"
+              data-tip="The family in numbers"
+              onClick={() => useStore.getState().openDialog({ type: 'insights', tab: 'family' })}
+            >
               {byLine
                 ? words.people(visible.size)
                 : hiddenCount > 0
                   ? `${num(visible.size)} / ${words.people(total)}`
                   : words.people(total)}{' '}
               · {words.generations(layout.generations)}
-            </div>
+            </button>
           )}
         </div>
       )}

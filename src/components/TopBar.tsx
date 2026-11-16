@@ -24,9 +24,10 @@ import {
 import type { Person } from '../types';
 import { useStore, type ViewMode } from '../store';
 import { exportBackup, exportGedcom, exportImage, pickBackupFile } from '../lib/actions';
-import { lifespan } from '../lib/dates';
+import { ageOf, lifespan } from '../lib/dates';
 import { searchIndex, searchPeople } from '../lib/search';
-import { upcomingDates } from '../lib/insights';
+import { birthdayBook, onDay, today as startOfToday } from '../lib/almanac';
+import { factsOf } from '../lib/facts';
 import { NAMINGS, relationLabels } from '../lib/naming';
 import { fullName, hasPeople } from '../lib/tree';
 import { isTouch } from '../lib/touchHold';
@@ -100,6 +101,12 @@ function whyMatched(p: Person, field: number, word: string): string {
   if (field === 2) return `Born in ${p.birthPlace}`;
   if (field === 4) return `“${snippet(p.notes, word)}”`;
   return '';
+}
+
+/** What someone does and how far they studied, when their notes say. */
+function work(p: Person): string {
+  const facts = factsOf(p.notes);
+  return [facts.occupation, facts.education].filter(Boolean).join(' · ');
 }
 
 function SearchBox() {
@@ -205,10 +212,21 @@ function SearchBox() {
                 <span className="rel-text">
                   <span className="rel-name">{fullName(tree, p)}</span>
                   <span className="rel-sub">
-                    {[kin.get(p.id), lifespan(p)].filter(Boolean).join(' · ')}
+                    {kin.get(p.id) && <span className="search-kin">{kin.get(p.id)}</span>}
+                    {kin.get(p.id) && lifespan(p) && ' · '}
+                    {lifespan(p)}
                   </span>
-                  {why && <span className="rel-sub search-why">{why}</span>}
+                  {why ? (
+                    <span className="rel-sub search-why">{why}</span>
+                  ) : (
+                    work(p) && <span className="rel-sub search-work">{work(p)}</span>
+                  )}
                 </span>
+                {ageOf(p) !== null && (
+                  <span className={`search-age${p.deceased || p.deathDate ? ' is-past' : ''}`} aria-label={`Age ${ageOf(p)}`}>
+                    {ageOf(p)}
+                  </span>
+                )}
               </button>
             </li>
           ))}
@@ -283,7 +301,7 @@ function MainMenu() {
           </div>
           {item('Undo', <Undo2 size={16} />, undo, { disabled: !canUndo, mobileHistory: true })}
           {item('Redo', <Redo2 size={16} />, redo, { disabled: !canRedo, mobileHistory: true })}
-          {item('Calendar & checks', <CalendarHeart size={16} />, () => openDialog({ type: 'insights', tab: 'upcoming' }), { mobilePreference: true, disabled: empty })}
+          {item('Family almanac', <CalendarHeart size={16} />, () => openDialog({ type: 'insights', tab: 'upcoming' }), { mobilePreference: true, disabled: empty })}
           {NAMINGS.map((n) => (
             <button key={n.value} type="button" role="menuitemradio" aria-checked={naming === n.value} className="menu-item mobile-preference" onClick={() => { setNaming(n.value); setOpen(false); }}>
               <Languages size={16} /><span>{n.label}</span>{naming === n.value && <Check size={16} />}
@@ -403,15 +421,15 @@ function ViewSwitch() {
 function InsightsButton() {
   const tree = useStore((s) => s.tree);
   const openDialog = useStore((s) => s.openDialog);
-  const today = useMemo(() => upcomingDates(tree, new Date(), 0), [tree]);
-  const label = today.length > 0 ? `Calendar & checks - ${today.length} today` : 'Calendar & checks';
+  const today = useMemo(() => onDay(birthdayBook(tree), startOfToday()), [tree]);
+  const label = today.length > 0 ? `Family almanac - ${today.length} today` : 'Family almanac';
   return (
     <button
       type="button"
       className="icon-btn insights-btn header-secondary"
       onClick={() => openDialog({ type: 'insights', tab: 'upcoming' })}
       aria-label={label}
-      data-tip={today.length > 0 ? `${today.length} today` : 'Birthdays & checks'}
+      data-tip={today.length > 0 ? `Almanac · ${today.length} today` : 'Family almanac'}
     >
       <CalendarHeart size={17} />
       {today.length > 0 && <span className="insights-dot" aria-hidden="true" />}

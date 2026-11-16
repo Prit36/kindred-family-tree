@@ -1557,7 +1557,7 @@ button.line-trail-step:focus-visible {
 }
 
 .search-results {
-  max-height: min(480px, calc(100dvh - 76px));
+  max-height: min(560px, calc(100dvh - 76px));
   overflow-y: auto;
   position: absolute;
   top: calc(100% + 8px);
@@ -3790,13 +3790,6 @@ kbd {
   color: var(--accent-strong);
 }
 
-.insights-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 0;
-}
-
 .insights-list {
   display: flex;
   flex-direction: column;
@@ -3830,80 +3823,6 @@ kbd {
 
 .insights-row:hover {
   background: var(--surface-2);
-}
-
-.insights-row.is-today {
-  background: var(--accent-soft);
-}
-
-.insights-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.insights-name {
-  overflow: hidden;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.insights-sub {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-2);
-  font-size: var(--fs-body);
-}
-
-.insights-milestone {
-  padding: 0 7px;
-  border-radius: 999px;
-  background: var(--female-soft);
-  color: var(--female);
-  font-size: var(--fs-micro);
-  font-weight: 650;
-}
-
-.insights-when {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 1px;
-  font-size: var(--fs-body);
-}
-
-.insights-when span {
-  color: var(--text-3);
-  font-size: var(--fs-meta);
-}
-
-.insights-sev {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-}
-
-.sev-problem .insights-sev {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.sev-warning .insights-sev {
-  background: var(--warn-soft);
-  color: var(--warn);
-}
-
-.sev-tip .insights-sev {
-  background: var(--surface-3);
-  color: var(--text-2);
 }
 
 .insights-msg {
@@ -6947,8 +6866,7 @@ body {
   .insights-tab.is-active .insights-count,
   .side-count,
   .picker-same,
-  .picker-row.is-chosen .picker-same,
-  .insights-milestone {
+  .picker-row.is-chosen .picker-same {
     min-width: 0;
     padding: 0;
     border-radius: 0;
@@ -6959,23 +6877,6 @@ body {
   .side-count,
   .picker-same {
     color: var(--text-3);
-  }
-
-  .insights-sev,
-  .sev-problem .insights-sev,
-  .sev-warning .insights-sev,
-  .sev-tip .insights-sev {
-    width: 20px;
-    background: none;
-  }
-
-  .insights-row.is-today {
-    background: none;
-  }
-
-  .insights-row.is-today .insights-name,
-  .insights-row.is-today .insights-when {
-    color: var(--accent-strong);
   }
 
   .hint {
@@ -7207,5 +7108,941 @@ body {
 @media (min-width: 641px) and (max-width: 859px) {
   .line-head {
     top: calc(var(--content-top) + 46px);
+  }
+}
+
+/* ==========================================================================
+   Family almanac: the year as a wheel, the family in numbers, checks
+   ========================================================================== */
+
+/* One height for every tab, so switching tabs or picking a day never resizes the dialog. */
+.almanac-pane {
+  height: min(520px, calc(100dvh - 150px));
+  padding-top: 8px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.alm-h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.alm-more {
+  color: var(--text-3);
+  font-size: var(--fs-meta);
+  font-weight: 500;
+}
+
+@keyframes petal-in {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes bar-wide {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* --- Coming up ----------------------------------------------------------------- */
+
+.coming {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 22px;
+  overflow: hidden;
+}
+
+.coming-year {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.coming-days {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.coming-reset {
+  height: var(--h-control);
+  color: var(--text-2);
+}
+
+.coming-reset[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.wheel {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.wheel-ring {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+  stroke-dasharray: 0.1 6;
+  stroke-linecap: round;
+}
+
+.wheel-petal {
+  cursor: pointer;
+  outline: none;
+}
+
+.wheel-hit {
+  fill: transparent;
+}
+
+.wheel-bar {
+  fill: var(--surface-3);
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: petal-in 0.55s var(--ease) both;
+  transition:
+    fill 0.15s,
+    stroke 0.15s;
+}
+
+.wheel-petal:hover .wheel-bar,
+.wheel-petal.is-now .wheel-bar {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+}
+
+.wheel-petal.is-picked .wheel-bar {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+.wheel-petal:focus-visible .wheel-bar {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+.wheel-month {
+  fill: var(--text-3);
+  font: 550 10px var(--font-ui);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.wheel-petal:hover .wheel-month,
+.wheel-petal.is-now .wheel-month,
+.wheel-petal.is-picked .wheel-month {
+  fill: var(--accent-strong);
+}
+
+/* Where today falls in the year */
+.wheel-today {
+  fill: var(--female);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.wheel-value {
+  fill: var(--text);
+  font: 600 24px var(--font-display);
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+.wheel-label {
+  fill: var(--text-2);
+  font: 500 10px var(--font-ui);
+  text-anchor: middle;
+}
+
+/* A bar a day */
+.strip {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 84px;
+}
+
+.strip-day {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-3);
+}
+
+/* A new month starts a little apart */
+.strip-day.is-first {
+  margin-left: 7px;
+}
+
+.strip-bead {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.strip-bead[data-on] {
+  background: var(--warn);
+}
+
+.strip-bar {
+  flex: none;
+  width: 100%;
+  max-width: 14px;
+  border: 1px solid transparent;
+  border-radius: 4px 4px 2px 2px;
+  background: var(--border-strong);
+  transform-origin: 50% 100%;
+  animation: petal-in 0.4s var(--ease) both;
+  transition: background 0.15s;
+}
+
+.strip-day.is-empty .strip-bar {
+  background: var(--border);
+}
+
+.strip-day:hover .strip-bar {
+  background: var(--text-3);
+}
+
+.strip-day.is-today .strip-bar {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.strip-day.is-picked .strip-bar {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.strip-num {
+  flex: none;
+  height: 14px;
+  font: 550 var(--fs-micro) / 14px var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.strip-day.is-today .strip-num {
+  color: var(--text);
+}
+
+.strip-day.is-picked .strip-num {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.day-head {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 0 6px;
+  border-top: 1px solid var(--border);
+}
+
+.day-head h3 {
+  margin: 0;
+  color: var(--text-2);
+  font: 500 var(--fs-title) / var(--lh-tight) var(--font-display);
+  letter-spacing: -0.01em;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.day-head h3 strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.day-head span {
+  min-width: 0;
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+  text-align: right;
+}
+
+/* The people of the day: a face each, the age they turn on a tag */
+.faces {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  align-content: start;
+  gap: 2px;
+  padding: 2px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.face {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 4px 8px;
+  border: 0;
+  border-radius: var(--r-control);
+  background: none;
+  color: var(--text);
+  text-align: center;
+  animation: pop-in 0.3s var(--ease) both;
+  transition: background 0.15s;
+}
+
+.face:nth-child(2) { animation-delay: 25ms; }
+.face:nth-child(3) { animation-delay: 50ms; }
+.face:nth-child(4) { animation-delay: 75ms; }
+.face:nth-child(5) { animation-delay: 100ms; }
+.face:nth-child(6) { animation-delay: 125ms; }
+.face:nth-child(n + 7) { animation-delay: 150ms; }
+
+.face:hover {
+  background: var(--surface-2);
+}
+
+.face-photo {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.face-age {
+  position: absolute;
+  right: -10px;
+  bottom: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 18px;
+  padding: 0 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font: 650 var(--fs-micro) / 1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.face.is-milestone .avatar {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4.5px var(--warn);
+}
+
+.face.is-milestone .face-age {
+  border-color: var(--warn);
+  background: var(--warn);
+  color: var(--surface);
+}
+
+.face.is-memory .avatar {
+  filter: grayscale(0.7);
+  opacity: 0.85;
+}
+
+.face.is-memory .face-age {
+  color: var(--text-2);
+}
+
+.face-name,
+.face-sub,
+.face-kin {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.35;
+}
+
+.face-name {
+  font-weight: 600;
+}
+
+.face-sub,
+.face-kin {
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+}
+
+.face-kin {
+  color: var(--accent-strong);
+}
+
+/* --- In numbers ---------------------------------------------------------------- */
+
+.numbers-lead {
+  margin: 4px 0 16px;
+  color: var(--text-2);
+  font: 500 var(--fs-heading) / 1.35 var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.numbers-lead b {
+  color: var(--text);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.numbers-sub {
+  display: block;
+  margin-top: 3px;
+  font: 400 var(--fs-body) / var(--lh-body) var(--font-ui);
+  letter-spacing: 0;
+}
+
+.numbers-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 32px;
+  padding-bottom: 4px;
+}
+
+.numbers-wide {
+  grid-column: 1 / -1;
+}
+
+.alm-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+  font-weight: 500;
+}
+
+.alm-key::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--male);
+}
+
+.alm-key.is-f::before {
+  background: var(--female);
+}
+
+.alm-key.is-m {
+  margin-left: auto;
+}
+
+/* Men to the left, women to the right, a row for each decade */
+.pyramid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pyr-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 42px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: var(--fs-micro);
+  font-variant-numeric: tabular-nums;
+}
+
+.pyr-n:first-child {
+  text-align: right;
+}
+
+.pyr-label {
+  color: var(--text);
+  font-weight: 600;
+  text-align: center;
+}
+
+.pyr-bar {
+  display: flex;
+  height: 12px;
+}
+
+.pyr-bar.is-m {
+  justify-content: flex-end;
+}
+
+.pyr-bar i {
+  border-radius: 3px;
+  background: var(--male);
+  transform-origin: 100% 50%;
+  animation: bar-wide 0.5s var(--ease) both;
+}
+
+.pyr-bar.is-f i {
+  background: var(--female);
+  transform-origin: 0 50%;
+}
+
+.records {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: -4px 0 0 -6px;
+}
+
+.record {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 6px;
+  border: 0;
+  border-radius: var(--r-control);
+  background: none;
+  color: var(--text);
+  text-align: left;
+  transition: background 0.15s;
+}
+
+button.record:hover {
+  background: var(--surface-2);
+}
+
+.record .avatar {
+  margin: 0 2px;
+}
+
+.record-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.record-title {
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+}
+
+.record-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-detail {
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+}
+
+/* A calendar leaf */
+.record-glyph {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  margin: 0 2px;
+  border: 1.5px solid var(--warn);
+  border-radius: 8px;
+  color: var(--warn);
+  font: 600 var(--fs-micro) / 1 var(--font-ui);
+}
+
+.record-glyph b {
+  font: 650 var(--fs-strong) / 1.1 var(--font-display);
+}
+
+.cloud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 12px;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.cloud-name {
+  color: var(--male);
+  font-family: var(--font-display);
+  font-weight: 560;
+  white-space: nowrap;
+}
+
+.cloud-name.g-female {
+  color: var(--female);
+}
+
+.cloud-name sup {
+  margin-left: 2px;
+  color: var(--text-3);
+  font: 600 var(--fs-micro) / 1 var(--font-ui);
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 104px) minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-meta);
+}
+
+.bars-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bars-track {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+.bars-track i {
+  border-radius: 4px;
+  background: var(--tone);
+  transform-origin: 0 50%;
+  animation: bar-wide 0.5s var(--ease) both;
+}
+
+.bars-n {
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.drops {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 22px;
+}
+
+.drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: var(--fs-meta);
+  line-height: 1.3;
+}
+
+.drop svg {
+  height: auto;
+  margin-bottom: 3px;
+  fill: var(--danger-soft);
+  stroke: var(--danger);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.drop b {
+  font-weight: 650;
+}
+
+.drop small {
+  color: var(--text-2);
+  font-size: var(--fs-micro);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Checks -------------------------------------------------------------------- */
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.checks-health {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.checks-health p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+}
+
+.checks-health b {
+  color: var(--text);
+  font-weight: 650;
+}
+
+/* The whole family as one strip: a slice for each kind of flag, the rest in the clear */
+.checks-meter {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+}
+
+.checks-meter i {
+  min-width: 8px;
+  border-radius: 3px;
+  background: var(--text-3);
+}
+
+.checks-meter .sev-problem {
+  background: var(--danger);
+}
+
+.checks-meter .sev-warning {
+  background: var(--warn);
+}
+
+.checks-meter .is-clear {
+  background: var(--accent);
+}
+
+.checks-dot {
+  align-self: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+.sev-problem .checks-dot {
+  background: var(--danger);
+}
+
+.sev-warning .checks-dot {
+  background: var(--warn);
+}
+
+.checks .alm-h {
+  margin-bottom: 4px;
+}
+
+.checks .insights-list {
+  margin: 0 0 0 -8px;
+}
+
+/* Who a check is about: one face, or the two that disagree */
+.checks-who {
+  flex: none;
+  display: flex;
+  width: 50px;
+  padding-left: 3px;
+}
+
+.checks-who .avatar + .avatar {
+  margin-left: -5px;
+}
+
+/* --- Facts about a person, as stamps -------------------------------------------- */
+
+.pp-stamps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-control);
+  color: var(--text);
+  font-size: var(--fs-meta);
+  font-weight: 550;
+  line-height: 1.3;
+  cursor: default;
+}
+
+.stamp svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.stamp.is-gold {
+  border-style: solid;
+  border-color: transparent;
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.stamp.is-gold svg {
+  color: inherit;
+}
+
+.stamp.is-quiet,
+.stamp.is-quiet svg {
+  color: var(--text-3);
+}
+
+/* --- Search results: age at a glance -------------------------------------------- */
+
+.search-result .rel-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-kin {
+  color: var(--accent-strong);
+  font-weight: 550;
+}
+
+.search-work {
+  color: var(--text-3);
+}
+
+.search-age {
+  flex: none;
+  padding-right: 2px;
+  color: var(--text-2);
+  font: 600 var(--fs-title) / 1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.search-age.is-past {
+  color: var(--text-3);
+}
+
+/* --- The summary pill opens the numbers ----------------------------------------- */
+
+.stats-pill.is-link {
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.stats-pill.is-link:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.stats-pill[data-tip]::after {
+  top: auto;
+  bottom: calc(100% + 10px);
+}
+
+/* --- Phones: one column, nothing boxed inside the dialog ------------------------- */
+
+@media (max-width: 640px) {
+  .almanac-pane {
+    height: calc(100dvh - 140px);
+  }
+
+  .coming {
+    display: block;
+    overflow-y: auto;
+  }
+
+  .coming-year {
+    margin-bottom: 12px;
+  }
+
+  .wheel {
+    max-width: 200px;
+  }
+
+  .faces {
+    overflow: visible;
+  }
+
+  .day-head {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .day-head span {
+    text-align: left;
+  }
+
+  .numbers-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stamp,
+  .stamp.is-gold {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  .pp-stamps {
+    gap: 4px 14px;
+  }
+
+  .record-glyph {
+    border: 0;
+  }
+
+  .coming-reset[aria-pressed='true'] {
+    background: none;
+  }
+}
+
+/* The tip of a button at the right edge opens leftwards, so it never widens the list. */
+.checks {
+  overflow-x: hidden;
+}
+
+.checks .insights-dismiss[data-tip]::after {
+  left: auto;
+  right: 0;
+  transform: translate(0, -3px);
+}
+
+.checks .insights-dismiss[data-tip]:hover::after,
+.checks .insights-dismiss[data-tip]:focus-visible::after {
+  transform: none;
+}
+
+.strip {
+  padding: 0 3px;
+}
+
+/* Three tabs on a phone: the words alone fit, the icons don't. */
+@media (max-width: 640px) {
+  .insights-tab svg {
+    display: none;
   }
 }
