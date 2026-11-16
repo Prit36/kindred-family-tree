@@ -4227,14 +4227,37 @@ kbd {
   inset: 0;
   border: 1px solid color-mix(in srgb, var(--tone) 55%, transparent);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--tone) 20%, var(--surface));
-  transition:
-    opacity 0.2s,
-    background 0.2s;
+  /* How strongly the bar is tinted: in childhood, through adult life, and from 60 on. */
+  --k: 20%;
+  --k-child: 10%;
+  --k-elder: 32%;
+  background: color-mix(in srgb, var(--tone) var(--k), var(--surface));
+  transition: opacity 0.2s;
+}
+
+/* An age ruler: a notch along the top every ten years, childhood lighter, the years from 60
+   deeper - so anyone's age at any year can be read off their bar. --ppy (pixels per year)
+   comes from the timeline's grid. */
+.tl-bar-fill.is-ruled {
+  background:
+    repeating-linear-gradient(
+        to right,
+        transparent 0 calc(var(--ppy) * 10px - 1.5px),
+        color-mix(in srgb, var(--tone) 70%, transparent) calc(var(--ppy) * 10px - 1.5px) calc(var(--ppy) * 10px)
+      )
+      left top / 100% 6px no-repeat,
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--tone) var(--k-child), var(--surface)) calc(var(--ppy) * 18px),
+      color-mix(in srgb, var(--tone) var(--k), var(--surface)) 0 calc(var(--ppy) * 60px),
+      color-mix(in srgb, var(--tone) var(--k-elder), var(--surface)) 0
+    );
 }
 
 .tl-bar:hover > .tl-bar-fill {
-  background: color-mix(in srgb, var(--tone) 28%, var(--surface));
+  --k: 28%;
+  --k-child: 17%;
+  --k-elder: 41%;
 }
 
 /* Still alive: the bar runs on into today. */
@@ -4263,7 +4286,9 @@ kbd {
 
 .tl-row.is-selected .tl-bar-fill {
   border: 1.5px solid var(--tone);
-  background: color-mix(in srgb, var(--tone) 34%, var(--surface));
+  --k: 34%;
+  --k-child: 21%;
+  --k-elder: 48%;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 16%, transparent);
 }
 
@@ -4283,7 +4308,9 @@ kbd {
 
 .tl-bar-lit > .tl-bar-fill {
   right: auto;
-  background: color-mix(in srgb, var(--tone) 26%, var(--surface));
+  --k: 26%;
+  --k-child: 15%;
+  --k-elder: 38%;
 }
 
 .tl-bar-label {
@@ -8044,5 +8071,759 @@ button.record:hover {
 @media (max-width: 640px) {
   .insights-tab svg {
     display: none;
+  }
+}
+
+/* ==========================================================================
+   Timeline: the family skyline above the years
+   ========================================================================== */
+
+/* The corner holds the skyline's readout over the choice of order. */
+.tl-corner {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.tl-order {
+  margin: 3px 0;
+}
+
+.tl-sky-readout {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 8px;
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.tl-sky-readout b {
+  color: var(--text);
+  font: 600 var(--fs-title) / 1.2 var(--font-display);
+}
+
+.tl-sky-born-text {
+  color: var(--warn);
+}
+
+.tl-sky {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Everyone alive, year by year */
+.tl-sky-area {
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.tl-sky-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+/* Births each year, hanging under the ground line like roots */
+.tl-sky-born {
+  fill: color-mix(in srgb, var(--warn) 75%, transparent);
+}
+
+/* The selected person's lifetime */
+.tl-sky-life {
+  fill: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+
+.tl-sky-cursor {
+  stroke: var(--text-3);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.tl-sky-dot {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.tl-years {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+/* ==========================================================================
+   Descendants: each branch's shape, marks on the slices, a leaf per person
+   ========================================================================== */
+
+/* A branch in the list: its name over its shape, generation by generation. */
+.fan-legend button {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  height: auto;
+  padding: 6px 8px 7px;
+}
+
+.fan-legend-top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.fan-legend-shape {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 21px;
+}
+
+.fan-legend-bar {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  min-width: 0;
+}
+
+/* One block a generation, paler the further from the head of the branch */
+.fan-legend-bar i {
+  flex: 1 0 0;
+  min-width: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--side) var(--seg), var(--surface));
+}
+
+/* The room a bigger branch takes: keeps every bar to the same scale */
+.fan-legend-bar b {
+  flex: 1 0 0;
+}
+
+.fan-legend-key + .fan-legend-key {
+  margin-top: 0;
+  padding-top: 2px;
+  border-top: 0;
+}
+
+.fan-legend-key .fan-legend-count {
+  padding-right: 8px;
+}
+
+/* The count at the foot opens the leaves; where there is no room for it, a leaf button does. */
+.view-foot .stats-pill:disabled {
+  cursor: default;
+}
+
+.fan-leaves-btn {
+  display: none;
+}
+
+@media (max-width: 859px) {
+  .fan-leaves-btn {
+    display: inline-grid;
+  }
+}
+
+.fan-leaves {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+  align-items: start;
+  gap: 9px 14px;
+  width: max-content;
+  max-width: min(460px, calc(100vw - 24px));
+  max-height: min(60vh, 420px);
+  padding: 12px 14px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-float);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  animation: pop-in 0.18s var(--ease) both;
+}
+
+.leaf-row {
+  display: contents;
+}
+
+.leaf-gen {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-weight: 600;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.leaf-gen b {
+  color: var(--text-3);
+  font-size: var(--fs-meta);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaf-years {
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.leaves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 4px;
+  min-width: 132px;
+  padding: 2px 0 0 2px;
+}
+
+/* A leaf in the colour of its branch; an outline for those remembered */
+.leaf {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 1.5px solid var(--side);
+  border-radius: 0 55% 55% 55%;
+  background: var(--side);
+  rotate: 45deg;
+  transition: scale 0.12s var(--ease);
+}
+
+.leaf.is-past {
+  background: transparent;
+}
+
+.leaf:hover,
+.leaf:focus-visible {
+  scale: 1.5;
+}
+
+.leaf.is-selected {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 3.5px var(--text);
+}
+
+@media (max-width: 640px) {
+  .fan-leaves {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+
+  .leaf-years {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   The year dial: Descendants grows year by year, the Timeline writes a year's page
+   ========================================================================== */
+
+/* --- The dial at the foot of the fan: play, the family's growth as a curve, the year --- */
+.era-dial {
+  flex: none;
+  width: 330px;
+  min-width: 190px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--h-bar);
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-float);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.2s;
+}
+
+.era-dial.is-on {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
+}
+
+.era-track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.era-track svg {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(100% - 6px);
+  height: calc(100% - 4px);
+  pointer-events: none;
+}
+
+.era-stop-on {
+  stop-color: color-mix(in srgb, var(--accent) 62%, var(--surface));
+}
+
+.era-stop-off {
+  stop-color: color-mix(in srgb, var(--text-3) 30%, var(--surface));
+}
+
+.era-track input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: ew-resize;
+}
+
+.era-track input::-webkit-slider-runnable-track {
+  height: 100%;
+  background: none;
+}
+
+.era-track input::-moz-range-track {
+  height: 100%;
+  background: none;
+}
+
+/* A needle the height of the curve */
+.era-track input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 6px;
+  height: 100%;
+  border: 0;
+  border-radius: 3px;
+  background: var(--text-2);
+  box-shadow: 0 0 0 1.5px var(--surface);
+}
+
+.era-track input::-moz-range-thumb {
+  width: 6px;
+  height: 100%;
+  border: 0;
+  border-radius: 3px;
+  background: var(--text-2);
+  box-shadow: 0 0 0 1.5px var(--surface);
+}
+
+.era-dial.is-on input::-webkit-slider-thumb {
+  background: var(--accent);
+}
+
+.era-dial.is-on input::-moz-range-thumb {
+  background: var(--accent);
+}
+
+.era-track input:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+.era-year {
+  flex: none;
+  min-width: 56px;
+  height: var(--h-control);
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-control);
+  background: none;
+  color: var(--text);
+  font: 600 var(--fs-title) / 1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.era-year:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.era-year:disabled {
+  color: var(--text-2);
+  font: 550 var(--fs-meta) / 1 var(--font-ui);
+  cursor: default;
+}
+
+/* --- The fan, turned back to a year --- */
+
+.fan-stage.is-dialled .fan-slice {
+  transition:
+    opacity 0.4s var(--ease),
+    transform 0.55s var(--ease);
+}
+
+.fan-stage.is-dialled .fan-slice path:first-child {
+  transition:
+    fill 0.7s,
+    opacity 0.15s;
+}
+
+.fan-stage.is-dialled .fan-twig,
+.fan-stage.is-dialled .fan-labels [data-n],
+.fan-stage.is-dialled .fan-ring-label {
+  transition: opacity 0.4s var(--ease);
+}
+
+/* Not yet born: nothing there, and the slice waits a little way in, to grow out from */
+.fan-world [data-era='unborn'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.fan-slice[data-era='unborn'] {
+  transform: scale(0.9);
+}
+
+.fan-slice[data-era='unborn'] path {
+  pointer-events: none;
+}
+
+/* Just arrived: the leaf comes out bright, then settles to its branch's shade */
+.fan-slice[data-era='new'] path:first-child {
+  fill: color-mix(in srgb, var(--side) calc(var(--mix) + 36%), var(--surface));
+  stroke: var(--side);
+}
+
+/* Living that year, whatever has happened since */
+.fan-slice.is-deceased[data-era='alive'] path:first-child {
+  fill: color-mix(in srgb, var(--side) var(--mix), var(--surface));
+}
+
+/* Already gone by then: an outline where they were */
+.fan-slice[data-era='past'] path:first-child {
+  fill: color-mix(in srgb, var(--side) 6%, var(--surface));
+  stroke-dasharray: 4 3;
+}
+
+.fan-labels [data-era='past'],
+.fan-twig[data-era='past'] {
+  opacity: 0.5;
+}
+
+.fan-root[data-era='past'] .avatar {
+  filter: grayscale(0.8);
+  opacity: 0.8;
+}
+
+/* The year itself, large, in the corner of the stage */
+.fan-era {
+  position: absolute;
+  top: 10px;
+  right: 18px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  color: var(--text-2);
+  font-size: var(--fs-strong);
+  font-weight: 500;
+  text-align: right;
+  pointer-events: none;
+  animation: fade-in 0.25s var(--ease) both;
+}
+
+.fan-era b {
+  color: var(--text);
+  font: 600 68px / 1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.fan-era-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+@media (min-width: 860px) {
+  .fan-stage.has-panel .fan-era {
+    right: calc(var(--panel-offset) + 18px);
+  }
+}
+
+@media (max-width: 859px) {
+  .fan-era {
+    top: 54px;
+    right: 12px;
+  }
+
+  .fan-era b {
+    font-size: 46px;
+  }
+
+  .era-dial {
+    flex: 1 1 0;
+    width: auto;
+  }
+}
+
+/* --- The timeline: a year pinned on the skyline --- */
+
+.tl-axis-track {
+  cursor: pointer;
+}
+
+.tl-sky-pin {
+  fill: color-mix(in srgb, var(--accent) 36%, transparent);
+}
+
+.tl-pin-label {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  padding: 0 9px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--fs-meta);
+  font-weight: 700;
+  line-height: 22px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* The year's line down through everyone's rows */
+.tl-era {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  box-shadow: inset 1.5px 0 0 var(--accent);
+}
+
+.tl-age.is-pinned {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
+  color: var(--accent-strong);
+}
+
+/* Not alive that year: the row steps back */
+.tl-bar,
+.tl-name {
+  transition: opacity 0.25s;
+}
+
+.tl-row.is-away .tl-bar,
+.tl-row.is-away .tl-bar-label.is-outside {
+  opacity: 0.28;
+}
+
+.tl-row.is-away .tl-name {
+  opacity: 0.5;
+}
+
+/* --- The year's page --- */
+
+.year-page {
+  position: absolute;
+  right: 12px;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  width: 328px;
+  max-height: calc(100% - 164px);
+  padding: 14px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-float);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  color: var(--text);
+  font-size: var(--fs-body);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  animation: pop-in 0.2s var(--ease) both;
+}
+
+.year-page.is-left {
+  right: auto;
+}
+
+.yp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.yp-year {
+  margin: 0;
+  font: 600 42px / 1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.yp-tools {
+  display: flex;
+  gap: 1px;
+}
+
+.yp-sum {
+  margin: 6px 0 0;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.yp-sum b {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.yp-sum .is-born {
+  color: var(--warn);
+}
+
+.yp-self {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 9px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-strong);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  text-align: left;
+}
+
+.year-page .alm-h {
+  margin: 16px 0 8px;
+}
+
+/* The bars move from one year's ages to the next */
+.year-page .pyr-bar {
+  height: 10px;
+}
+
+.year-page .pyr-bar i {
+  animation: none;
+  transition: width 0.35s var(--ease);
+}
+
+.yp-faces {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 56px;
+}
+
+.yp-face {
+  flex: 0 1 46px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: var(--fs-micro);
+  font-weight: 550;
+}
+
+.yp-face span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yp-face:hover span,
+.yp-eldest:hover b,
+.yp-self:hover {
+  text-decoration: underline;
+}
+
+.yp-more {
+  align-self: center;
+  margin: 0 0 14px 6px;
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+  font-weight: 600;
+}
+
+.yp-eldest {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: var(--fs-body);
+  text-align: left;
+}
+
+.yp-eldest small {
+  display: block;
+  color: var(--text-3);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+}
+
+.yp-eldest b {
+  font-weight: 650;
+}
+
+.yp-died {
+  display: flex;
+  gap: 7px;
+  margin: 12px 0 0;
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+}
+
+.yp-died svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* On a narrow timeline the page is a band across the bottom */
+@container (max-width: 600px) {
+  .year-page,
+  .year-page.is-left {
+    top: auto !important;
+    right: 6px;
+    bottom: 52px;
+    left: 6px !important;
+    width: auto;
+    max-height: 62%;
+    padding: 10px 12px 12px;
+  }
+
+  .yp-year {
+    font-size: 32px;
+  }
+
+  .year-page .alm-h {
+    margin: 10px 0 6px;
+  }
+
+  .year-page .pyr-bar {
+    height: 7px;
+  }
+
+  .year-page .pyramid {
+    gap: 2px;
   }
 }

@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent,
   type PointerEvent,
   type ReactNode,
@@ -16,6 +17,7 @@ import type { Person } from '../types';
 import { useStore } from '../store';
 import { focusSet } from '../lib/branches';
 import { ageOf, shownDate as formatDate, yearOf } from '../lib/dates';
+import { momentOf, yearPage } from '../lib/era';
 import { relationLabels } from '../lib/naming';
 import {
   ageAt,
@@ -33,10 +35,17 @@ import {
 } from '../lib/timeline';
 import { childrenOf, displayName, fullName, parentsOf, partnersOf, shortName } from '../lib/tree';
 import { Avatar } from './Avatar';
+import { YearPage } from './YearPage';
 import { countPeople, num } from '../lib/format';
 
 const ROW_H = 44;
-const AXIS_H = 36;
+/** The band of year labels. */
+const YEARS_H = 36;
+/** The family skyline above the years: everyone alive each year, births hanging beneath. */
+const SKY_H = 54;
+/** Where the skyline's ground sits; the area rises from it and births hang below. */
+const SKY_BASE = 37;
+const AXIS_H = SKY_H + YEARS_H;
 const BAR_TOP = 10;
 const BAR_H = 24;
 /** The selected person's life events hang below their bar in lanes this tall. */
@@ -135,6 +144,8 @@ interface RowProps {
   isHome: boolean;
   /** Someone else is selected: this bar is muted except where it overlaps them. */
   muted: boolean;
+  /** A year is pinned and this person was not alive in it. */
+  away: boolean;
   overlap: { left: number; width: number } | null;
   relation: string;
   events: LifeEvent[];
@@ -161,6 +172,7 @@ const TimelineRow = memo(function TimelineRow({
   tabbable,
   isHome,
   muted,
+  away,
   overlap,
   relation,
   events,
@@ -196,7 +208,7 @@ const TimelineRow = memo(function TimelineRow({
   }
   const inside = side === 'inside';
 
-  const cls = ['tl-row', selected && 'is-selected', compared && 'is-compared', muted && 'is-muted']
+  const cls = ['tl-row', selected && 'is-selected', compared && 'is-compared', muted && 'is-muted', away && 'is-away']
     .filter(Boolean)
     .join(' ');
   const fill = [
@@ -204,6 +216,8 @@ const TimelineRow = memo(function TimelineRow({
     !span.startKnown && 'is-fade-start',
     !span.endKnown && 'is-fade-end',
     span.living && 'is-living',
+    // Ages can only be read off a bar that starts at a known birth.
+    span.startKnown && 'is-ruled',
   ]
     .filter(Boolean)
     .join(' ');
@@ -321,6 +335,8 @@ export function Timeline() {
   const view = useStore((s) => s.view);
   const panelOpen = useStore((s) => Boolean(s.selectedId && s.tree.people[s.selectedId]));
   const select = useStore((s) => s.select);
+  const era = useStore((s) => s.era);
+  const setEra = useStore((s) => s.setEra);
 
   const [order, setOrderState] = useState<TimelineOrder>(loadOrder);
   const setOrder = (o: TimelineOrder) => {
@@ -364,8 +380,66 @@ export function Timeline() {
   const { ticks } = useMemo(() => axisTicks(from, to, ppy), [from, to, ppy]);
   const lifetimes = useMemo(() => indexLifetimes(rows), [rows]);
 
+  // --- The family skyline ----------------------------------------------------------------
+  // How many of the family were alive at the turn of each year, and how many were born in it.
+  const skyline = useMemo(() => {
+    const born = new Map<number, number>();
+    for (const s of rows) {
+      if (!s.startKnown) continue;
+      const y = Math.floor(s.start);
+      born.set(y, (born.get(y) ?? 0) + 1);
+    }
+    const end = Math.min(to, now);
+    const alive: { at: number; count: number }[] = [];
+    for (let y = from; y < end; y++) alive.push({ at: y, count: countAlive(lifetimes, y) });
+    alive.push({ at: end, count: countAlive(lifetimes, end) });
+    return {
+      alive,
+      born,
+      maxAlive: Math.max(1, ...alive.map((a) => a.count)),
+      maxBorn: Math.max(1, ...born.values()),
+    };
+  }, [rows, lifetimes, from, to, now]);
+
+  const skyPaths = useMemo(() => {
+    const y = (count: number) => SKY_BASE - (count / skyline.maxAlive) * (SKY_BASE - 3);
+    const line = skyline.alive.map((a, i) => `${i ? 'L' : 'M'}${xOf(a.at).toFixed(1)},${y(a.count).toFixed(1)}`).join('');
+    const first = xOf(skyline.alive[0].at).toFixed(1);
+    const last = xOf(skyline.alive[skyline.alive.length - 1].at).toFixed(1);
+    const w = Math.max(1, ppy - (ppy > 4 ? 1 : 0));
+    let born = '';
+    for (const [year, count] of skyline.born) {
+      const h = Math.max(1, (count / skyline.maxBorn) * (SKY_H - SKY_BASE - 3));
+      born += `M${xOf(year).toFixed(1)},${SKY_BASE + 2}h${w.toFixed(1)}v${h.toFixed(1)}h${(-w).toFixed(1)}z`;
+    }
+    return { line, area: `${line}L${last},${SKY_BASE}L${first},${SKY_BASE}Z`, born, y };
+  }, [skyline, xOf, ppy]);
+
   const selIndex = selectedId ? rowIndex.get(selectedId) : undefined;
   const sel = selIndex !== undefined ? rows[selIndex] : null;
+
+  // --- The pinned year ---------------------------------------------------------------------
+  // A year picked on the skyline stays put: its line runs down the rows, those not alive in
+  // it step back, and its page says how the family stood.
+  const lastYear = Math.floor(now);
+  const pinned = era !== null && rows.length > 0 ? Math.min(lastYear, Math.max(from, era)) : null;
+  const pinMoment = pinned === null ? null : momentOf(pinned, now);
+  const page = useMemo(() => (pinned === null ? null : yearPage(rows, pinned, now)), [rows, pinned, now]);
+  const pinW = Math.max(2, ppy);
+  const [pageSide, setPageSide] = useState<'left' | 'right'>('right');
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    if (!playing) return;
+    const timer = window.setInterval(() => {
+      const at = useStore.getState().era;
+      if (at === null || at >= lastYear) setPlaying(false);
+      else setEra(at + 1);
+    }, 420);
+    return () => window.clearInterval(timer);
+  }, [playing, lastYear, setEra]);
+  useEffect(() => {
+    if (pinned === null) setPlaying(false);
+  }, [pinned]);
   const cmp = compareId && rowIndex.has(compareId) ? rows[rowIndex.get(compareId)!] : null;
 
   // --- The selected person's life events ------------------------------------------------
@@ -459,8 +533,38 @@ export function Timeline() {
     rowHeight,
     events: life.events,
     pins: new Map<string, Pin[]>(),
+    firstYear: from,
+    lastYear,
   });
-  live.current = { ...live.current, rows, rowIndex, nameW, xOf, ppy, yearAt, rowTop, rowHeight, events: life.events };
+  live.current = { ...live.current, rows, rowIndex, nameW, xOf, ppy, yearAt, rowTop, rowHeight, events: life.events, firstYear: from, lastYear };
+
+  // The page sits to one side, and moves across when its year's line would run under it;
+  // a year turned to off-screen is brought to the middle.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el || pinned === null) return;
+    let x = nameW + xOf(pinned) - el.scrollLeft;
+    if (x < nameW + 4 || x > el.clientWidth - 4) {
+      el.scrollLeft = xOf(pinned) - (el.clientWidth - nameW) / 2;
+      x = nameW + xOf(pinned) - el.scrollLeft;
+    }
+    const cardW = 348;
+    const underRight = x > el.clientWidth - cardW;
+    const underLeft = x < nameW + cardW;
+    // Too narrow to clear the line either way: the side further from it.
+    const further = x > (nameW + el.clientWidth) / 2 ? 'left' : 'right';
+    setPageSide((side) => (underRight && underLeft ? further : side === 'right' ? (underRight ? 'left' : side) : underLeft ? 'right' : side));
+  }, [pinned, nameW, xOf, viewportW]);
+
+  // Picking a year on the skyline: a click pins it, and with a mouse you can drag through the years.
+  const scrubbing = useRef(false);
+  const pinAt = (clientX: number) => {
+    const el = scrollRef.current!;
+    const year = Math.floor(yearAt(clientX - el.getBoundingClientRect().left - nameW + el.scrollLeft));
+    if (year < from || year > lastYear) return;
+    setPlaying(false);
+    setEra(year);
+  };
 
   // --- Hover card -----------------------------------------------------------------
   const tipTimer = useRef(0);
@@ -639,6 +743,14 @@ export function Timeline() {
       if (key === 'h') return void (t.homeId && pick(t.homeId, true));
       if (key === '+' || key === '=') return zoomBy(ZOOM_STEP);
       if (key === '-') return zoomBy(1 / ZOOM_STEP);
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        const { era: at, setEra: turn } = useStore.getState();
+        if (at === null || el.closest('.year-page')) return;
+        e.preventDefault();
+        const next = at + (e.key === 'ArrowLeft' ? -1 : 1);
+        if (next >= live.current.firstYear && next <= live.current.lastYear) turn(next);
+        return;
+      }
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
 
       e.preventDefault();
@@ -765,6 +877,7 @@ export function Timeline() {
     return drawn.map((i): RowProps => {
         const s = rows[i];
         const isSel = s === sel;
+        const away = pinMoment !== null && (s.start > pinMoment || s.end < pinMoment);
         let overlap: RowProps['overlap'] = null;
         if (sel && !isSel) {
           const a = Math.max(sel.start, s.start);
@@ -784,6 +897,7 @@ export function Timeline() {
           tabbable: isSel || (!sel && i === 0),
           isHome: s.person.id === homeId,
           muted: Boolean(sel) && !isSel && s !== cmp,
+          away,
           overlap,
           relation: kin.get(s.person.id) ?? '',
           events: isSel ? life.events : NO_EVENTS,
@@ -796,7 +910,7 @@ export function Timeline() {
           onEdit,
         };
       });
-  }, [rows, sel, selIndex, cmp, cmpIndex, first, last, homeId, kin, ppy, nameW, trackW, xOf, rowTop, rowHeight, life, pins, linked, compact, nameStyle, onPick, onEdit]);
+  }, [rows, sel, selIndex, cmp, cmpIndex, first, last, homeId, kin, ppy, nameW, trackW, xOf, rowTop, rowHeight, life, pins, linked, compact, nameStyle, onPick, onEdit, pinMoment]);
 
   // --- Hover readout -----------------------------------------------------------------
   const readout = (clientX: number, target: HTMLElement) => {
@@ -845,11 +959,17 @@ export function Timeline() {
   };
 
   const hoverYear = hover?.year ?? null;
-  const alive = hoverYear !== null ? countAlive(lifetimes, hoverYear) : 0;
+  // The skyline's readout: the year under the pointer, or today.
+  const readAt = hoverYear !== null ? Math.min(hoverYear, now) : (pinMoment ?? now);
+  const readYear = hoverYear !== null ? Math.floor(hoverYear) : pinned;
+  const alive = countAlive(lifetimes, readAt);
+  const bornThen = readYear !== null ? (skyline.born.get(readYear) ?? 0) : 0;
+  // Ages are read at the pointer, or else at the pinned year.
+  const ageYear = hoverYear ?? pinMoment;
   // Everyone's age at the year under the pointer (only rows on screen are drawn).
   const hoverAges = useMemo(() => {
     const el = scrollRef.current;
-    if (hoverYear === null || !el) return [];
+    if (ageYear === null || !el) return [];
     const top = el.scrollTop - ROW_H;
     const bottom = el.scrollTop + el.clientHeight;
     const out: { i: number; age: number }[] = [];
@@ -858,11 +978,12 @@ export function Timeline() {
     for (let i = first; i <= last; i++) {
       const y = rowTop(i);
       if (y < top || y > bottom) continue;
-      const age = ageAt(rows[i], hoverYear);
+      const age = ageAt(rows[i], ageYear);
       if (age !== null) out.push({ i, age });
     }
     return out;
-  }, [hoverYear, rows, rowTop, rowAt, band]);
+    // (viewportW: the scroll area is only there to measure once the timeline has mounted)
+  }, [ageYear, rows, rowTop, rowAt, band, viewportW]);
 
   const home = tree.homeId ? tree.people[tree.homeId] : undefined;
   const bodyH = rows.length * ROW_H + extra;
@@ -893,10 +1014,16 @@ export function Timeline() {
         ) : (
           <div
             className="tl-grid"
-            style={{ width: nameW + trackW, paddingBottom: BOTTOM_ROOM }}
+            style={{ width: nameW + trackW, paddingBottom: BOTTOM_ROOM, '--ppy': ppy } as CSSProperties}
           >
             <div className="tl-axis" style={{ height: AXIS_H }}>
               <div className="tl-corner" style={{ width: nameW }}>
+                <span className="tl-sky-readout" style={{ height: SKY_H }} aria-live="off">
+                  <span>
+                    <b>{num(alive)}</b> alive{compact ? '' : readYear !== null ? ` in ${readYear}` : ' today'}
+                  </span>
+                  {!compact && bornThen > 0 && <span className="tl-sky-born-text">{num(bornThen)} born</span>}
+                </span>
                 <select
                   className="toolbar-select tl-order"
                   aria-label="Order people"
@@ -907,28 +1034,88 @@ export function Timeline() {
                   <option value="family">By family</option>
                 </select>
               </div>
-              <div className="tl-axis-track" style={{ width: trackW }}>
+              <div
+                className="tl-axis-track"
+                style={{ width: trackW }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  pinAt(e.clientX);
+                }}
+                onPointerDown={(e) => {
+                  if (e.pointerType !== 'mouse' || e.button !== 0) return;
+                  scrubbing.current = true;
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  pinAt(e.clientX);
+                }}
+                onPointerMove={(e) => {
+                  if (scrubbing.current) pinAt(e.clientX);
+                }}
+                onPointerUp={() => {
+                  scrubbing.current = false;
+                }}
+                onPointerCancel={() => {
+                  scrubbing.current = false;
+                }}
+              >
+                <svg className="tl-sky" width={trackW} height={SKY_H} aria-hidden="true">
+                  {sel && (
+                    <rect
+                      className="tl-sky-life"
+                      x={xOf(sel.start)}
+                      width={Math.max(2, xOf(sel.end) - xOf(sel.start))}
+                      height={SKY_H}
+                    />
+                  )}
+                  <path className="tl-sky-area" d={skyPaths.area} />
+                  <path className="tl-sky-line" d={skyPaths.line} />
+                  <path className="tl-sky-born" d={skyPaths.born} />
+                  {pinned !== null && page && (
+                    <>
+                      <rect className="tl-sky-pin" x={xOf(pinned)} width={pinW} height={SKY_H} />
+                      <circle className="tl-sky-dot" cx={xOf(pinned) + pinW / 2} cy={skyPaths.y(page.alive)} r={4} />
+                    </>
+                  )}
+                  {hoverYear !== null && hoverYear <= now && (
+                    <>
+                      <line className="tl-sky-cursor" x1={xOf(hoverYear)} x2={xOf(hoverYear)} y1={0} y2={SKY_H} />
+                      <circle className="tl-sky-dot" cx={xOf(hoverYear)} cy={skyPaths.y(alive)} r={3.5} />
+                    </>
+                  )}
+                </svg>
+                <div className="tl-years" style={{ height: YEARS_H }}>
                 {/* Years the "Today" label would sit on are left out. */}
                 {ticks.map((t) => (
                   <span
                     key={t.year}
-                    className={`tl-tick${t.major ? ' is-major' : ''}${!hover && Math.abs(xOf(t.year) - nowX) < 36 ? ' is-hidden' : ''}`}
+                    className={`tl-tick${t.major ? ' is-major' : ''}${
+                      (!hover && Math.abs(xOf(t.year) - nowX) < 36) || (pinned !== null && Math.abs(xOf(t.year) - xOf(pinned) - pinW / 2) < 34)
+                        ? ' is-hidden'
+                        : ''
+                    }`}
                     style={{ left: xOf(t.year) }}
                   >
                     {t.year}
                   </span>
                 ))}
                 {nowX <= trackW && (
-                  <span className={`tl-now-label${hover ? ' is-hidden' : ''}`} style={{ left: nowX }}>
+                  <span
+                    className={`tl-now-label${hover || (pinned !== null && Math.abs(nowX - xOf(pinned)) < 60) ? ' is-hidden' : ''}`}
+                    style={{ left: nowX }}
+                  >
                     Today
+                  </span>
+                )}
+                {pinned !== null && (
+                  <span className="tl-pin-label" style={{ left: xOf(pinned) + pinW / 2 }}>
+                    {pinned}
                   </span>
                 )}
                 {hover && (
                   <span ref={cursorLabelRef} className={`tl-cursor-label${hover.edge ? ` is-${hover.edge}` : ''}`} style={{ left: xOf(hover.year) }}>
                     {Math.floor(hover.year)}
-                    <span>{num(alive)} alive</span>
                   </span>
                 )}
+                </div>
               </div>
             </div>
 
@@ -944,6 +1131,7 @@ export function Timeline() {
                   />
                 )}
                 <span className="tl-now" style={{ left: nowX }} />
+                {pinned !== null && <span className="tl-era" style={{ left: xOf(pinned), width: pinW }} />}
                 {links.length > 0 && (
                   <svg className="tl-links" width={trackW} height={bodyH}>
                     {links.map((l) => {
@@ -992,14 +1180,17 @@ export function Timeline() {
                 </div>
               )}
 
-              {hover && (
+              {(hover || pinned !== null) && (
                 <div className="tl-layer is-front" style={{ left: nameW, width: trackW }} aria-hidden="true">
-                  <span className="tl-cursor" style={{ left: xOf(hover.year) }} />
+                  {hover && <span className="tl-cursor" style={{ left: xOf(hover.year) }} />}
                   {hoverAges.map(({ i, age }) => (
                     <span
                       key={i}
-                      className={`tl-age${rows[i].person.id === hover.row ? ' is-current' : ''}`}
-                      style={{ left: xOf(hover.year) + 7, top: rowTop(i) + BAR_TOP + BAR_H / 2 }}
+                      className={`tl-age${hover ? (rows[i].person.id === hover.row ? ' is-current' : '') : ' is-pinned'}`}
+                      style={{
+                        left: hover ? xOf(hover.year) + 7 : xOf(pinned!) + pinW + 5,
+                        top: rowTop(i) + BAR_TOP + BAR_H / 2,
+                      }}
                     >
                       {age}
                     </span>
@@ -1010,6 +1201,24 @@ export function Timeline() {
           </div>
         )}
       </div>
+      {page && (
+        <YearPage
+          page={page}
+          first={from}
+          last={lastYear}
+          sel={sel}
+          side={pageSide}
+          top={AXIS_H + 10}
+          inset={nameW + 10}
+          playing={playing}
+          onPlay={() => setPlaying((on) => !on)}
+          onYear={(y) => {
+            setPlaying(false);
+            setEra(y);
+          }}
+          onShow={(id) => select(id, true)}
+        />
+      )}
       <div className="view-foot">
         <div className="control-group">
           <button

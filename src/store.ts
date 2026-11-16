@@ -258,6 +258,8 @@ interface State {
   naming: Naming;
   /** The descendants fan: whose family it shows. */
   fan: FanPrefs;
+  /** The year the Descendants and Timeline views are turned back to, or null for today. */
+  era: number | null;
 
   /** Apply a change to the tree and record it for undo. */
   commit: (tree: Tree) => void;
@@ -294,6 +296,7 @@ interface State {
   setMode: (mode: ViewMode) => void;
   setNaming: (naming: Naming) => void;
   setFan: (prefs: Partial<FanPrefs>) => void;
+  setEra: (year: number | null) => void;
 }
 
 /** Folds are remembered between visits, as long as they still belong to this tree. */
@@ -369,6 +372,7 @@ export const useStore = create<State>((set, get) => ({
   mode: loadMode(),
   naming: loadNaming(),
   fan: loadFanPrefs(),
+  era: null,
 
   commit: (tree) => {
     const { tree: current, past } = get();
@@ -602,6 +606,10 @@ export const useStore = create<State>((set, get) => ({
       /* the choice just won't persist */
     }
     set({ fan });
+  },
+
+  setEra: (year) => {
+    if (year !== get().era) set({ era: year });
   },
 
   setNaming: (naming) => {

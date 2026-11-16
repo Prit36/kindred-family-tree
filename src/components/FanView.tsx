@@ -3,11 +3,12 @@ import { createPortal } from 'react-dom';
 import { select as d3select } from 'd3-selection';
 import 'd3-transition';
 import { zoom, zoomIdentity, zoomTransform, type ZoomBehavior, type ZoomTransform } from 'd3-zoom';
-import { Check, ChevronDown, HeartHandshake, Maximize, Minus, Plus, Search } from 'lucide-react';
+import { Check, ChevronDown, HeartHandshake, Leaf, Maximize, Minus, Pause, Play, Plus, Search, Sprout } from 'lucide-react';
 import type { Person, Tree } from '../types';
 import { useStore } from '../store';
 import { canvasHandle } from '../lib/canvasHandle';
-import { lifespan, shownDate as formatDate } from '../lib/dates';
+import { lifespan, parseDate, shownDate as formatDate, yearOf } from '../lib/dates';
+import { lifetimesOf, momentOf } from '../lib/era';
 import {
   ROOT_R,
   branchBox,
@@ -29,6 +30,7 @@ import { downloadFanPng, type FanPicture } from '../lib/fanExport';
 import { relationLabels, relationName, type Naming } from '../lib/naming';
 import { searchIndex, searchPeople } from '../lib/search';
 import { SIDE_TONES } from '../lib/sides';
+import { nowYear } from '../lib/timeline';
 import { displayName, fullName, indexOf, partnersOf, shortName } from '../lib/tree';
 import { Avatar } from './Avatar';
 import { num } from '../lib/format';
@@ -251,6 +253,7 @@ const Twigs = memo(function Twigs({ fan, lit, line }: LayerProps) {
         return (
           <path
             key={n.id}
+            data-n={i}
             d={n.twig}
             className={`fan-twig${n.depth === 1 ? ' is-bough' : ''}${isOn ? ' is-lit' : ''}${lit && !isOn ? ' is-dim' : ''}`}
             data-tone={isOn ? n.branch % SIDE_TONES : undefined}
@@ -280,7 +283,7 @@ const Slices = memo(function Slices({ fan, lit, line, selIdx, cmpIdx, homeIdx }:
           .filter(Boolean)
           .join(' ');
         return (
-          <g key={n.id} className={cls} data-tone={n.branch % SIDE_TONES} style={{ ['--mix' as string]: `${mixFor(n.depth)}%` }}>
+          <g key={n.id} className={cls} data-n={i} data-tone={n.branch % SIDE_TONES} style={{ ['--mix' as string]: `${mixFor(n.depth)}%` }}>
             <path d={n.d} data-i={i} data-person-id={n.id} />
             {n.viaDaughter && <path d={n.d} className="fan-hatch" fill={`url(#fan-hatch-${n.branch % SIDE_TONES})`} />}
           </g>
@@ -309,7 +312,7 @@ const Labels = memo(function Labels({ fan, lit, homeIdx }: { fan: FanLayout; lit
             const dim = lit && !lit.has(i);
             const cls = [dim ? 'is-dim' : '', i === homeIdx ? 'is-home' : ''].filter(Boolean).join(' ');
             return (
-              <g key={n.id} transform={`translate(${l.x} ${l.y}) rotate(${l.rotate})`} className={cls || undefined}>
+              <g key={n.id} data-n={i} transform={`translate(${l.x} ${l.y}) rotate(${l.rotate})`} className={cls || undefined}>
                 <text className="fan-name" y={l.nameY} fontSize={l.size}>
                   {l.text}
                   {l.spouse && l.spouseInline && (
@@ -336,6 +339,19 @@ const Labels = memo(function Labels({ fan, lit, homeIdx }: { fan: FanLayout; lit
     </g>
   );
 });
+
+/** How strongly each generation of a branch is tinted in the legend's bars, nearest first. */
+const SEGMENT = [100, 100, 70, 48, 32, 22];
+const segmentFor = (depth: number) => SEGMENT[Math.min(depth, SEGMENT.length - 1)];
+
+/** "23 living · 3 generations": the family as it stood in the year the dial is turned to. */
+function eraText(living: number, gens: number, naming: Naming): string {
+  if (naming === 'gu') return `${num(living)} હયાત · ${gens} પેઢી`;
+  if (naming === 'gu-latn') return `${num(living)} hayat · ${gens} pedhi`;
+  return `${num(living)} living · ${gens} ${gens === 1 ? 'generation' : 'generations'}`;
+}
+
+const todayWord = (naming: Naming) => (naming === 'gu' ? 'આજ' : naming === 'gu-latn' ? 'Aaj' : 'Today');
 
 // ---------------------------------------------------------------------------
 // Hover card
@@ -471,7 +487,9 @@ export function FanView() {
   const selectedId = useStore((s) => s.selectedId);
   const compareId = useStore((s) => s.compareId);
   const view = useStore((s) => s.view);
-  const { select, compare, setFan, toast, openDialog } = useStore.getState();
+  const era = useStore((s) => s.era);
+  const panelOpen = useStore((s) => Boolean(s.selectedId && s.tree.people[s.selectedId]));
+  const { select, compare, setFan, setEra, toast, openDialog } = useStore.getState();
 
   const rootId = prefs.rootId && tree.people[prefs.rootId] ? prefs.rootId : defaultRoot(tree);
   const root = rootId ? tree.people[rootId] : undefined;
@@ -483,6 +501,118 @@ export function FanView() {
   );
   const live = useRef(fan);
   live.current = fan;
+
+  // --- The family counted: by branch and by generation ---------------------------------
+  const census = useMemo(() => {
+    const branches = new Map<number, { depths: number[]; total: number }>();
+    const gens: { depth: number; nodes: number[]; first: number | null; last: number | null }[] = [];
+    fan.nodes.forEach((n, i) => {
+      if (n.depth === 0) return;
+      const { y } = parseDate(n.person.birthDate);
+
+      let b = branches.get(n.branch);
+      if (!b) branches.set(n.branch, (b = { depths: [], total: 0 }));
+      b.depths[n.depth] = (b.depths[n.depth] ?? 0) + 1;
+      b.total += 1;
+
+      let g = gens[n.depth];
+      if (!g) gens[n.depth] = g = { depth: n.depth, nodes: [], first: null, last: null };
+      g.nodes.push(i);
+      if (y) {
+        g.first = g.first === null ? y : Math.min(g.first, y);
+        g.last = g.last === null ? y : Math.max(g.last, y);
+      }
+    });
+    return {
+      branches,
+      gens: gens.filter(Boolean),
+      biggest: Math.max(1, ...[...branches.values()].map((b) => b.total)),
+    };
+  }, [fan]);
+
+  // --- The year dial: the family as it stood in any year ---------------------------------
+  // When everyone was born and how long they lived, and the family's size as each year closed.
+  const times = useMemo(() => {
+    const now = nowYear();
+    const { born, end } = lifetimesOf(fan.nodes, now);
+    const first = Math.floor(born.reduce((a, b) => Math.min(a, b), now));
+    const last = Math.floor(now);
+    const sizes: number[] = [];
+    for (let y = first; y <= last; y++) {
+      const t = momentOf(y, now);
+      let count = 0;
+      for (let i = 0; i < born.length; i++) if (born[i] <= t && end[i] >= t) count += 1;
+      sizes.push(count);
+    }
+    return { now, born, end, first, last, sizes, most: Math.max(1, ...sizes) };
+  }, [fan]);
+
+  /** The year the fan is turned back to; null is today, with everyone in it. */
+  const year = era !== null && era < times.last ? Math.max(era, times.first) : null;
+  const then = useMemo(() => {
+    if (year === null) return null;
+    const t = momentOf(year, times.now);
+    const gens = new Set<number>();
+    let living = 0;
+    let newest = -1;
+    fan.nodes.forEach((n, i) => {
+      if (times.born[i] > t || times.end[i] < t) return;
+      living += 1;
+      gens.add(n.depth);
+      if (newest < 0 || times.born[i] > times.born[newest]) newest = i;
+    });
+    return { t, living, generations: gens.size, newest };
+  }, [year, times, fan]);
+
+  // Playing runs the years from the first birth (or wherever the dial stands) up to today,
+  // the whole story in about twelve seconds.
+  const [playing, setPlaying] = useState(false);
+  // Once the dial has been turned, slices come and go gently for the rest of the visit.
+  const [dialled, setDialled] = useState(false);
+  useEffect(() => {
+    if (year !== null) setDialled(true);
+  }, [year]);
+  useEffect(() => {
+    if (!playing) return;
+    const { first, last } = times;
+    const at = useStore.getState().era;
+    const from = at !== null && at >= first && at < last ? at : first;
+    const rate = Math.max(4, (last - first) / 12);
+    const began = performance.now();
+    const timer = window.setInterval(() => {
+      const y = Math.floor(from + ((performance.now() - began) / 1000) * rate);
+      if (y >= last) {
+        setEra(null);
+        setPlaying(false);
+      } else setEra(y);
+    }, 50);
+    return () => window.clearInterval(timer);
+  }, [playing, times, setEra]);
+
+  const dialPath = useMemo(() => {
+    const { sizes, most } = times;
+    const top = (c: number) => (100 - (c / most) * 92).toFixed(1);
+    return `M0,100${sizes.map((c, i) => `L${i},${top(c)}`).join('')}L${Math.max(1, sizes.length - 1)},100Z`;
+  }, [times]);
+
+  // The leaves card: every descendant as a leaf, a row for each generation.
+  const [leavesOpen, setLeavesOpen] = useState(false);
+  const censusRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!leavesOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!censusRef.current?.contains(e.target as Node)) setLeavesOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLeavesOpen(false);
+    };
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [leavesOpen]);
 
   const [hover, setHover] = useState<number | null>(null);
   const [tip, setTip] = useState<{ i: number; x: number; y: number } | null>(null);
@@ -528,6 +658,36 @@ export function FanView() {
       g.style.display = Number(g.dataset.fz) * k >= READABLE_PX ? '' : 'none';
     });
   }, []);
+
+  // Turned back to a year, each slice, twig and name is marked as not yet born, newly
+  // arrived, living or passed, and the stylesheet draws it so. Marked on the elements
+  // themselves (not through a re-render), so a year going by costs next to nothing.
+  const travelled = useRef(false);
+  useLayoutEffect(() => {
+    const world = worldRef.current;
+    if (!world) return;
+    if (!then) {
+      if (travelled.current) world.querySelectorAll('[data-era]').forEach((el) => el.removeAttribute('data-era'));
+      travelled.current = false;
+      return;
+    }
+    travelled.current = true;
+    const { born, end } = times;
+    const mark = (el: Element, value: string) => {
+      if (el.getAttribute('data-era') !== value) el.setAttribute('data-era', value);
+    };
+    world.querySelectorAll('[data-n]').forEach((el) => {
+      const i = Number(el.getAttribute('data-n'));
+      mark(el, born[i] > then.t ? 'unborn' : end[i] < then.t ? 'past' : born[i] > then.t - 3 && i > 0 ? 'new' : 'alive');
+    });
+    const reached = new Set<number>();
+    fan.nodes.forEach((n, i) => {
+      if (born[i] <= then.t) reached.add(n.depth);
+    });
+    world.querySelectorAll('[data-ring]').forEach((el) => {
+      mark(el, reached.has(Number(el.getAttribute('data-ring'))) ? 'alive' : 'unborn');
+    });
+  });
 
   // A layout effect, so it is ready before the first fit below.
   useLayoutEffect(() => {
@@ -815,6 +975,12 @@ export function FanView() {
       // Every name that would be readable at full size goes into the picture.
       setHover(null);
       syncLabels(1);
+      // The picture is of the family today: turn the dial back and let the slices settle.
+      if (useStore.getState().era !== null) {
+        setPlaying(false);
+        useStore.getState().setEra(null);
+        await new Promise((done) => window.setTimeout(done, 700));
+      }
       try {
         const pic = picture.current();
         if (pic) await downloadFanPng(pic);
@@ -837,6 +1003,8 @@ export function FanView() {
   const rootRel = kin.get(root.id);
   const rootSpouses = fan.nodes[0]?.spouses ?? [];
   const rootSpouseText = rootSpouses.length ? `& ${rootSpouses.map((s) => treeName(tree, s, naming)).join(', ')}` : '';
+  const newest = then && then.newest > 0 ? fan.nodes[then.newest] : undefined;
+  const dialAt = year === null ? 1 : (year - times.first) / Math.max(1, times.last - times.first);
 
   return (
     <section className="fan" aria-label={`Descendants of ${displayName(root)}`}>
@@ -877,7 +1045,7 @@ export function FanView() {
         <RootPicker tree={tree} root={root} kin={kin} naming={naming} />
       </div>
 
-      <div className="view-foot">
+      <div className="view-foot" ref={censusRef}>
         <div className="control-group">
           <button type="button" className="icon-btn" onClick={() => zoomBy(1 / 1.35)} aria-label="Zoom out" data-tip="Zoom out (−)">
             <Minus size={17} />
@@ -888,13 +1056,114 @@ export function FanView() {
           <button type="button" className="icon-btn" onClick={() => fit()} aria-label="Fit the whole family" data-tip="Fit (F)">
             <Maximize size={16} />
           </button>
+          {/* A small screen has no room for the count below, so the leaves open from here. */}
+          <button
+            type="button"
+            className="icon-btn fan-leaves-btn"
+            aria-label="Every descendant, by generation"
+            aria-expanded={leavesOpen}
+            disabled={census.gens.length === 0}
+            onClick={() => setLeavesOpen((o) => !o)}
+          >
+            <Leaf size={16} />
+          </button>
         </div>
-        <div className="stats-pill">{statsText(gens, fan.nodes.length - 1, fan.living, naming)}</div>
+          <button
+            type="button"
+            className="stats-pill is-link"
+            aria-expanded={leavesOpen}
+            disabled={census.gens.length === 0}
+            onClick={() => setLeavesOpen((o) => !o)}
+          >
+            {statsText(gens, fan.nodes.length - 1, fan.living, naming)}
+          </button>
+          {leavesOpen && (
+            <div className="fan-leaves" role="dialog" aria-label="Every descendant, by generation" onPointerLeave={() => setHover(null)}>
+              {census.gens.map((g) => (
+                <div key={g.depth} className="leaf-row">
+                  <span className="leaf-gen">
+                    {generationName(g.depth, naming, hasDaughterLine && !prefs.sonsOnly)}
+                    <b>{g.nodes.length}</b>
+                  </span>
+                  <span className="leaf-years">
+                    {g.first === null ? '' : g.first === g.last ? g.first : `${g.first} – ${g.last}`}
+                  </span>
+                  <span className="leaves">
+                    {g.nodes.map((i) => {
+                      const n = fan.nodes[i];
+                      const past = n.person.deceased || Boolean(n.person.deathDate);
+                      return (
+                        <button
+                          key={n.id}
+                          type="button"
+                          className={`leaf${past ? ' is-past' : ''}${i === selIdx ? ' is-selected' : ''}`}
+                          data-tone={n.branch % SIDE_TONES}
+                          title={treeName(tree, n.person, naming)}
+                          aria-label={treeName(tree, n.person, naming)}
+                          onPointerEnter={() => setHover(i)}
+                          onClick={() => select(n.id)}
+                        />
+                      );
+                    })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {fan.nodes.length > 1 && times.last - times.first >= 5 && (
+            <div className={`era-dial${year !== null ? ' is-on' : ''}`}>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={playing ? 'Pause' : 'Play the family through the years'}
+                data-tip={playing ? 'Pause' : `Grow from ${times.first}`}
+                onClick={() => setPlaying((on) => !on)}
+              >
+                {playing ? <Pause size={15} /> : <Play size={15} />}
+              </button>
+              <span className="era-track">
+                <svg viewBox={`0 0 ${Math.max(1, times.sizes.length - 1)} 100`} preserveAspectRatio="none" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="era-fill">
+                      <stop offset={dialAt} className="era-stop-on" />
+                      <stop offset={dialAt} className="era-stop-off" />
+                    </linearGradient>
+                  </defs>
+                  <path d={dialPath} fill="url(#era-fill)" />
+                </svg>
+                <input
+                  type="range"
+                  aria-label="Year"
+                  min={times.first}
+                  max={times.last}
+                  step={1}
+                  value={year ?? times.last}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setPlaying(false);
+                    setEra(v >= times.last ? null : v);
+                  }}
+                />
+              </span>
+              <button
+                type="button"
+                className="era-year"
+                disabled={year === null}
+                data-tip={year === null ? undefined : `Back to ${todayWord(naming).toLowerCase()}`}
+                onClick={() => {
+                  setPlaying(false);
+                  setEra(null);
+                }}
+              >
+                {year ?? todayWord(naming)}
+              </button>
+            </div>
+          )}
       </div>
 
       <div
         ref={stageRef}
-        className={`fan-stage${lit ? ' is-dimming' : ''}`}
+        className={`fan-stage${lit ? ' is-dimming' : ''}${then ? ' is-travelling' : ''}${dialled ? ' is-dialled' : ''}${panelOpen ? ' has-panel' : ''}`}
         onPointerOver={onPointerOver}
         onPointerOut={onPointerOut}
         onClick={onClick}
@@ -922,7 +1191,7 @@ export function FanView() {
             <g className="fan-rings" aria-hidden="true">
               {fan.rings.map((ring) =>
                 ringLabelSpots(ring).slice(1).map((s, k) => (
-                  <text key={`${ring.depth}-${k}`} x={s.x} y={s.y} textAnchor={s.anchor} className="fan-ring-label">
+                  <text key={`${ring.depth}-${k}`} data-ring={ring.depth} x={s.x} y={s.y} textAnchor={s.anchor} className="fan-ring-label">
                     {generationName(ring.depth, naming, hasDaughterLine && !prefs.sonsOnly)}
                     <tspan className="fan-ring-count"> · {ring.count}</tspan>
                   </text>
@@ -934,6 +1203,7 @@ export function FanView() {
           <button
             type="button"
             className={`fan-root${selectedId === root.id ? ' is-selected' : ''}`}
+            data-n={0}
             style={{ width: ROOT_R * 2, height: ROOT_R * 2 }}
             onClick={() => select(root.id)}
             onPointerEnter={() => setHover(0)}
@@ -986,11 +1256,26 @@ export function FanView() {
           )}
         </div>
 
+        {then && year !== null && (
+          <div className="fan-era">
+            <b>{year}</b>
+            <span>{eraText(then.living, then.generations, naming)}</span>
+            {newest && (
+              <span className="fan-era-new">
+                <Sprout size={14} aria-hidden="true" />
+                {treeName(tree, newest.person, naming)}
+                {yearOf(newest.person.birthDate) ? ` · ${yearOf(newest.person.birthDate)}` : ''}
+              </span>
+            )}
+          </div>
+        )}
+
         {branches.length > 0 && (
           <div className="fan-legend" onPointerLeave={() => setHover(null)}>
             <ul>
               {branches.map((i) => {
                 const n = fan.nodes[i];
+                const shape = census.branches.get(n.branch);
                 return (
                   <li key={n.id}>
                     <button
@@ -1004,10 +1289,36 @@ export function FanView() {
                         select(n.id);
                       }}
                     >
-                      <span className={`fan-swatch${n.person.gender === 'female' ? ' is-daughter' : ''}`} />
-                      <span className="fan-legend-name">{treeName(tree, n.person, naming)}</span>
-                      {kin.get(n.id) && <span className="fan-legend-rel">{kin.get(n.id)}</span>}
-                      <span className="fan-legend-count">{n.descendants + 1}</span>
+                      <span className="fan-legend-top">
+                        <span className={`fan-swatch${n.person.gender === 'female' ? ' is-daughter' : ''}`} />
+                        <span className="fan-legend-name">{treeName(tree, n.person, naming)}</span>
+                        {kin.get(n.id) && <span className="fan-legend-rel">{kin.get(n.id)}</span>}
+                        <span className="fan-legend-count">{n.descendants + 1}</span>
+                      </span>
+                      {shape && (
+                        // The branch's shape: a block for each generation, as long as it has people.
+                        <span
+                          className="fan-legend-shape"
+                          title={
+                            shape.depths
+                              .map((count, depth) =>
+                                depth > 1 && count ? `${generationName(depth - 1, naming, hasDaughterLine && !prefs.sonsOnly)} ${count}` : '',
+                              )
+                              .filter(Boolean)
+                              .join(' · ') || undefined
+                          }
+                        >
+                          <span className="fan-legend-bar">
+                            {shape.depths.map(
+                              (count, depth) =>
+                                count > 0 && (
+                                  <i key={depth} style={{ flexGrow: count, ['--seg' as string]: `${segmentFor(depth)}%` }} />
+                                ),
+                            )}
+                            {census.biggest > shape.total && <b style={{ flexGrow: census.biggest - shape.total }} />}
+                          </span>
+                        </span>
+                      )}
                     </button>
                   </li>
                 );
