@@ -27,6 +27,12 @@ export interface Person {
   photoOriginal: string;
   /** Where in that original the crop was taken, so it can be adjusted later */
   photoCrop: CropView | null;
+  /** "O+", as written; '' when not known */
+  bloodGroup: string;
+  /** What they do: "Business", "Doctor MD Anesthetist" */
+  occupation: string;
+  /** How far they studied: "Std 12", "B.Com" */
+  education: string;
   notes: string;
   /** Up to two parents */
   parentIds: string[];

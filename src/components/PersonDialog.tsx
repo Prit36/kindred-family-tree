@@ -12,6 +12,7 @@ import {
   createPerson,
   displayName,
   familyName,
+  hasMarriedName,
   isPlaceholder,
   linkChild,
   linkParent,
@@ -24,6 +25,7 @@ import {
   shortName,
   siblingCandidates,
   singleParentSiblings,
+  takeHusbandsName,
   updatePerson,
 } from '../lib/tree';
 import { learnSpellings, NO_SPELLINGS, toGujarati } from '../lib/gujaratiNames';
@@ -49,6 +51,8 @@ const GENDERS: { value: Gender; label: string }[] = [
   { value: 'female', label: 'Female' },
   { value: 'other', label: 'Other' },
 ];
+
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 const opposite = (g: Gender): Gender => (g === 'male' ? 'female' : g === 'female' ? 'male' : 'other');
 
@@ -84,7 +88,11 @@ function initialDraft(tree: Tree, spec: PersonDialogSpec): PersonInput {
       });
     }
     case 'partner':
-      return blankInput({ gender: opposite(anchor.gender) });
+      return blankInput({
+        gender: opposite(anchor.gender),
+        // A wife takes her husband's surname - and a husband's is his wife's married one.
+        lastName: anchor.gender === 'male' || (anchor.gender === 'female' && hasMarriedName(anchor)) ? anchor.lastName : '',
+      });
     case 'child': {
       const partner = partnersOf(tree, anchor.id)[0]?.person;
       const father = anchor.gender === 'male' ? anchor : partner?.gender === 'male' ? partner : anchor;
@@ -148,6 +156,13 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
     [tree, relation, anchor],
   );
   const [shareParent, setShareParent] = useState(true);
+
+  // A new partner is usually the other parent of children who have only this person as a parent.
+  const soloChildren = useMemo(
+    () => (relation === 'partner' && anchor ? childrenOf(tree, anchor.id).filter((c) => c.parentIds.length === 1) : []),
+    [tree, relation, anchor],
+  );
+  const [shareChildren, setShareChildren] = useState(true);
 
   const editingPlaceholder = spec.type === 'edit' && isPlaceholder(tree.people[spec.personId]);
   const placeholderChildren = editingPlaceholder && spec.type === 'edit' ? childrenOf(tree, spec.personId) : [];
@@ -251,6 +266,8 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
       birthName: birthName.toLowerCase() === lastName.toLowerCase() ? '' : birthName,
       birthPlace: draft.birthPlace.trim(),
       notes: draft.notes.trim(),
+      occupation: draft.occupation.trim(),
+      education: draft.education.trim(),
       deathDate: draft.deceased ? draft.deathDate : '',
     };
 
@@ -284,9 +301,20 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
       case 'parent':
         next = linkParent(next, spec.anchorId, targetId, shareParent ? soloSiblings.map((s) => s.id) : []);
         break;
-      case 'partner':
+      case 'partner': {
         next = linkPartner(next, spec.anchorId, targetId, status);
+        if (status === 'married') {
+          const renamed = takeHusbandsName(next, spec.anchorId, targetId);
+          if (renamed.wifeId) {
+            const wife = renamed.tree.people[renamed.wifeId];
+            const kept = wife.birthName ? ` - ${wife.birthName} is kept as her surname at birth` : '';
+            toast(`${shortName(wife)}'s surname is now ${wife.lastName}${kept}`);
+          }
+          next = renamed.tree;
+        }
+        if (shareChildren) for (const c of soloChildren) next = linkChild(next, spec.anchorId, targetId, c.id);
         break;
+      }
       case 'child':
         next = linkChild(next, spec.anchorId, otherParentId || null, targetId);
         break;
@@ -498,6 +526,38 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
                   </label>
                 </div>
 
+                <div className="field-row facts-row">
+                  <label className="field">
+                    <span className="field-label">Occupation</span>
+                    <input
+                      className="input"
+                      value={draft.occupation}
+                      autoComplete="off"
+                      onChange={(e) => set({ occupation: e.target.value })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Education</span>
+                    <input
+                      className="input"
+                      value={draft.education}
+                      autoComplete="off"
+                      onChange={(e) => set({ education: e.target.value })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Blood group</span>
+                    <select className="input" value={draft.bloodGroup} onChange={(e) => set({ bloodGroup: e.target.value })}>
+                      <option value="">-</option>
+                      {(BLOOD_GROUPS.includes(draft.bloodGroup) || !draft.bloodGroup ? BLOOD_GROUPS : [draft.bloodGroup, ...BLOOD_GROUPS]).map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
                 <div className="field-row is-death">
                   <label className="check">
                     <input
@@ -526,7 +586,7 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
                     className="input"
                     rows={3}
                     value={draft.notes}
-                    placeholder="Stories, occupation, anything worth remembering"
+                    placeholder="Stories, anything worth remembering"
                     onChange={(e) => set({ notes: e.target.value })}
                   />
                 </label>
@@ -566,6 +626,16 @@ export function PersonDialog({ spec }: { spec: PersonDialogSpec }) {
             <span>
               Also {listNames(soloSiblings)}'s parent
               <small> - keeps {shortName(anchor)} and {soloSiblings.length === 1 ? 'them' : 'the others'} full siblings</small>
+            </span>
+          </label>
+        )}
+
+        {soloChildren.length > 0 && anchor && (
+          <label className="check">
+            <input type="checkbox" checked={shareChildren} onChange={(e) => setShareChildren(e.target.checked)} />
+            <span>
+              Also {listNames(soloChildren)}'s parent
+              <small> - {shortName(anchor)} is their only parent in the tree so far</small>
             </span>
           </label>
         )}

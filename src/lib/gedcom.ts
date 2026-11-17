@@ -128,6 +128,9 @@ export function toGedcom(tree: Tree, now = new Date()): string {
     }
     if (p.deathDate) lines.push('1 DEAT', `2 DATE ${gedDate(p.deathDate)}`);
     else if (p.deceased) lines.push('1 DEAT Y');
+    if (p.occupation.trim()) lines.push(`1 OCCU ${clean(p.occupation)}`);
+    if (p.education.trim()) lines.push(`1 EDUC ${clean(p.education)}`);
+    if (p.bloodGroup.trim()) lines.push(`1 FACT ${clean(p.bloodGroup)}`, '2 TYPE Blood group');
     if (p.notes.trim()) lines.push(...textLines(1, 'NOTE', p.notes.trim()));
     const famc = famcOf.get(p.id);
     if (famc) lines.push(`1 FAMC ${famc}`);
@@ -310,7 +313,10 @@ export function parseGedcom(text: string, fallbackName = 'My Family', now = new 
     }
     if (place(deat)) addNote(id, `Died in ${place(deat)}`);
     if (place(buri)) addNote(id, `Buried in ${place(buri)}`);
-    for (const o of childrenOf(r, 'OCCU')) if (fullText(o)) addNote(id, `Occupation: ${fullText(o)}`);
+    const occupation = childrenOf(r, 'OCCU').map(fullText).filter(Boolean);
+    const education = childrenOf(r, 'EDUC').map(fullText).filter(Boolean);
+    const bloodGroup =
+      childrenOf(r, 'FACT').find((f) => /blood/i.test(child(f, 'TYPE')?.value ?? '') && fullText(f))?.value.trim() ?? '';
 
     // Files often leave out death records for people long gone; don't show them as 250-year-olds.
     const birthYear = parseDate(birthDate).y;
@@ -328,6 +334,9 @@ export function parseGedcom(text: string, fallbackName = 'My Family', now = new 
         deathDate,
         deceased,
         birthPlace,
+        occupation: occupation.join('; '),
+        education: education.join('; '),
+        bloodGroup,
       }),
       id,
       notes: notes.join('\n\n'),

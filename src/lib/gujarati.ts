@@ -236,12 +236,22 @@ const PATTERNS: [pattern: string, gu: string, latin: string, en: string, honour?
   ['F ^ M', 'પરદાદી', 'Pardadi', 'Paternal great-grandmother'],
   ['M ^ F', 'પરનાના', 'Parnana', 'Maternal great-grandfather'],
   ['M ^ M', 'પરનાની', 'Parnani', 'Maternal great-grandmother'],
-  // Grandparents' brothers and sisters are called by the grandparent's own word
-  ['F F B', 'દાદા', 'Dada', "Paternal grandfather's brother"],
+  // A grandparent's partner is called by the grandparent's word too, even where the tree
+  // doesn't record them as the parent's parent: નાનાનાં પત્ની is just નાની.
+  ['F F W', 'દાદી', 'Dadi', "Paternal grandfather's wife"],
+  ['F M H', 'દાદા', 'Dada', "Paternal grandmother's husband"],
+  ['M F W', 'નાની', 'Nani', "Maternal grandfather's wife"],
+  ['M M H', 'નાના', 'Nana', "Maternal grandmother's husband"],
+  ['P F W', 'દાદી/નાની', 'Dadi/Nani', "Grandfather's wife"],
+  ['P M H', 'દાદા/નાના', 'Dada/Nana', "Grandmother's husband"],
+  ['F ^ F W', 'પરદાદી', 'Pardadi', "Paternal great-grandfather's wife"],
+  ['F ^ M H', 'પરદાદા', 'Pardada', "Paternal great-grandmother's husband"],
+  ['M ^ F W', 'પરનાની', 'Parnani', "Maternal great-grandfather's wife"],
+  ['M ^ M H', 'પરનાના', 'Parnana', "Maternal great-grandmother's husband"],
+  // Grandparents' brothers are told apart from the grandparents themselves (દાદાના ભાઈ,
+  // worked out below); their wives are called by the grandmother's word.
   ['F F B W', 'દાદી', 'Dadi', "Paternal grandfather's brother's wife"],
-  ['M F B', 'નાના', 'Nana', "Maternal grandfather's brother"],
   ['M F B W', 'નાની', 'Nani', "Maternal grandfather's brother's wife"],
-  ['M M Z', 'નાની', 'Nani', "Maternal grandmother's sister"],
 
   // Father's side
   ['F eB', 'મોટા બાપુ', 'Mota Bapu', "Father's elder brother"],

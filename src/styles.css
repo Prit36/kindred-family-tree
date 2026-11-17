@@ -6257,6 +6257,11 @@ kbd {
   .person-form .field-row.is-death { grid-template-columns: minmax(88px, 0.75fr) minmax(184px, 1.25fr); }
 }
 
+.person-form .field-row.facts-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(72px, 0.45fr); }
+@media (max-width: 640px) {
+  .person-form .field-row.facts-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+
 .form-photo { flex: 0 0 48px; }
 .photo-actions { position: relative; margin-top: 6px; }
 .photo-actions summary { display: flex; align-items: center; justify-content: center; gap: 2px; min-height: 26px; cursor: pointer; list-style: none; color: var(--text-2); }

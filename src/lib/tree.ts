@@ -3,6 +3,7 @@ import type { CropView } from './crop';
 import { isOriginalId } from './photoStore';
 import { firstLetter, nameScript, toGujarati, type Spellings } from './gujaratiNames';
 import { adoptPatronymics, middleNameOf } from './names';
+import { splitFacts } from './facts';
 import { memoRecent } from './lru';
 
 export function uid(): string {
@@ -33,6 +34,9 @@ export function blankInput(partial: Partial<PersonInput> = {}): PersonInput {
     photo: '',
     photoOriginal: '',
     photoCrop: null,
+    bloodGroup: '',
+    occupation: '',
+    education: '',
     notes: '',
     ...partial,
   };
@@ -97,7 +101,7 @@ export function familyName(p: Person | undefined): string {
 /** A stand-in created so siblings could be linked: nothing is known about them yet. */
 export function isPlaceholder(p: Person | undefined): boolean {
   if (!p) return false;
-  return !(p.firstName || p.middleName || p.lastName || p.birthName || p.birthDate || p.deathDate || p.birthPlace || p.photo || p.notes);
+  return !(p.firstName || p.middleName || p.lastName || p.birthName || p.birthDate || p.deathDate || p.birthPlace || p.photo || p.notes || p.bloodGroup || p.occupation || p.education);
 }
 
 export function initials(p: Pick<Person, 'firstName' | 'lastName'>): string {
@@ -332,6 +336,37 @@ export function linkPartner(tree: Tree, a: string, b: string, status: UnionStatu
   return ensureUnion(tree, a, b, status);
 }
 
+/**
+ * A wife takes her husband's surname when they marry; the one she had is kept as her
+ * surname at birth (unless she has one already, from before an earlier marriage).
+ * Returns the wife's id when her name changed.
+ */
+export function takeHusbandsName(tree: Tree, a: string, b: string): { tree: Tree; wifeId: string | null } {
+  const pa = tree.people[a];
+  const pb = tree.people[b];
+  if (!pa || !pb) return { tree, wifeId: null };
+  const [husband, wife] =
+    pa.gender === 'male' && pb.gender === 'female' ? [pa, pb] : pb.gender === 'male' && pa.gender === 'female' ? [pb, pa] : [];
+  const surname = husband?.lastName.trim();
+  if (!husband || !wife || !surname || wife.lastName.trim().toLowerCase() === surname.toLowerCase()) {
+    return { tree, wifeId: null };
+  }
+  const was = wife.lastName.trim();
+  const birthName = wife.birthName.trim() || was;
+  return {
+    tree: updatePerson(tree, wife.id, {
+      lastName: surname,
+      birthName: birthName.toLowerCase() === surname.toLowerCase() ? '' : birthName,
+    }),
+    wifeId: wife.id,
+  };
+}
+
+/** Whether a woman's surname is one she married into: she has a surname at birth, or no parents in the tree. */
+export function hasMarriedName(p: Person): boolean {
+  return Boolean(p.birthName.trim()) || p.parentIds.length === 0;
+}
+
 export function linkChild(tree: Tree, parentId: string, otherParentId: string | null, childId: string): Tree {
   const child = tree.people[childId];
   if (!child) return tree;
@@ -497,7 +532,9 @@ export function sanitizeTree(raw: unknown): Tree {
       photo: hasPhoto ? photo : '',
       photoOriginal: hasPhoto && isOriginalId(v.photoOriginal) ? v.photoOriginal : '',
       photoCrop: hasPhoto ? cropOf(v.photoCrop) : null,
-      notes: str(v.notes),
+      // Trees from before these had fields of their own kept them as "blood_group: O+"
+      // lines in the notes: they're moved out of the notes into the fields.
+      ...splitFacts(str(v.notes), { bloodGroup: str(v.bloodGroup), occupation: str(v.occupation), education: str(v.education) }),
       parentIds: Array.isArray(v.parentIds) ? v.parentIds.filter((x): x is string => typeof x === 'string') : [],
     };
   }

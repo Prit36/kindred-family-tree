@@ -1,62 +1,90 @@
+import type { Person } from '../types';
+
 /**
- * Facts kept in a person's notes as "key: value" lines - the way a community directory
- * import writes them ("blood_group: O+", "education: STD-12"). Pulled out so they can be
- * shown as stamps and counted across the family, instead of read as a pasted note.
+ * A person's blood group, occupation and education - each a field of its own - tidied for
+ * showing as stamps and counting across the family, and their notes split into what the
+ * family wrote and lines an importer added about where the record came from.
  */
 export interface Facts {
   blood: string;
   education: string;
   occupation: string;
-  memberNo: string;
   /** Lines about where the record came from, and facts the tree itself already states */
   source: string;
   /** Whatever else the note says, as written */
   rest: string;
 }
 
-const KEYS: [RegExp, keyof Pick<Facts, 'blood' | 'education' | 'occupation' | 'memberNo'>][] = [
-  [/^blood[_ ]?(?:group|type)?$/i, 'blood'],
+type FactFields = Pick<Person, 'bloodGroup' | 'occupation' | 'education'>;
+
+/** "key: value" lines a community directory import writes, and the field each belongs in. */
+const KEYS: [RegExp, keyof FactFields][] = [
+  [/^blood[_ ]?(?:group|type)?$/i, 'bloodGroup'],
   [/^(?:education|qualification|studies)$/i, 'education'],
   [/^(?:current[_ ]activity|occupation|profession|work)$/i, 'occupation'],
-  [/^member[_ ]?(?:no|number|id)\.?$/i, 'memberNo'],
 ];
 
 /** Written by an importer, not by the family: kept, but out of the way. */
-const SOURCE_LINE = /^(?:source|original name|marital[_ ]status)\s*:|^directory attributes are recorded/i;
+const SOURCE_LINE = /^(?:source|original name|marital[_ ]status|member[_ ]?(?:no|number|id)\.?)\s*:|^directory attributes are recorded/i;
 const BLANK_VALUE = /^\(?\s*(?:not recorded|unknown|n\/?a|none|-+)\s*\)?$/i;
+const KEY_LINE = /^([A-Za-z][A-Za-z_ ]{1,24}?)\s*:\s*(.*)$/;
 
-const cache = new Map<string, Facts>();
-const NONE: Facts = { blood: '', education: '', occupation: '', memberNo: '', source: '', rest: '' };
+/**
+ * Moves "blood_group: O+"-style lines out of notes into their fields (fields already
+ * filled in win). Returns the fields and the notes without those lines.
+ */
+export function splitFacts(notes: string, fields: FactFields): FactFields & { notes: string } {
+  const out = { ...fields, notes };
+  if (!notes || !/:/.test(notes)) return out;
+  const kept: string[] = [];
+  let moved = false;
+  for (const raw of notes.split(/\r?\n/)) {
+    const m = KEY_LINE.exec(raw.trim());
+    const key = m && KEYS.find(([re]) => re.test(m[1]));
+    if (!m || !key) {
+      kept.push(raw);
+      continue;
+    }
+    moved = true;
+    const value = m[2].trim();
+    if (value && !BLANK_VALUE.test(value) && !out[key[1]].trim()) {
+      out[key[1]] = key[1] === 'bloodGroup' ? tidyBlood(value) : key[1] === 'occupation' ? tidyOccupation(value) : tidyEducation(value);
+    }
+  }
+  if (moved) out.notes = kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return out;
+}
 
-export function factsOf(notes: string): Facts {
-  if (!notes) return NONE;
+const cache = new Map<string, { source: string; rest: string }>();
+
+function notesOf(notes: string): { source: string; rest: string } {
+  if (!notes) return { source: '', rest: '' };
   const hit = cache.get(notes);
   if (hit) return hit;
-
-  const facts: Facts = { ...NONE };
   const source: string[] = [];
   const rest: string[] = [];
   for (const raw of notes.split(/\r?\n/)) {
     const line = raw.trim();
-    if (!line) continue;
-    const m = /^([A-Za-z][A-Za-z_ ]{1,24}?)\s*:\s*(.*)$/.exec(line);
-    const key = m && KEYS.find(([re]) => re.test(m[1]));
-    if (m && key) {
-      const value = m[2].trim();
-      if (value && !BLANK_VALUE.test(value) && !facts[key[1]]) facts[key[1]] = value;
-      continue;
-    }
-    (SOURCE_LINE.test(line) ? source : rest).push(line);
+    if (line) (SOURCE_LINE.test(line) ? source : rest).push(line);
   }
-  facts.blood = facts.blood.toUpperCase().replace(/\s+/g, '').replace(/POSITIVE|\+VE/, '+').replace(/NEGATIVE|-VE/, '-');
-  facts.education = tidyEducation(facts.education);
-  facts.occupation = tidyOccupation(facts.occupation);
-  facts.source = source.join('\n');
-  facts.rest = rest.join('\n');
-
+  const out = { source: source.join('\n'), rest: rest.join('\n') };
   if (cache.size > 6000) cache.clear();
-  cache.set(notes, facts);
-  return facts;
+  cache.set(notes, out);
+  return out;
+}
+
+export function factsOf(p: FactFields & Pick<Person, 'notes'>): Facts {
+  return {
+    blood: tidyBlood(p.bloodGroup),
+    occupation: tidyOccupation(p.occupation),
+    education: tidyEducation(p.education),
+    ...notesOf(p.notes),
+  };
+}
+
+/** "b positive", "B +VE" → "B+" */
+export function tidyBlood(value: string): string {
+  return value.toUpperCase().replace(/\s+/g, '').replace(/POSITIVE|\+VE/, '+').replace(/NEGATIVE|-VE/, '-');
 }
 
 /** "DOCTOR MD ANESTHETIST" → "Doctor MD Anesthetist": long shouted words are calmed, short ones (degrees) kept. */

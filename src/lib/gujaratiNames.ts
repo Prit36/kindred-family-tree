@@ -81,6 +81,9 @@ const JOINED = new Set([
 const BEFORE_V = new Set(['s', 'sh', 'd', 't', 'j', 'dh', 'k', 'n', 'th']);
 
 function joined(a: string, b: string): boolean {
+  // w is written as v: Hiteshwari is હિતેશ્વરી, like Bhuvaneshvari.
+  if (a === 'w') a = 'v';
+  if (b === 'w') b = 'v';
   if (b === 'y' || b === 'r' || a === 'r' || a === b) return true;
   if (b === 'v') return BEFORE_V.has(a);
   // Sapna, Kamlesh, Jagdish keep their letters whole; these are written joined.

@@ -333,7 +333,7 @@ function Details({
   /* ---- Facts as stamps --------------------------------------------------------- */
 
   // What the notes state as "key: value" lines, plus a birthday coming up soon.
-  const facts = factsOf(person.notes);
+  const facts = factsOf(person);
   const birthday = nextBirthday(tree, person);
   const stamps: { key: string; icon: ReactNode; text: string; tip?: string; tone?: 'gold' }[] = [];
   if (birthday && birthday.daysAway <= 30) {

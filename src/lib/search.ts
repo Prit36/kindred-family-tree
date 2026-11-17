@@ -31,6 +31,7 @@ export function searchIndex(tree: Tree): Searchable[] {
       entry = { person, display, name, spellings, middle, fields: [
         person.birthName.toLowerCase(), '', person.birthPlace.toLowerCase(),
         `${yearOf(person.birthDate) ?? ''} ${yearOf(person.deathDate) ?? ''}`, person.notes.toLowerCase(),
+        `${person.occupation} ${person.education} ${person.bloodGroup}`.toLowerCase(),
       ] };
       metadata.set(person, entry);
     }

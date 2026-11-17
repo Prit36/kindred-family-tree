@@ -239,7 +239,7 @@ export const familyNumbers: (tree: Tree) => FamilyNumbers = memoRecent((tree: Tr
     const kids = childrenOf(tree, p.id).length;
     if (kids > 1 && (!mostChildren || kids > mostChildren.count)) mostChildren = { person: p, count: kids };
 
-    const facts = factsOf(p.notes);
+    const facts = factsOf(p);
     bump(blood, facts.blood);
     bump(occupations, facts.occupation);
     bump(education, facts.education);

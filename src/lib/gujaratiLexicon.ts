@@ -63,7 +63,7 @@ hemakshi=હેમાક્ષી hemlata|hemalata|hemalta|hemlta=હેમલ�
 hemant=હેમંત hency|hensi=હેન્સી heni=હેની henil=હેનીલ henvi=હેન્વી herin=હેરીન het=હેત
 hetal=હેતલ hetang=હેતાંગ hetansh=હેતાંશ hetanshi=હેતાંશી hetvi=હેત્વી himanshi|himashi=હિમાંશી
 himanshu=હિમાંશુ himmat|himmt=હિંમત hinakshi=હિનાક્ષી hinal=હિનલ hiral=હિરલ hiren=હિરેન
-hitakshi=હિતાક્ષી hitendra=હિતેન્દ્ર hitesh=હિતેશ hitigna=હિતજ્ઞા hitvik=હિત્વિક ila=ઇલા
+hitakshi=હિતાક્ષી hitendra=હિતેન્દ્ર hitesh=હિતેશ hiteshwari=હિતેશ્વરી rameshwar=રામેશ્વર rameshwari=રામેશ્વરી parmeshwar|parameshwar=પરમેશ્વર parmeshwari|parameshwari=પરમેશ્વરી hitigna=હિતજ્ઞા hitvik=હિત્વિક ila=ઇલા
 indu=ઇન્દુ isha=ઈશા ishani=ઈશાની ishika=ઈશિકા ishvar|ishwar|ishavar|ishvr=ઈશ્વર jadav=જાદવ
 jagdish|jagadish=જગદીશ jagdishvari=જગદીશ્વરી jagjivan=જગજીવન jagruti=જાગૃતિ
 jahnavi|jahanvi|jahnvi=જાહ્નવી jaimin=જૈમિન jaimini=જૈમિની jalpa=જલ્પા jalpesh=જલ્પેશ
@@ -192,7 +192,7 @@ const PARTS = `
 bhai=ભાઈ ben=બેન bahen|behen=બહેન kumar=કુમાર kumari=કુમારી lal=લાલ das=દાસ ji=જી
 chand=ચંદ chandra=ચંદ્ર kant=કાંત prasad=પ્રસાદ shankar=શંકર sinh|singh=સિંહ nath=નાથ
 rai|ray=રાય gauri=ગૌરી devi=દેવી bala=બાળા vati=વતી mati=મતી shree|shri=શ્રી
-sukh=સુખ mukh=મુખ deep|dip=દીપ raj=રાજ dev=દેવ
+sukh=સુખ mukh=મુખ deep|dip=દીપ raj=રાજ dev=દેવ eshwar|eshvar=એશ્વર eshwari|eshvari=એશ્વરી
 `;
 
 function parse(...lists: string[]): Map<string, string> {

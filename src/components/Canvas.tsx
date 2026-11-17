@@ -138,8 +138,28 @@ export function Canvas() {
     if (prev) {
       const usable = (id: string | null | undefined): id is string =>
         Boolean(id && prev.layout.nodes[id] && shown.people[id]);
+      // With nobody selected (the selected person was just deleted, say), whoever is
+      // nearest the middle of the screen stays put - not "me", who may be far off.
+      const nearestMiddle = () => {
+        const viewport = viewportRef.current;
+        if (!viewport) return undefined;
+        const t = zoomTransform(viewport);
+        const cx = t.invertX(viewport.clientWidth / 2) - CARD_W / 2;
+        const cy = t.invertY(viewport.clientHeight / 2) - CARD_H / 2;
+        let best: string | undefined;
+        let bestD = Infinity;
+        for (const id in prev.layout.nodes) {
+          if (!shown.people[id]) continue;
+          const n = prev.layout.nodes[id];
+          const d = (n.x - cx) ** 2 + (n.y - cy) ** 2;
+          if (d < bestD) [best, bestD] = [id, d];
+        }
+        return best;
+      };
       const id =
-        [foldedAt.current, selectedId, prev.selectedId, prev.focusId, tree.homeId].find(usable) ??
+        [foldedAt.current, selectedId, prev.selectedId].find(usable) ??
+        nearestMiddle() ??
+        [prev.focusId, tree.homeId].find(usable) ??
         Object.keys(prev.layout.nodes).find(usable);
       if (id) anchor = { id, ...prev.layout.nodes[id] };
     }

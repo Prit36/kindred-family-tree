@@ -103,9 +103,9 @@ function whyMatched(p: Person, field: number, word: string): string {
   return '';
 }
 
-/** What someone does and how far they studied, when their notes say. */
+/** What someone does and how far they studied. */
 function work(p: Person): string {
-  const facts = factsOf(p.notes);
+  const facts = factsOf(p);
   return [facts.occupation, facts.education].filter(Boolean).join(' · ');
 }
 
