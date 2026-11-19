@@ -126,14 +126,21 @@ export function deckOf(tree: Tree, kind: DeckKind): string[] {
   if (kind === 'all' || !home) ids = Object.keys(tree.people);
   else ids = focusSet(tree, { id: home, scope: kind === 'close' ? 'close' : 'family' });
   const stats = cardStats(tree);
-  return [...ids]
-    .filter((id) => hasCard(tree.people[id]))
-    .sort((a, b) => {
-      const ga = stats.get(a)?.gen ?? -99;
-      const gb = stats.get(b)?.gen ?? -99;
-      if (ga !== gb) return gb - ga;
-      return birthSortKey(tree.people[a]) - birthSortKey(tree.people[b]);
-    });
+  const kept = [...ids].filter((id) => hasCard(tree.people[id]));
+  const born = birthKeys(tree, kept);
+  return kept.sort((a, b) => {
+    const ga = stats.get(a)?.gen ?? -99;
+    const gb = stats.get(b)?.gen ?? -99;
+    if (ga !== gb) return gb - ga;
+    return born.get(a)! - born.get(b)!;
+  });
+}
+
+/** Everyone's birth sort key, read once instead of parsed again in every comparison. */
+function birthKeys(tree: Tree, ids: string[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const id of ids) out.set(id, birthSortKey(tree.people[id]));
+  return out;
 }
 
 export type CardSort = 'generation' | 'age' | 'family';
@@ -148,8 +155,9 @@ export function sortDeck(tree: Tree, ids: string[], sort: CardSort): string[] {
   if (sort === 'generation') return ids;
   const stats = cardStats(tree);
   const out = [...ids];
-  if (sort === 'age') out.sort((a, b) => birthSortKey(tree.people[a]) - birthSortKey(tree.people[b]));
-  else out.sort((a, b) => (stats.get(b)?.descendants ?? 0) - (stats.get(a)?.descendants ?? 0) || birthSortKey(tree.people[a]) - birthSortKey(tree.people[b]));
+  const born = birthKeys(tree, out);
+  if (sort === 'age') out.sort((a, b) => born.get(a)! - born.get(b)!);
+  else out.sort((a, b) => (stats.get(b)?.descendants ?? 0) - (stats.get(a)?.descendants ?? 0) || born.get(a)! - born.get(b)!);
   return out;
 }
 

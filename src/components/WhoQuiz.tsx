@@ -325,6 +325,7 @@ export function WhoQuiz({
             meaning={picked ? qMeaning : undefined}
             hideKin={!picked}
             known={picked ? right : known.has(q.id)}
+            flipped={false}
             tilt
             className={`quiz-card${picked ? (right ? ' is-right' : ' is-wrong') : ''}`}
           />

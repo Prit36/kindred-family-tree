@@ -60,11 +60,6 @@
   --gold-ink: #85600f;
   --parchment: #fbf3dc;
   --parchment-2: #f3e3b8;
-  --marigold: #f08c1a;
-  --marigold-deep: #c25e0a;
-  --marigold-yellow: #f7c52e;
-  --leaf: #5c8a3a;
-  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .32 0 0 0 0 .18 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --danger: #b4443c;
   --danger-soft: #f9e5e2;
   --tip-bg: #2b2620;
@@ -116,11 +111,6 @@
   --gold-ink: #ecc96f;
   --parchment: #2b2416;
   --parchment-2: #221c11;
-  --marigold: #e88a24;
-  --marigold-deep: #a84f0c;
-  --marigold-yellow: #e9b72c;
-  --leaf: #6f9a4c;
-  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .95 0 0 0 0 .85 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --danger: #e8837a;
   --danger-soft: #41231f;
   --tip-bg: #efe9dc;
@@ -9195,18 +9185,23 @@ button.record:hover {
 }
 
 .grid-card {
-  animation: deal 0.55s var(--ease) both;
-  animation-delay: calc(min(var(--i), 30) * 24ms + 120ms);
   transition: translate 0.25s var(--ease);
+}
+
+/* Dealt in as the deck opens; rows reached by scrolling later just appear. */
+.cards-grid.is-dealing .grid-card {
+  animation: deal 0.55s var(--ease) both;
+  animation-delay: calc(min(var(--i, 0), 30) * 24ms + 120ms);
+}
+
+/* Stands in for the rows of the grid that are out of reach of the screen. */
+.cards-pad {
+  grid-column: 1 / -1;
 }
 
 .grid-card:hover {
   translate: 0 -6px;
   z-index: 2;
-}
-
-.cards-more {
-  height: 1px;
 }
 
 @keyframes deal {
@@ -9288,21 +9283,28 @@ button.record:hover {
   cursor: pointer;
 }
 
+/*
+ * The lean is written by useTilt as a transform on .fc-inner itself. Only cards that can
+ * be turned over (the spotlight's) get a back and a 3D context: a flat card is one plain
+ * layer instead of two 3D ones, which is most of what a grid of cards costs the GPU.
+ */
 .fc-inner {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  transform-style: preserve-3d;
-  transform: rotateX(var(--rx, 0deg)) rotateY(calc(var(--ry, 0deg) + var(--flip, 0deg)));
   transition: transform 0.75s cubic-bezier(0.3, 1.25, 0.5, 1);
 }
 
-.fc[data-tilting] .fc-inner {
+.fc.has-back .fc-inner {
+  transform-style: preserve-3d;
+}
+
+.fc[data-tilting=''] .fc-inner {
   transition: transform 0.1s linear;
 }
 
-.fc.is-flipped {
-  --flip: 180deg;
+.fc.is-flipped .fc-inner {
+  transform: rotateY(180deg);
 }
 
 .fc-face {
@@ -9312,12 +9314,15 @@ button.record:hover {
   border: 1px solid var(--border);
   border-radius: inherit;
   background:
-    var(--grain),
+    var(--grain, none),
     linear-gradient(170deg, var(--paper) 40%, color-mix(in srgb, var(--paper) 93%, var(--wood)));
   box-shadow: var(--shadow-card);
+  transition: box-shadow 0.3s;
+}
+
+.fc.has-back .fc-face {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  transition: box-shadow 0.3s;
 }
 
 .fc.is-button:hover .fc-face {
@@ -9506,88 +9511,56 @@ button.record:hover {
   fill: var(--other);
 }
 
-/* Glints that come and go on rare and legendary cards. */
-.fc-sparks path {
-  fill: #fff;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: twinkle 3.2s ease-in-out infinite both;
-  filter: drop-shadow(0 0 1.2px color-mix(in srgb, var(--wood) 80%, transparent));
+/* Glints that come and go on rare and legendary cards: one shared picture each, only
+   ever scaled, turned and faded, so the compositor runs them without a repaint. */
+.fc-sparks {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
 }
 
-.fc.is-legend .fc-sparks path {
-  fill: #fff6d6;
+.fc-sparks i {
+  position: absolute;
+  width: var(--s);
+  height: var(--s);
+  margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+  background: var(--img-spark) center / contain no-repeat;
+  opacity: 0;
+  /* --tw: the twinkle begun part-way through, one of those made in lib/cardImages. */
+  animation: var(--tw, twinkle) 3.2s ease-in-out infinite both;
+}
+
+.fc.is-legend .fc-sparks i {
+  background-image: var(--img-spark-gold);
 }
 
 @keyframes twinkle {
   0%,
   100% {
     opacity: 0;
-    scale: 0.2;
-    rotate: 0deg;
+    transform: scale(0.2) rotate(0deg);
   }
   45% {
     opacity: 1;
-    scale: 1;
+    transform: scale(1) rotate(20deg);
   }
   60% {
     opacity: 0.9;
-    rotate: 45deg;
+    transform: scale(0.95) rotate(45deg);
   }
 }
 
-/* The marigold garland over those who have passed. */
+/* The marigold garland over those who have passed: one picture made in lib/cardImages. */
 .fc-garland {
   position: absolute;
   top: -0.1em;
   left: 0;
   z-index: 2;
   width: 100%;
-  height: auto;
+  aspect-ratio: 200 / 44;
+  background: var(--img-garland) top center / 100% auto no-repeat;
   pointer-events: none;
-  filter: drop-shadow(0 0.12em 0.1em rgba(60, 30, 0, 0.25));
-}
-
-.fc-garland-string {
-  fill: none;
-  stroke: #7b5a2c;
-  stroke-width: 0.6;
-}
-
-.fc-petals {
-  fill: var(--marigold);
-  stroke: var(--marigold-deep);
-  stroke-width: 1.7;
-  stroke-dasharray: 1.15 0.75;
-}
-
-.fc-petals-in {
-  fill: color-mix(in srgb, var(--marigold) 75%, #fff);
-  stroke: var(--marigold-deep);
-  stroke-width: 0.9;
-  stroke-dasharray: 0.8 0.6;
-}
-
-.fc-marigold.is-yellow .fc-petals {
-  fill: var(--marigold-yellow);
-  stroke: color-mix(in srgb, var(--marigold-yellow) 60%, var(--marigold-deep));
-}
-
-.fc-marigold.is-yellow .fc-petals-in {
-  fill: color-mix(in srgb, var(--marigold-yellow) 70%, #fff);
-  stroke: color-mix(in srgb, var(--marigold-yellow) 50%, var(--marigold-deep));
-}
-
-.fc-eye {
-  fill: var(--marigold-deep);
-}
-
-.fc-leaf {
-  fill: var(--leaf);
-}
-
-.fc-tassel {
-  fill: #c0392b;
 }
 
 /* --- Badges on the picture --- */
@@ -9618,22 +9591,42 @@ button.record:hover {
 
 .fc.is-rare .fc-rarity {
   color: #2d4a6b;
-  background: linear-gradient(105deg, #d7f5ec, #dfe4ff 35%, #fbe0ef 65%, #fdf1cc) 0 0 / 200% 100%;
-  animation: holo-drift 5s ease-in-out infinite alternate;
+  background: linear-gradient(105deg, #d7f5ec, #dfe4ff 35%, #fbe0ef 65%, #fdf1cc);
 }
 
 .fc.is-legend .fc-rarity {
   color: #6b4a0b;
-  background: linear-gradient(105deg, #fff5cf, #ecc663 30%, #fff8dc 50%, #d9a93f 70%, #fff5cf) 0 0 / 220% 100%;
+  background: linear-gradient(105deg, #fff5cf, #ecc663 35%, #fff8dc 55%, #d9a93f 80%, #fff5cf);
   box-shadow:
     0 0 0 1px rgba(160, 112, 30, 0.45),
     0 0.15em 0.5em rgba(150, 100, 20, 0.3);
-  animation: holo-drift 4s ease-in-out infinite alternate;
 }
 
-@keyframes holo-drift {
-  to {
-    background-position: 100% 0;
+/* A glint running along the rare badges now and then. */
+.fc.is-rare .fc-rarity,
+.fc.is-legend .fc-rarity {
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.fc.is-rare .fc-rarity::after,
+.fc.is-legend .fc-rarity::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.85) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: badge-glint 4.5s 0.8s ease-in-out infinite;
+}
+
+@keyframes badge-glint {
+  0% {
+    transform: translateX(-100%);
+  }
+  40%,
+  100% {
+    transform: translateX(100%);
   }
 }
 
@@ -9846,59 +9839,88 @@ button.record:hover {
   margin-right: 0.35em;
 }
 
-/* --- Rare: holographic --- */
+/* --- The turning frame of rare and legendary cards ---
+ * A big disc of colour spins behind the card's paper and shows round its edge. Turning
+ * it is a transform the compositor plays on its own; no frame of it is ever repainted.
+ */
 
-.fc.is-rare .fc-front {
-  border: 0.22em solid transparent;
-  background:
-    var(--grain) padding-box,
-    linear-gradient(170deg, var(--paper) 40%, color-mix(in srgb, var(--paper) 93%, var(--wood))) padding-box,
-    linear-gradient(125deg, #6fd3bd, #8fa5f5 25%, #e996c4 50%, #f4cf62 75%, #6fd3bd) 0 0 / 300% 300% border-box;
-  animation: holo-frame 9s linear infinite;
+.fc.is-rare .fc-front,
+.fc.is-legend .fc-front {
+  isolation: isolate;
+  border: 0;
+  background: none;
+  --frame: 0.22em;
+  padding: calc(0.8em + var(--frame)) calc(0.9em + var(--frame)) calc(0.7em + var(--frame));
 }
 
-@keyframes holo-frame {
+.fc-frame {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.fc-frame::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 32em;
+  height: 32em;
+  margin: -16em 0 0 -16em;
+  background: conic-gradient(#6fd3bd, #8fa5f5, #e996c4, #f4cf62, #6fd3bd);
+  animation: frame-turn 9s linear infinite;
+}
+
+/* The paper, inset by the frame's width. */
+.fc-frame::after {
+  content: '';
+  position: absolute;
+  inset: var(--frame);
+  border-radius: calc(1em - var(--frame));
+  background:
+    var(--grain, none),
+    linear-gradient(170deg, var(--paper) 40%, color-mix(in srgb, var(--paper) 93%, var(--wood)));
+}
+
+@keyframes frame-turn {
   to {
-    background-position:
-      0 0,
-      0 0,
-      300% 300%;
+    transform: rotate(1turn);
   }
 }
 
-/* The sheen drifting over the picture. */
+/* --- Rare: holographic --- */
+
+/* The sheen drifting over the picture: a long strip of colour slid across it. */
 .fc-holo {
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: 0;
   z-index: 1;
+  width: 300%;
   pointer-events: none;
-  background:
-    repeating-linear-gradient(
-      115deg,
-      hsl(170 80% 60% / 0.55) 0%,
-      hsl(220 90% 72% / 0.55) 7%,
-      hsl(320 80% 74% / 0.55) 14%,
-      hsl(45 95% 64% / 0.55) 21%,
-      hsl(170 80% 60% / 0.55) 28%
-    )
-    0 0 / 300% 300%;
+  background: repeating-linear-gradient(
+    115deg,
+    hsl(170 80% 60% / 0.55) 0%,
+    hsl(220 90% 72% / 0.55) 2.4%,
+    hsl(320 80% 74% / 0.55) 4.8%,
+    hsl(45 95% 64% / 0.55) 7.2%,
+    hsl(170 80% 60% / 0.55) 9.6%
+  );
+  -webkit-mask: linear-gradient(105deg, transparent 32%, #000 44%, #000 56%, transparent 68%);
+  mask: linear-gradient(105deg, transparent 32%, #000 44%, #000 56%, transparent 68%);
   mix-blend-mode: color;
   opacity: 0.55;
-  -webkit-mask: linear-gradient(115deg, transparent 15%, #000 40%, #000 60%, transparent 85%) 0 0 / 300% 100%;
-  mask: linear-gradient(115deg, transparent 15%, #000 40%, #000 60%, transparent 85%) 0 0 / 300% 100%;
+  transform: translateX(-10%);
   animation: holo-sheen 7s ease-in-out infinite alternate;
 }
 
 @keyframes holo-sheen {
-  from {
-    background-position: 0 0;
-    -webkit-mask-position: 100% 0;
-    mask-position: 100% 0;
-  }
   to {
-    background-position: 100% 100%;
-    -webkit-mask-position: 0 0;
-    mask-position: 0 0;
+    transform: translateX(-56%);
   }
 }
 
@@ -9909,26 +9931,22 @@ button.record:hover {
 /* --- Legendary: full art in gold --- */
 
 .fc.is-legend .fc-front {
-  border: 0.26em solid transparent;
+  --frame: 0.26em;
+  padding-bottom: calc(0.85em + var(--frame));
+}
+
+.fc.is-legend .fc-frame::before {
+  background: conic-gradient(#e9c766, #a8781f, #fff1b8, #b98a2c, #f4d77e, #a8781f, #e9c766);
+  animation-duration: 7s;
+}
+
+.fc.is-legend .fc-frame::after {
   background:
-    var(--grain) padding-box,
-    radial-gradient(ellipse at 50% 0%, var(--paper) 30%, var(--parchment-2)) padding-box,
-    conic-gradient(from var(--spin), #e9c766, #a8781f, #fff1b8, #b98a2c, #f4d77e, #a8781f, #e9c766) border-box;
+    var(--grain, none),
+    radial-gradient(ellipse at 50% 0%, var(--paper) 30%, var(--parchment-2));
   box-shadow:
     inset 0 0 0 0.3em var(--paper),
-    inset 0 0 0 calc(0.3em + 1px) color-mix(in srgb, var(--foil-gold) 75%, transparent),
-    var(--shadow-card);
-  animation: spin-frame 7s linear infinite;
-}
-
-.fc.is-legend .fc-face {
-  border-color: transparent;
-}
-
-@keyframes spin-frame {
-  to {
-    --spin: 360deg;
-  }
+    inset 0 0 0 calc(0.3em + 1px) color-mix(in srgb, var(--foil-gold) 75%, transparent);
 }
 
 .fc.is-legend .fc-art {
@@ -9938,10 +9956,10 @@ button.record:hover {
   background:
     radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--foil-gold) 30%, transparent), transparent 34%),
     radial-gradient(
-    ellipse at 50% 45%,
-    color-mix(in srgb, var(--foil-gold) 10%, var(--paper)),
-    color-mix(in srgb, var(--foil-gold) 26%, var(--paper)) 95%
-  );
+      ellipse at 50% 45%,
+      color-mix(in srgb, var(--foil-gold) 10%, var(--paper)),
+      color-mix(in srgb, var(--foil-gold) 26%, var(--paper)) 95%
+    );
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--foil-gold) 55%, transparent),
     inset 0 -2em 2em -1.6em color-mix(in srgb, var(--foil-gold) 30%, transparent);
@@ -9986,17 +10004,60 @@ button.record:hover {
   min-height: 2.5em;
 }
 
+/* Gold leaf lettering; it only shimmers on the one card in the spotlight. */
 .fc.is-legend .fc-kin-word {
+  --gold-leaf: linear-gradient(100deg, #8a6316, #c9962c 28%, #f6dc8a 44%, #c08b25 60%, #8a6316 90%);
   font-weight: 650;
-  background: linear-gradient(100deg, #8a6316, #c9962c 28%, #f6dc8a 44%, #c08b25 60%, #8a6316 90%) 0 0 / 200% 100%;
+  background: var(--gold-leaf) 0 0 / 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: holo-drift 3.5s ease-in-out infinite alternate;
 }
 
 :root[data-theme='dark'] .fc.is-legend .fc-kin-word {
-  background-image: linear-gradient(100deg, #c99a3a, #f1d07a 28%, #fff4cc 44%, #e3b552 60%, #c99a3a 90%);
+  --gold-leaf: linear-gradient(100deg, #c99a3a, #f1d07a 28%, #fff4cc 44%, #e3b552 60%, #c99a3a 90%);
+}
+
+.spot-card.is-legend .fc-kin-word {
+  animation: gold-shimmer 3.5s ease-in-out infinite alternate;
+}
+
+@keyframes gold-shimmer {
+  to {
+    background-position: 100% 0;
+  }
+}
+
+/*
+ * The same shimmer without repainting the word each frame: the gold is a strip twice its
+ * width slid along under a mask cut to the letters, so the compositor runs it. A word that
+ * repaints every frame drags every other running card animation through a restyle with it.
+ */
+@supports (-webkit-mask-clip: text) {
+  .spot-card.is-legend .fc-kin-word {
+    position: relative;
+    background: none;
+    -webkit-mask-image: linear-gradient(#000 0 0);
+    -webkit-mask-clip: text;
+    animation: none;
+  }
+
+  .spot-card.is-legend .fc-kin-word::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 200%;
+    background: var(--gold-leaf);
+    animation: gold-run 3.5s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes gold-run {
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 .fc.is-legend .fc-foot,
@@ -10013,10 +10074,6 @@ button.record:hover {
   padding: 0 1.5em;
 }
 
-.fc.is-legend .fc-front {
-  padding-bottom: 0.85em;
-}
-
 /* The badge sits at the head of the picture like a title plate, the garland hanging from it. */
 .fc.is-legend .fc-rarity {
   top: 0.75em;
@@ -10024,12 +10081,9 @@ button.record:hover {
   transform: translateX(-50%);
 }
 
-.fc.is-legend .fc-pendant {
-  display: none;
-}
-
 .fc.is-legend .fc-garland {
   top: 1.2em;
+  background-image: var(--img-garland-plain);
 }
 
 .fc.is-legend .fc-stamp {
@@ -10038,135 +10092,94 @@ button.record:hover {
   bottom: auto;
 }
 
-/* Gold corners over everything. */
+/* Gold corners over everything: the four corners drawn in the theme's gold (lib/cardImages). */
 .fc-filigree {
   position: absolute;
   inset: 0.18em;
   z-index: 4;
   pointer-events: none;
+  background:
+    var(--img-fili-tl) top left / 2.9em 2.9em no-repeat,
+    var(--img-fili-tr) top right / 2.9em 2.9em no-repeat,
+    var(--img-fili-bl) bottom left / 2.9em 2.9em no-repeat,
+    var(--img-fili-br) bottom right / 2.9em 2.9em no-repeat;
 }
 
-.fc-filigree span {
-  position: absolute;
-  width: 2.9em;
-  height: 2.9em;
-}
-
-.fc-filigree svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  filter: drop-shadow(0 0.06em 0.04em rgba(90, 60, 10, 0.35));
-}
-
-.fc-filigree .is-tl {
-  top: 0;
-  left: 0;
-}
-
-.fc-filigree .is-tr {
-  top: 0;
-  right: 0;
-  transform: scaleX(-1);
-}
-
-.fc-filigree .is-bl {
-  bottom: 0;
-  left: 0;
-  transform: scaleY(-1);
-}
-
-.fc-filigree .is-br {
-  bottom: 0;
-  right: 0;
-  transform: scale(-1);
-}
-
-.fc-fili-line,
-.fc-fili-thin,
-.fc-fili-curl {
-  fill: none;
-  stroke: var(--foil-gold);
-  stroke-linecap: round;
-}
-
-.fc-fili-line {
-  stroke-width: 1.6;
-}
-
-.fc-fili-thin {
-  stroke-width: 0.8;
-  opacity: 0.8;
-}
-
-.fc-fili-curl {
-  fill: color-mix(in srgb, var(--foil-gold) 30%, var(--paper));
-  stroke-width: 1.1;
-}
-
-.fc-fili-dot {
-  fill: var(--foil-gold);
-}
-
-/* Light running across the card now and then. */
+/* Light running across the card now and then: a long strip slid over it. */
 .fc-sweep {
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: 0;
   z-index: 3;
+  width: 300%;
   pointer-events: none;
   background: linear-gradient(
-      105deg,
-      transparent 38%,
-      rgba(255, 246, 214, 0.75) 47%,
-      rgba(255, 255, 255, 0.9) 50%,
-      rgba(255, 246, 214, 0.75) 53%,
-      transparent 62%
-    )
-    no-repeat;
-  background-size: 300% 100%;
-  background-position: 120% 0;
+    105deg,
+    transparent 38%,
+    rgba(255, 246, 214, 0.75) 47%,
+    rgba(255, 255, 255, 0.9) 50%,
+    rgba(255, 246, 214, 0.75) 53%,
+    transparent 62%
+  );
   mix-blend-mode: soft-light;
+  transform: translateX(-10%);
   animation: sweep 6.5s 1.2s ease-in-out infinite;
 }
 
 @keyframes sweep {
   0% {
-    background-position: 120% 0;
+    transform: translateX(-10%);
   }
   35%,
   100% {
-    background-position: -20% 0;
+    transform: translateX(-56.7%);
   }
 }
 
 /* Light catching the card as it tilts: a glare that follows the pointer, and a foil
-   that shimmers through the colours on rare cards and through gold on legendary ones. */
+   that shimmers through the colours on rare cards and through gold on legendary ones.
+   Both are sheets bigger than the card that useTilt slides about by transform; they
+   aren't drawn at all until the pointer is on the card. */
 .fc-glare,
 .fc-foil {
   position: absolute;
-  inset: 0;
+  left: 0;
+  top: 0;
   z-index: 5;
-  border-radius: inherit;
+  display: none;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.35s;
 }
 
+.fc[data-tilting] .fc-glare,
+.fc.is-rare[data-tilting] .fc-foil,
+.fc.is-legend[data-tilting] .fc-foil {
+  display: block;
+}
+
 .fc-glare {
-  background: radial-gradient(
-    circle at var(--mx, 50%) var(--my, 30%),
-    rgba(255, 255, 255, 0.65),
-    rgba(255, 255, 255, 0) 50%
-  );
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0) 8.5em);
   mix-blend-mode: soft-light;
 }
 
-.fc[data-tilting] .fc-glare {
+.fc[data-tilting=''] .fc-glare {
   opacity: 1;
 }
 
+@starting-style {
+  .fc[data-tilting=''] .fc-glare,
+  .fc[data-tilting=''] .fc-foil {
+    opacity: 0;
+  }
+}
+
 .fc-foil {
+  width: 260%;
+  height: 260%;
   background-image: repeating-linear-gradient(
     115deg,
     hsl(350 90% 72%) 0%,
@@ -10176,18 +10189,14 @@ button.record:hover {
     hsl(270 80% 74%) 24%,
     hsl(350 90% 72%) 30%
   );
-  background-size: 260% 260%;
-  background-position: var(--mx, 50%) var(--my, 50%);
   mix-blend-mode: color;
 }
 
-.fc.is-rare[data-tilting] .fc-foil {
+.fc.is-rare[data-tilting=''] .fc-foil {
   opacity: calc(0.06 + var(--hyp, 0) * 0.16);
-  -webkit-mask: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), #000, transparent 70%);
-  mask: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), #000, transparent 70%);
 }
 
-:root[data-theme='dark'] .fc.is-rare[data-tilting] .fc-foil {
+:root[data-theme='dark'] .fc.is-rare[data-tilting=''] .fc-foil {
   opacity: calc(0.16 + var(--hyp, 0) * 0.3);
 }
 
@@ -10204,7 +10213,7 @@ button.record:hover {
   mix-blend-mode: multiply;
 }
 
-.fc.is-legend[data-tilting] .fc-foil {
+.fc.is-legend[data-tilting=''] .fc-foil {
   opacity: calc(0.14 + var(--hyp, 0) * 0.26);
 }
 
@@ -10233,16 +10242,17 @@ button.record:hover {
 .fc-back-plain {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
+  overflow: hidden;
+  border-radius: inherit;
   background:
-    var(--grain),
+    var(--grain, none),
     radial-gradient(
       ellipse at 50% 44%,
       color-mix(in srgb, var(--accent) 82%, #fff),
       var(--accent) 55%,
       color-mix(in srgb, var(--accent) 78%, #000)
     );
+  color: var(--on-accent);
 }
 
 /* A double rule round the edge. */
@@ -10265,42 +10275,43 @@ button.record:hover {
   border-radius: 0.4em;
 }
 
-.fc-back-art {
+/* The guilloché: one layer of the back's ink, cut to the rosette by a mask. */
+.fc-back-rosette {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
+  background: var(--on-accent);
+  -webkit-mask: var(--mask-rosette) center / 100% 100% no-repeat;
+  mask: var(--mask-rosette) center / 100% 100% no-repeat;
 }
 
-.fc-guilloche > * {
-  fill: none;
-  stroke: var(--on-accent);
-  stroke-width: 0.45;
-  opacity: 0.32;
+.fc-back-medal {
+  position: absolute;
+  left: 50%;
+  top: 44.44%;
+  display: grid;
+  place-items: center;
+  width: 30%;
+  aspect-ratio: 1;
+  box-sizing: border-box;
+  border: 0.11em solid color-mix(in srgb, var(--on-accent) 70%, transparent);
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translate(-50%, -50%);
 }
 
-.fc-guilloche > .is-thin {
-  opacity: 0.5;
-  stroke-dasharray: 1 2;
-}
-
-.fc-medal {
-  fill: var(--accent);
-  stroke: color-mix(in srgb, var(--on-accent) 70%, transparent);
-  stroke-width: 1.1;
-}
-
-.fc-medal-ring {
-  fill: none;
-  stroke: var(--on-accent);
-  stroke-width: 0.6;
-  stroke-dasharray: 0.8 1.6;
-  opacity: 0.75;
+.fc-back-medal::before {
+  content: '';
+  position: absolute;
+  inset: 6.5%;
+  border: 0.07em dotted color-mix(in srgb, var(--on-accent) 75%, transparent);
+  border-radius: 50%;
 }
 
 .fc-back-mark {
-  fill: var(--on-accent);
-  stroke: var(--on-accent);
+  width: 59%;
+  height: 59%;
+  fill: currentColor;
+  stroke: currentColor;
 }
 
 .fc-back-title {
@@ -10316,6 +10327,16 @@ button.record:hover {
   font-size: 1.3em;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+/* Grid cards held ready off screen sit still (CardGrid marks the ones in view). */
+.grid-card:not([data-on]) :is(.fc-sparks, .fc-holo, .fc-sweep) {
+  display: none;
+}
+
+.grid-card:not([data-on]) .fc-frame::before,
+.grid-card:not([data-on]) .fc-rarity::after {
+  animation: none;
 }
 
 /* The rings grow out from the heart when a card is looked at closely. */
@@ -10342,14 +10363,18 @@ button.record:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fc-sparks path,
+  .fc-sparks i,
   .fc-holo,
   .fc-sweep,
-  .fc.is-rare .fc-front,
-  .fc.is-legend .fc-front,
-  .fc-rarity,
-  .fc.is-legend .fc-kin-word {
+  .fc-frame::before,
+  .fc-rarity::after,
+  .spot-card.is-legend .fc-kin-word,
+  .spot-card.is-legend .fc-kin-word::before {
     animation: none;
+  }
+
+  .fc-sparks {
+    display: none;
   }
 }
 

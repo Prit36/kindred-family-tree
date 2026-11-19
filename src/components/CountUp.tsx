@@ -27,8 +27,45 @@ export function useCountUp(value: number, ms = 900, from = 0): number {
   return shown;
 }
 
-/** `value`, counted up to and written with thousands separators. */
-export function CountUp({ value, ms, className }: { value: number; ms?: number; className?: string }) {
-  const n = useCountUp(value, ms);
-  return <span className={className}>{n.toLocaleString()}</span>;
+/** One formatter for every count: `toLocaleString` builds a new one on each call. */
+const format = new Intl.NumberFormat();
+
+/**
+ * `value`, counted up to and written with thousands separators. Each frame of the count
+ * is written straight into the text node, so counting re-renders nothing.
+ */
+export function CountUp({ value, ms = 900, className }: { value: number; ms?: number; className?: string }) {
+  const el = useRef<HTMLSpanElement>(null);
+  // Where the count stands, kept across value changes so a new count runs on from it.
+  const shown = useRef(still() ? value : 0);
+  useEffect(() => {
+    const node = el.current;
+    if (!node) return;
+    const write = (n: number) => {
+      shown.current = n;
+      // Into React's own text node, so a later render still finds it.
+      if (node.firstChild) node.firstChild.nodeValue = format.format(n);
+      else node.textContent = format.format(n);
+    };
+    if (still()) {
+      write(value);
+      return;
+    }
+    const start = performance.now();
+    const a = shown.current;
+    let frame = 0;
+    const step = (t: number) => {
+      const k = Math.min(1, Math.max(0, (t - start) / ms));
+      const n = Math.round(a + (value - a) * (1 - Math.pow(1 - k, 3)));
+      if (n !== shown.current) write(n);
+      if (k < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [value, ms]);
+  return (
+    <span ref={el} className={className}>
+      {format.format(shown.current)}
+    </span>
+  );
 }
