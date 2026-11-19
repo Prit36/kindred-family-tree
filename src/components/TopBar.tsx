@@ -20,6 +20,7 @@ import {
   TreeDeciduous,
   Undo2,
   Upload,
+  WalletCards,
 } from 'lucide-react';
 import type { Person } from '../types';
 import { useStore, type ViewMode } from '../store';
@@ -32,6 +33,8 @@ import { NAMINGS, relationLabels } from '../lib/naming';
 import { fullName, hasPeople } from '../lib/tree';
 import { isTouch } from '../lib/touchHold';
 import { Avatar } from './Avatar';
+import { useSlidingThumb } from './SlidingThumb';
+import { switchView } from '../lib/viewSwap';
 
 function Logo() {
   return (
@@ -390,11 +393,12 @@ function NamingMenu() {
   );
 }
 
-/** Tree, descendants fan or timeline. */
+/** Tree, descendants fan, timeline or cards - one pill slides to the one on show. */
 function ViewSwitch() {
   const mode = useStore((s) => s.mode);
-  const setMode = useStore((s) => s.setMode);
-  const keys: Record<ViewMode, string> = { tree: 'T', timeline: 'T', fan: 'D' };
+  const ref = useRef<HTMLDivElement>(null);
+  useSlidingThumb(ref, mode);
+  const keys: Record<ViewMode, string> = { tree: 'T', timeline: 'T', fan: 'D', cards: 'K' };
   const option = (value: ViewMode, label: string, icon: ReactNode) => (
     <button
       type="button"
@@ -402,17 +406,19 @@ function ViewSwitch() {
       aria-checked={mode === value}
       aria-label={label}
       data-tip={mode === value ? undefined : `${label} (${keys[value]})`}
-      onClick={() => setMode(value)}
+      onClick={() => switchView(value)}
     >
       {icon}
       <span className="view-switch-label">{label}</span>
     </button>
   );
   return (
-    <div className="segmented view-switch" role="radiogroup" aria-label="View">
+    <div className="segmented view-switch" role="radiogroup" aria-label="View" ref={ref}>
+      <span className="seg-thumb" aria-hidden="true" />
       {option('tree', 'Tree', <Network size={15} />)}
       {option('fan', 'Descendants', <TreeDeciduous size={15} />)}
       {option('timeline', 'Timeline', <ChartGantt size={15} />)}
+      {option('cards', 'Cards', <WalletCards size={15} />)}
     </div>
   );
 }

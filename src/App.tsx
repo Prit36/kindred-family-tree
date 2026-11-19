@@ -16,11 +16,13 @@ import type { CropView } from './lib/crop';
 import { releasePhoto, type PhotoSource } from './lib/files';
 import { focusSet, type FocusScope } from './lib/branches';
 import { installTouchHold, isTouch } from './lib/touchHold';
+import { switchView } from './lib/viewSwap';
 import { familySides, focusTitle, sideForFocus } from './lib/sides';
 import { NAMINGS, relationName } from './lib/naming';
 import { deletePerson, fullName, hasPeople, pathBetween, shortName } from './lib/tree';
 import { Avatar } from './components/Avatar';
 import { Canvas } from './components/Canvas';
+import { CardsView } from './components/CardsView';
 import { FanView } from './components/FanView';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { InsightsDialog } from './components/InsightsDialog';
@@ -43,6 +45,7 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
       [['/'], 'Search by name, place, year or relationship'],
       [['T'], 'Switch between the tree and the timeline'],
       [['D'], "Show the selected person's descendants as a tree of generations"],
+      [['K'], "Family cards, and the Who's who? game"],
       [['L'], 'Switch names and relationships between English, ગુજરાતી and Gujarati in English letters'],
       [['H'], 'Jump back to yourself'],
       [['F'], 'Fit the tree on screen'],
@@ -68,6 +71,15 @@ const SHORTCUTS: { title: string; rows: [keys: string[], what: string][] }[] = [
       [['←', '→'], 'Along the same generation'],
       [['C'], 'Put the selected person at the foot of the tree - or double-click them'],
       [['F'], 'Fit the whole family on screen'],
+    ],
+  },
+  {
+    title: 'Family cards',
+    rows: [
+      [['←', '→'], 'The card before or after, in the spotlight'],
+      [['Space'], 'Turn the card in the spotlight over'],
+      [['1', '4'], "Answer in Who's who?"],
+      [['Enter'], 'The next card'],
     ],
   },
   {
@@ -473,6 +485,7 @@ export default function App() {
   const dialogOpen = useStore((s) => s.dialog !== null);
   const timeline = useStore((s) => s.mode === 'timeline') && !empty;
   const fan = useStore((s) => s.mode === 'fan') && !empty;
+  const cards = useStore((s) => s.mode === 'cards') && !empty;
   const dragging = useFileDrop();
 
   useEffect(installTouchHold, []);
@@ -507,11 +520,14 @@ export default function App() {
       } else if (e.key === '?') {
         openDialog({ type: 'shortcuts' });
       } else if (e.key.toLowerCase() === 't') {
-        const { mode, setMode, tree } = useStore.getState();
-        if (hasPeople(tree)) setMode(mode === 'timeline' ? 'tree' : 'timeline');
+        const { mode, tree } = useStore.getState();
+        if (hasPeople(tree)) switchView(mode === 'timeline' ? 'tree' : 'timeline');
       } else if (e.key.toLowerCase() === 'd') {
-        const { mode, setMode, tree } = useStore.getState();
-        if (hasPeople(tree)) setMode(mode === 'fan' ? 'tree' : 'fan');
+        const { mode, tree } = useStore.getState();
+        if (hasPeople(tree)) switchView(mode === 'fan' ? 'tree' : 'fan');
+      } else if (e.key.toLowerCase() === 'k') {
+        const { mode, tree } = useStore.getState();
+        if (hasPeople(tree)) switchView(mode === 'cards' ? 'tree' : 'cards');
       } else if (e.key.toLowerCase() === 'l') {
         // English → ગુજરાતી → Gujarati in English letters → English
         const { naming, setNaming } = useStore.getState();
@@ -519,6 +535,9 @@ export default function App() {
         const next = NAMINGS[(order.indexOf(naming) + 1) % order.length];
         setNaming(next.value);
         useStore.getState().toast(`Relationship names: ${next.label}`);
+      } else if (useStore.getState().mode === 'cards') {
+        // The cards have keys of their own; nobody is selected there.
+        return;
       } else if (e.key.toLowerCase() === 'b') {
         // B shows the selected person's direct line, Shift+B their whole family; pressing it
         // again (or with nobody selected) goes back to the whole tree.
@@ -544,11 +563,12 @@ export default function App() {
   }, []);
 
   return (
-    <div className={`app${timeline ? ' is-timeline' : ''}${fan ? ' is-fan' : ''}`}>
+    <div className={`app${timeline ? ' is-timeline' : ''}${fan ? ' is-fan' : ''}${cards ? ' is-cards' : ''}`}>
       {/* The tree stays mounted under the timeline so it keeps its place. */}
       <Canvas />
       {timeline && <Timeline />}
       {fan && <FanView />}
+      {cards && <CardsView />}
       <TopBar />
       {empty && <Welcome />}
       <Banners />

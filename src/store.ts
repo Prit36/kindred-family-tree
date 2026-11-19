@@ -25,8 +25,8 @@ const THEME_KEY = 'kindred.theme';
 const HISTORY_LIMIT = 100;
 
 export type Theme = 'light' | 'dark';
-/** The family as a tree, everyone's lifetimes on a time axis, or one person's descendants as a fan. */
-export type ViewMode = 'tree' | 'timeline' | 'fan';
+/** The family as a tree, everyone's lifetimes on a time axis, one person's descendants as a fan, or everyone as collectible cards. */
+export type ViewMode = 'tree' | 'timeline' | 'fan' | 'cards';
 
 const MODE_KEY = 'kindred.mode';
 const SIDES_KEY = 'kindred.sides';
@@ -151,7 +151,7 @@ function loadSidesPrefs(): SidesPrefs {
 function loadMode(): ViewMode {
   try {
     const v = localStorage.getItem(MODE_KEY);
-    return v === 'timeline' || v === 'fan' ? v : 'tree';
+    return v === 'timeline' || v === 'fan' || v === 'cards' ? v : 'tree';
   } catch {
     return 'tree';
   }

@@ -4,6 +4,7 @@ import {
   useReducer,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
@@ -168,7 +169,8 @@ function yearSpan(people: Person[]): string {
 const SHEET_QUERY = '(max-width: 859px) and (min-height: 501px)';
 
 export function PersonPanel() {
-  const person = useStore((s) => (s.selectedId ? s.tree.people[s.selectedId] : undefined));
+  // The cards have a spotlight of their own instead.
+  const person = useStore((s) => (s.selectedId && s.mode !== 'cards' ? s.tree.people[s.selectedId] : undefined));
   // On a phone the sheet opens small - name and actions - so the tree stays in sight.
   // It stays as big as you left it while you go from person to person.
   const [expanded, setExpanded] = useState(false);
@@ -585,7 +587,7 @@ function Details({
                 key={child.id}
                 type="button"
                 className={`pp-life-mark g-${child.gender}${x < 0.25 ? ' tip-start' : x > 0.75 ? ' tip-end' : ''}`}
-                style={{ left: `${x * 100}%` }}
+                style={{ left: `${x * 100}%`, '--x': x } as CSSProperties}
                 aria-label={`${displayName(child)}, born ${yearOf(child.birthDate)}`}
                 data-tip={`${shortName(child)}, ${yearOf(child.birthDate)} - when ${shortName(person)} was ${aged}`}
                 onClick={() => select(child.id, true)}

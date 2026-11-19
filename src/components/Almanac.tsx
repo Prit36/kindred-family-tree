@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { CalendarDays, Flower2 } from 'lucide-react';
 import { useStore } from '../store';
 import {
@@ -17,6 +17,8 @@ import { num } from '../lib/format';
 import { relationLabels } from '../lib/naming';
 import { displayName, fullName, shortName, shown } from '../lib/tree';
 import { Avatar } from './Avatar';
+import { CountUp } from './CountUp';
+import { confettiFrom } from '../lib/confetti';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -205,6 +207,24 @@ export function ComingUp({ onShow }: { onShow: (ids: string[]) => void }) {
   }, [cells, now]);
   const picked = pickedDay !== null && pickedDay < cells.length ? pickedDay : fallback;
   const cell = cells[picked];
+  const isToday = daysBetween(now, cell.date) === 0;
+  const birthdaysToday = cell.entries.some((e) => e.kind === 'birthday');
+
+  // Someone's birthday today: a burst of paper over their faces, the first time the
+  // almanac is opened that day.
+  const facesRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isToday || !birthdaysToday) return;
+    const key = `kindred.party.${now.toDateString()}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+    } catch {
+      /* celebrate anyway */
+    }
+    const t = window.setTimeout(() => confettiFrom(facesRef.current, { count: 110 }), 450);
+    return () => window.clearTimeout(t);
+  }, [isToday, birthdaysToday, now]);
 
   const total = cells.reduce((sum, c) => sum + c.entries.length, 0);
   const centre =
@@ -237,7 +257,11 @@ export function ComingUp({ onShow }: { onShow: (ids: string[]) => void }) {
         {cell.entries.length === 0 ? (
           <p className="insights-empty">Nobody's day.</p>
         ) : (
-          <div className="faces" key={cell.date.getTime()}>
+          <div
+            className={`faces${isToday && birthdaysToday ? ' is-party' : ''}`}
+            key={cell.date.getTime()}
+            ref={facesRef}
+          >
             {cell.entries.map((e) => (
               <Face key={`${e.kind}-${e.person.id}`} entry={e} kin={kin.get(e.person.id)} onShow={onShow} />
             ))}
@@ -283,11 +307,11 @@ export function FamilyNumbers({ onShow }: { onShow: (ids: string[]) => void }) {
   return (
     <div className="almanac-pane numbers" role="tabpanel">
       <p className="numbers-lead">
-        <b>{num(n.people)}</b> {n.people === 1 ? 'person' : 'people'}
+        <b><CountUp value={n.people} ms={1100} /></b> {n.people === 1 ? 'person' : 'people'}
         {n.families > 1 && (
           <>
             {' '}
-            in <b>{num(n.families)}</b> families
+            in <b><CountUp value={n.families} ms={1100} /></b> families
           </>
         )}
         {n.firstYear && n.lastYear && n.lastYear > n.firstYear && (
